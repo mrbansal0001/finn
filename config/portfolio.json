@@ -1,0 +1,119 @@
+{
+  "note": "Mock portfolio for the ENAM challenge: 18 NSE stocks across sectors and sizes. Weights are illustrative (% of portfolio).",
+  "holdings": [
+    {
+      "symbol": "HDFCBANK",
+      "sector": "Private bank",
+      "size": "large",
+      "weight": 11
+    },
+    {
+      "symbol": "SBIN",
+      "sector": "PSU bank",
+      "size": "large",
+      "weight": 9
+    },
+    {
+      "symbol": "BAJFINANCE",
+      "sector": "NBFC",
+      "size": "large",
+      "weight": 6
+    },
+    {
+      "symbol": "INFY",
+      "sector": "IT services",
+      "size": "large",
+      "weight": 10
+    },
+    {
+      "symbol": "RELIANCE",
+      "sector": "Energy / conglomerate",
+      "size": "large",
+      "weight": 11
+    },
+    {
+      "symbol": "ITC",
+      "sector": "FMCG",
+      "size": "large",
+      "weight": 7
+    },
+    {
+      "symbol": "TITAN",
+      "sector": "Consumer / jewellery",
+      "size": "large",
+      "weight": 5
+    },
+    {
+      "symbol": "MARUTI",
+      "sector": "Autos",
+      "size": "large",
+      "weight": 5
+    },
+    {
+      "symbol": "SUNPHARMA",
+      "sector": "Pharma",
+      "size": "large",
+      "weight": 5
+    },
+    {
+      "symbol": "LT",
+      "sector": "Capital goods / EPC",
+      "size": "large",
+      "weight": 6
+    },
+    {
+      "symbol": "BEL",
+      "sector": "Defence PSU",
+      "size": "large",
+      "weight": 6
+    },
+    {
+      "symbol": "BHARATFORG",
+      "sector": "Auto ancillary / defence",
+      "size": "mid",
+      "weight": 4
+    },
+    {
+      "symbol": "DEEPAKNTR",
+      "sector": "Chemicals",
+      "size": "mid",
+      "weight": 4
+    },
+    {
+      "symbol": "TATACHEM",
+      "sector": "Chemicals",
+      "size": "mid",
+      "weight": 3
+    },
+    {
+      "symbol": "KALYANKJIL",
+      "sector": "Jewellery retail",
+      "size": "mid",
+      "weight": 3
+    },
+    {
+      "symbol": "COCHINSHIP",
+      "sector": "Shipbuilding PSU",
+      "size": "mid",
+      "weight": 2
+    },
+    {
+      "symbol": "ATHERENERG",
+      "sector": "EV two-wheelers (2025 IPO)",
+      "size": "mid",
+      "weight": 2
+    },
+    {
+      "symbol": "SHAILY",
+      "sector": "Engineering plastics",
+      "size": "small",
+      "weight": 1
+    }
+  ],
+  "research_set": [
+    "LGEINDIA",
+    "DIXON",
+    "PERSISTENT",
+    "KOKUYOCMLN"
+  ]
+}
