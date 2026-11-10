@@ -10,7 +10,7 @@
   --paper-raised: #fffdf8;
   --ink: #16150f;
   --ink-2: #57544b;      /* secondary ink: metadata, inferred text */
-  --ink-3: #8b877c;      /* tertiary: timestamps, folds */
+  --ink-3: #736f64;      /* tertiary: timestamps, folds (4.6:1 on paper, WCAG AA) */
   --rule: #e2ddd1;       /* hairlines */
   --accent: #2448a5;     /* the one accent: links, network line, focus */
   --up: #0f7b3f;
@@ -18,9 +18,9 @@
   --s-delivered: #0f7b3f;
   --s-partly: #a86200;
   --s-missed: #b42318;
-  --s-silent: #8b877c;
+  --s-silent: #7d796f;    /* glyphs >= 3:1 (WCAG non-text contrast) */
   --s-revised: #2448a5;
-  --s-early: #b9b4a7;
+  --s-early: #8b877c;
   --sheet-shadow: 0 -8px 32px rgb(22 21 15 / 0.12);
 }
 
@@ -30,7 +30,7 @@
     --paper-raised: #191917;
     --ink: #eceae3;
     --ink-2: #a8a49a;
-    --ink-3: #75726a;
+    --ink-3: #8f8b82;
     --rule: #2a2926;
     --accent: #8aa6f0;
     --up: #45c07f;
@@ -38,9 +38,9 @@
     --s-delivered: #45c07f;
     --s-partly: #e3a03a;
     --s-missed: #f0716a;
-    --s-silent: #75726a;
+    --s-silent: #8f8b82;
     --s-revised: #8aa6f0;
-    --s-early: #4a4842;
+    --s-early: #75726a;
     --sheet-shadow: 0 -8px 32px rgb(0 0 0 / 0.5);
   }
 }
