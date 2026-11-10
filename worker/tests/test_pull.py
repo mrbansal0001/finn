@@ -57,3 +57,11 @@ def test_quote_verification_tolerates_hyphenation_and_fixes_page():
     item = {"quote": "We expect the commissioning of the MIBK plant within this quarter.", "page": 2}
     assert pull.verify(item, pages) == 3
     assert pull.verify({"quote": "We will double revenue next year.", "page": 3}, pages) is None
+
+
+def test_copy_lint_rejects_slop_and_numberless_why():
+    from finn_worker.reader import lint
+    good = lint({"headline": "Noel Tata retires as Vice Chairman", "why": "Effective 5 Nov 2026; he joined the board in 2011."})
+    assert good["headline_ok"] and good["why"]
+    bad = lint({"headline": "Update on board meeting outcome", "why": "This is a significant development for the company."})
+    assert not bad["headline_ok"] and bad["why"] is None

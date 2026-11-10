@@ -31,10 +31,12 @@ def snapshot(until: datetime | None = None) -> dict:
     until = until or max(datetime.fromisoformat(f["published_at"]) for f in filings)
 
     res = {}
-    for r in con.execute(f"select * from results where symbol in ({q}) order by period_end", syms):
-        # consolidated preferred (D-021); later rows (newer periods) overwrite older
-        if r["symbol"] in res and r["nature"] != "Consolidated" and res[r["symbol"]]["nature"] == "Consolidated":
-            continue
+    rank = lambda r: (r["period_end"], r["nature"] == "Consolidated",
+                      r["comparatives_json"] is not None and r["check_status"] in ("xbrl_match", "arithmetic_ok"))
+    for r in sorted(con.execute(f"select * from results where symbol in ({q})", syms), key=rank):
+        # newest period, consolidated preferred (D-021), checked table with QoQ/YoY preferred over XBRL-only
+        if r["comparatives_json"] is not None and r["check_status"] not in ("xbrl_match", "arithmetic_ok"):
+            continue  # a table that failed its checks is never shown
         res[r["symbol"]] = {"period_end": r["period_end"], "nature": r["nature"], "reporting": r["reporting"],
                             "source": r["source"], "source_url": r["source_url"], "check": r["check_status"],
                             "values": json.loads(r["values_json"]),
@@ -44,13 +46,22 @@ def snapshot(until: datetime | None = None) -> dict:
     latest = [{**m.__dict__, "day": m.day.isoformat()} for m in prices.moves(sessions, syms)]
     mv = [{**m.__dict__, "day": m.day.isoformat()} for m in prices.moves_series(sessions, syms)]
 
-    editions = {k: cards.build(filings, mv, weights, names, until - w, until, res) for k, w in WINDOWS.items()}
+    events: dict[str, list[dict]] = {}
+    for e in con.execute(f"select filing_id, card from events where symbol in ({q})", syms):
+        events.setdefault(e["filing_id"], []).append(json.loads(e["card"]))
+    editions = {k: cards.build(filings, mv, weights, names, until - w, until, res, events) for k, w in WINDOWS.items()}
 
     # The Network, inside Push and Pull (D-023). Local and deterministic.
     contacts, edges = network.load()
     today = until.date()
     for ed in editions.values():
         network.annotate(ed["leads"] + ed["more"], today, contacts, edges)
+        # people named in a filing: person-level matches first (dates overlap > same organisation)
+        for c in ed["leads"] + ed["more"]:
+            person_lines = [ln for p in c["facts"].get("people", []) for ln in network.for_person(p, contacts, today)]
+            if person_lines:
+                seen = {ln["contact_id"] for ln in person_lines}
+                c["network"] = (person_lines + [ln for ln in c["network"] if ln["contact_id"] not in seen])[:3]
     people = {s: network.second_degree(network.for_company(s, contacts, today), contacts, edges, today)
               for s in names}
     verifiers = {}

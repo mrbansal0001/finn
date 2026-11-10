@@ -32,7 +32,9 @@ export function ResultsTable({ r }: { r: ResultsFacts }) {
       ];
 
   const margin = c?.current?.ebitda_margin_pct;
-  const exceptional = (c?.current?.exceptional ?? (v.exceptional as number | null)) || null;
+  // comparatives are in ₹ crore; raw XBRL values are in rupees
+  const exceptionalLabel = c ? (c.current?.exceptional ? croreFromCr(c.current.exceptional) : null)
+    : (v.exceptional ? crore(v.exceptional as number) : null);
 
   return (
     <figure className="mt-3">
@@ -68,7 +70,7 @@ export function ResultsTable({ r }: { r: ResultsFacts }) {
       <figcaption className="mt-1.5 text-[0.75rem] leading-snug text-ink-3">
         {r.nature}
         {r.reporting === "Half Yearly" ? " · half-yearly reporter, no QoQ" : ""}
-        {exceptional ? ` · includes exceptional item ${crore(exceptional)}` : ""}
+        {exceptionalLabel ? ` · includes exceptional item ${exceptionalLabel}` : ""}
         {" · "}
         {r.check === "xbrl_exact" && !c
           ? "exact from XBRL; QoQ/YoY appear once the comparison table is read"

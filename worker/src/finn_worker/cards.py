@@ -67,9 +67,13 @@ _PREFIX = re.compile(
 def rule_headline(summary: str, subject: str) -> str | None:
     """A headline from NSE's own summary when it carries the news; None when it's boilerplate."""
     s = _PREFIX.sub("", (summary or "").strip()).strip(" .'\"")
-    m = re.search(r"titled\s+[\"“']([^\"”']{8,120})", summary or "")
-    if m and m.group(1).strip().lower() not in ("press release",):
-        return m.group(1).strip().rstrip(".")
+    m = re.search(r"titled\s+[\"“']([^\"”']{3,120})", summary or "")
+    if m:
+        title = m.group(1).strip().rstrip(".")
+        # a release titled "Press Release" says nothing; leave it for the reader
+        return None if title.lower() in ("press release", "press release.", "media release") else title
+    if re.search(r"press release dated", summary or "", re.I):
+        return None
     m = re.search(r"[\"“'‘]([^\"”'’]{15,140})[\"”'’]", s)
     if m:
         return m.group(1).strip()
@@ -86,7 +90,8 @@ def rule_headline(summary: str, subject: str) -> str | None:
 
 
 def build(filings: list[dict], moves: list[dict], weights: dict[str, float], names: dict[str, str],
-          since: datetime, until: datetime, results: dict[str, dict] | None = None) -> dict:
+          since: datetime, until: datetime, results: dict[str, dict] | None = None,
+          events: dict[str, list[dict]] | None = None) -> dict:
     """Return the Edition: leads, more, routine fold, counts. `filings` rows come from store."""
     in_window = [f for f in filings if since <= datetime.fromisoformat(f["published_at"]) <= until]
     cards: list[Card] = []
@@ -112,11 +117,19 @@ def build(filings: list[dict], moves: list[dict], weights: dict[str, float], nam
         headline = None if cat == "results" else next(
             (h for f in fs if (h := rule_headline(f["summary"], f["subject"]))), None)
         needs_read = headline is None or any(f["needs_document"] for f in fs)
+        why, facts, source = None, {}, "rule" if headline else "pending"
+        read = [e for f in fs for e in (events or {}).get(f["id"], [])]
+        if read:
+            needs_read = False
+            best = next((e for e in read if e.get("headline_ok")), None)
+            if best:
+                headline, why, source = best["headline"], best.get("why"), "model"
+                facts = {k: best[k] for k in ("people", "amount_inr_cr", "counterparty", "quote", "page") if best.get(k)}
         cid = hashlib.sha1(("|".join(f["id"] for f in fs)).encode()).hexdigest()[:12]
         cards.append(Card(
             id=cid, symbol=sym, company=names.get(sym, lead["company_name"]), kind=cat, tier=tier,
             at=lead["published_at"], nse_subject=lead["subject"], headline=headline,
-            headline_source="rule" if headline else "pending", why=None,
+            headline_source=source, why=why, facts=facts,
             sources=[Source(_source_label(f), f["link"]) for f in fs if f["link"]],
             needs_read=needs_read,
         ))
@@ -124,9 +137,14 @@ def build(filings: list[dict], moves: list[dict], weights: dict[str, float], nam
     for c in cards:
         if c.kind == "results" and results and c.symbol in results:
             r = results[c.symbol]
-            c.facts = {"results": r}
+            c.facts = {**c.facts, "results": r}
             v = r["values"]
-            if v.get("revenue") and v.get("pat") is not None:
+            cmp_ = r.get("comparatives")
+            if cmp_ and cmp_.get("yoy"):
+                c.headline, c.why = results_copy(cmp_)
+                c.headline_source = "rule"
+                c.needs_read = False
+            elif v.get("revenue") and v.get("pat") is not None:
                 c.headline = (f"Q{_fy_quarter(r['period_end'])} revenue ₹{v['revenue']/1e7:,.0f} cr, "
                               f"profit ₹{v['pat']/1e7:,.0f} cr")
                 c.headline_source = "xbrl"
@@ -186,3 +204,33 @@ def _fy_quarter(period_end: str) -> str:
     q = {6: 1, 9: 2, 12: 3, 3: 4}.get(mth, 0)
     fy = y + 1 if mth >= 4 else y
     return f"{q}FY{fy % 100:02d}"
+
+
+def _dir(x: float) -> str:
+    return "up" if x >= 0 else "down"
+
+
+def results_copy(n: dict) -> tuple[str, str | None]:
+    """Results headline and 'why' written from computed numbers only (no model)."""
+    y, cur = n.get("yoy", {}), n.get("current", {})
+    if n.get("is_bank"):
+        top, top_label = y.get("nii"), "NII"
+    else:
+        top, top_label = y.get("revenue"), "Revenue"
+    pat = y.get("pat")
+    parts = []
+    if top is not None:
+        parts.append(f"{top_label} {_dir(top)} {abs(top):.1f}% YoY")
+    if pat is not None:
+        parts.append(f"profit {_dir(pat)} {abs(pat):.1f}%")
+    headline = ", ".join(parts) or "Results filed"
+    why = []
+    if cur.get("ebitda_margin_pct") is not None and y.get("ebitda_margin_bp") is not None:
+        bp = y["ebitda_margin_bp"]
+        why.append(f"EBITDA margin {cur['ebitda_margin_pct']:.1f}%, {'+' if bp >= 0 else '−'}{abs(bp)}bp YoY.")
+    if cur.get("exceptional") and y.get("pbt_ex_exceptional") is not None:
+        why.append(f"PBT includes a ₹{abs(cur['exceptional']):,.0f} cr exceptional item; before it, PBT {_dir(y['pbt_ex_exceptional'])} "
+                   f"{abs(y['pbt_ex_exceptional']):.1f}% YoY.")
+    if n.get("is_bank") and cur.get("gnpa_pct") is not None:
+        why.append(f"Gross NPA {cur['gnpa_pct']:.2f}%.")
+    return headline[0].upper() + headline[1:], " ".join(why) or None

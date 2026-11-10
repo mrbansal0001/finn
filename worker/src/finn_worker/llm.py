@@ -163,11 +163,16 @@ def _openai_schema(schema: dict) -> dict:
     return s
 
 
-def structured(purpose: str, system: str, parts: list[Part], schema: dict, tier: str = "fast") -> dict:
-    """Run one structured extraction. Gemini first, OpenAI on failure (within budget)."""
+def structured(purpose: str, system: str, parts: list[Part], schema: dict, tier: str = "fast",
+               personal_data: bool = False) -> dict:
+    """Run one structured extraction. Gemini first, OpenAI on failure (within budget).
+
+    personal_data=True (filings about named people, their bios) skips the Gemini free
+    tier, whose terms allow training on inputs and ask users not to send personal
+    information, and goes only to the paid API that does not train on inputs (D-025)."""
     con = store.connect()
     errors = []
-    gm = pick_gemini(tier) if os.getenv("GEMINI_API_KEY") else None
+    gm = pick_gemini(tier) if os.getenv("GEMINI_API_KEY") and not personal_data else None
     if gm:
         try:
             out, tin, tout = _gemini(gm, system, parts, schema)
