@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { applyPrefs, parsePrefs, PREFS_COOKIE } from "@/lib/prefs";
-import { getSnapshot } from "@/lib/data";
+import { getView } from "@/lib/data";
 import type { WindowKey } from "@/lib/types";
 import { longDate, when } from "@/lib/format";
 import { EditionCard } from "@/components/EditionCard";
@@ -35,7 +35,7 @@ function Loading() {
 }
 
 async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchParams"] }) {
-  const [sp, jar, snap] = await Promise.all([searchParams, cookies(), getSnapshot()]);
+  const [sp, jar, snap] = await Promise.all([searchParams, cookies(), getView()]);
   const prefs = parsePrefs(jar.get(PREFS_COOKIE)?.value);
   const w = (WINDOWS.find((x) => x.key === sp.w)?.key ?? "7d") as WindowKey;
   const ed = applyPrefs(structuredClone(snap.editions[w]), prefs);

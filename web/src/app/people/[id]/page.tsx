@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { getSnapshot } from "@/lib/data";
+import { getView } from "@/lib/data";
 import type { Contact } from "@/lib/types";
 import { NoteDraft } from "@/components/NoteDraft";
 
@@ -15,7 +15,7 @@ export default function PersonPage({ params }: PageProps<"/people/[id]">) {
 
 async function Person({ params }: { params: PageProps<"/people/[id]">["params"] }) {
   const { id } = await params;
-  const snap = await getSnapshot();
+  const snap = await getView();
   const c = snap.contacts.find((x) => x.id === id);
   if (!c) notFound();
   const today = new Date(snap.data_until);

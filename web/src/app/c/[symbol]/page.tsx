@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { getLedger, getSnapshot } from "@/lib/data";
+import { getLedger, getView } from "@/lib/data";
 import { arrow, dirClass, pct, when } from "@/lib/format";
 import { EditionCard } from "@/components/EditionCard";
 import { PromisesLedger } from "@/components/PromisesLedger";
@@ -25,7 +25,7 @@ export default function CompanyPage({ params }: PageProps<"/c/[symbol]">) {
 async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] }) {
   const { symbol: raw } = await params;
   const symbol = decodeURIComponent(raw).toUpperCase();
-  const [snap, ledger] = await Promise.all([getSnapshot(), getLedger(symbol)]);
+  const [snap, ledger] = await Promise.all([getView(), getLedger(symbol)]);
   const holding = snap.portfolio.find((h) => h.symbol === symbol);
   const name = snap.names[symbol] ?? symbol;
   const price = snap.prices[symbol];
