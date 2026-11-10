@@ -30,6 +30,8 @@ export async function getLedger(symbol: string): Promise<Ledger | null> {
   "use cache";
   cacheLife("hours");
   const sym = symbol.toUpperCase();
+  // NSE symbols are A-Z, 0-9, '&' and '-'; anything else (e.g. '../') is rejected before touching disk or the API
+  if (!/^[A-Z0-9&-]{1,20}$/.test(sym)) return null;
   if (supabaseEnabled) {
     const r = await fetch(`${SUPABASE_URL}/rest/v1/ledgers?symbol=eq.${encodeURIComponent(sym)}&select=payload`, {
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
@@ -107,6 +109,7 @@ export async function getUniverse(): Promise<[string, string][]> {
 export type CoverageRequest = { symbol: string; status: string; requested_at: string; detail?: string | null };
 
 export async function getRequest(symbol: string): Promise<CoverageRequest | null> {
+  if (!/^[A-Z0-9&-]{1,20}$/.test(symbol)) return null;
   if (supabaseEnabled) {
     const sb = await supabaseForRequest();
     const { data } = await sb.from("coverage_requests").select("*").eq("symbol", symbol).maybeSingle();
