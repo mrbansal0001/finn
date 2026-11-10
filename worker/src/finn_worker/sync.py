@@ -65,8 +65,11 @@ def push() -> str:
     public, lines = split(snap)
     _upsert(http, base, "snapshot", [{"id": "current", "generated_at": snap["generated_at"],
                                       "data_until": snap["data_until"], "payload": public}])
-    ledgers = [{"symbol": p.stem, "provenance": "reference (hand-labelled)", "payload": json.loads(p.read_text())}
-               for p in (ROOT / "data" / "ledgers").glob("*.json")]
+    ledgers = []
+    for p in (ROOT / "data" / "ledgers").glob("*.json"):
+        payload = json.loads(p.read_text())
+        kind = "reference (hand-labelled)" if payload.get("provenance", "").startswith("Reference") else "model-built"
+        ledgers.append({"symbol": p.stem, "provenance": kind, "payload": payload})
     if ledgers:
         _upsert(http, base, "ledgers", ledgers)
     net = json.loads((ROOT / "config" / "network.json").read_text())
@@ -77,4 +80,30 @@ def push() -> str:
         "reciprocity": c["reciprocity"], "rating": c["rating"]} for c in net["contacts"]])
     _upsert(http, base, "demo_edges", net["edges"])
     _upsert(http, base, "demo_network_lines", [{"card_id": k, "lines": v} for k, v in lines.items()])
+    uni = json.loads((ROOT / "data" / "universe.json").read_text())
+    _upsert(http, base, "universe", [{"symbol": s, "name": n} for s, n in uni])
     return f"snapshot + {len(ledgers)} ledgers + {len(lines)} private network rows"
+
+
+def exchange_requests() -> str:
+    """Bring visitors' coverage requests down to the worker queue; send statuses back."""
+    c = _client()
+    qp = ROOT / "data" / "requests.json"
+    try:
+        local = json.loads(qp.read_text())
+    except (FileNotFoundError, json.JSONDecodeError):
+        local = []
+    if c is None:
+        return f"{len(local)} local requests (no Supabase)"
+    http, base = c
+    remote = http.get(f"{base}/coverage_requests?select=symbol,status,requested_at,detail").json()
+    by = {r["symbol"]: r for r in local}
+    for r in remote:
+        if r["symbol"] not in by:
+            by[r["symbol"]] = {"symbol": r["symbol"], "status": r["status"], "requested_at": r["requested_at"], "detail": r.get("detail")}
+    qp.write_text(json.dumps(list(by.values()), indent=1))
+    changed = [{"symbol": r["symbol"], "status": r["status"], "detail": r.get("detail"), "requested_at": r["requested_at"]}
+               for r in by.values()]
+    if changed:
+        _upsert(http, base, "coverage_requests", changed)
+    return f"{len(remote)} remote / {len(by)} total requests"

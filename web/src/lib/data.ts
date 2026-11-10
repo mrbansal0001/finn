@@ -84,3 +84,38 @@ export async function getView(): Promise<Snapshot> {
   const [snap, net] = await Promise.all([getSnapshot(), getNetwork()]);
   return withNetwork(snap, net);
 }
+
+/** All NSE equities as [symbol, name]; changes rarely. */
+export async function getUniverse(): Promise<[string, string][]> {
+  "use cache";
+  cacheLife("days");
+  if (supabaseEnabled) {
+    const out: [string, string][] = [];
+    for (let from = 0; ; from += 1000) {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/universe?select=symbol,name&order=symbol`, {
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, Range: `${from}-${from + 999}` },
+      });
+      const rows = (await r.json()) as { symbol: string; name: string }[];
+      out.push(...rows.map((x) => [x.symbol, x.name] as [string, string]));
+      if (rows.length < 1000) break;
+    }
+    return out;
+  }
+  return JSON.parse(await readFile(path.join(DATA_DIR, "universe.json"), "utf8")) as [string, string][];
+}
+
+export type CoverageRequest = { symbol: string; status: string; requested_at: string; detail?: string | null };
+
+export async function getRequest(symbol: string): Promise<CoverageRequest | null> {
+  if (supabaseEnabled) {
+    const sb = await supabaseForRequest();
+    const { data } = await sb.from("coverage_requests").select("*").eq("symbol", symbol).maybeSingle();
+    return (data as CoverageRequest) ?? null;
+  }
+  try {
+    const q = JSON.parse(await readFile(path.join(DATA_DIR, "requests.json"), "utf8")) as CoverageRequest[];
+    return q.find((r) => r.symbol === symbol) ?? null;
+  } catch {
+    return null;
+  }
+}

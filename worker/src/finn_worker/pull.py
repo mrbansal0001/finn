@@ -392,3 +392,38 @@ def link_with_model(calls: list[tuple[str, list[dict]]]) -> list[Thread]:
             else:
                 threads.append(Thread(f"P{len(threads) + 1}", it["metric"], it.get("period") or it.get("due"), [Mention(call, it)]))
     return threads
+
+
+# ------------------------------------------------------------------ coverage queue (local mode)
+
+def drain_requests(limit: int = 2) -> str:
+    """Build ledgers that visitors asked for. Requests live in data/requests.json locally
+    (Supabase coverage_requests in production, pulled by sync). Needs a model key."""
+    import json as _json
+    from pathlib import Path as _P
+    root = _P(__file__).resolve().parents[3]
+    qp = root / "data" / "requests.json"
+    try:
+        queue = _json.loads(qp.read_text())
+    except (FileNotFoundError, _json.JSONDecodeError):
+        return "no requests"
+    built = 0
+    for req in [r for r in queue if r["status"] == "queued"][:limit]:
+        req["status"] = "building"
+        qp.write_text(_json.dumps(queue, indent=1))
+        try:
+            if not discover(req["symbol"]):
+                req["status"], req["detail"] = "unavailable", "No earnings-call transcripts filed for this company."
+            else:
+                ledger = build(req["symbol"])
+                (root / "data" / "ledgers").mkdir(parents=True, exist_ok=True)
+                (root / "data" / "ledgers" / f"{req['symbol']}.json").write_text(_json.dumps(ledger, ensure_ascii=False, indent=1))
+                req["status"], built = "ready", built + 1
+        except llm.LLMUnavailable as e:
+            req["status"], req["detail"] = "queued", f"waiting for model: {str(e)[:80]}"
+            qp.write_text(_json.dumps(queue, indent=1))
+            break
+        except Exception as e:  # keep the queue moving
+            req["status"], req["detail"] = "unavailable", f"{type(e).__name__}: {str(e)[:120]}"
+        qp.write_text(_json.dumps(queue, indent=1))
+    return f"built {built}"

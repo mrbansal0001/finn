@@ -70,6 +70,9 @@ def once() -> None:
     except ImportError:
         pass
 
+    from . import pull, sync as _sync
+    step("requests_in", _sync.exchange_requests)
+    step("coverage_queue", pull.drain_requests)
     step("export", export.main)
     try:
         from . import sync

@@ -13,6 +13,7 @@ import type { Edition } from "@/lib/types";
 export function Dock({ edition }: { edition: Edition }) {
   const router = useRouter();
   const [q, setQ] = useState("");
+  const [hits, setHits] = useState<[string, string][]>([]);
   const [speaking, setSpeaking] = useState(false);
   const [canSpeak, setCanSpeak] = useState(false);
   const utter = useRef<SpeechSynthesisUtterance | null>(null);
@@ -21,6 +22,24 @@ export function Dock({ edition }: { edition: Edition }) {
     setCanSpeak(typeof window !== "undefined" && "speechSynthesis" in window);
     return () => window.speechSynthesis?.cancel();
   }, []);
+
+  useEffect(() => {
+    if (q.trim().length < 2) {
+      setHits([]);
+      return;
+    }
+    const ctl = new AbortController();
+    const t = setTimeout(() => {
+      fetch(`/api/search?q=${encodeURIComponent(q.trim())}`, { signal: ctl.signal })
+        .then((r) => r.json())
+        .then(setHits)
+        .catch(() => {});
+    }, 150);
+    return () => {
+      clearTimeout(t);
+      ctl.abort();
+    };
+  }, [q]);
 
   function brief() {
     if (speaking) {
@@ -45,13 +64,29 @@ export function Dock({ edition }: { edition: Edition }) {
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    const sym = q.trim().toUpperCase().replace(/[^A-Z0-9&-]/g, "");
+    const sym = hits[0]?.[0] ?? q.trim().toUpperCase().replace(/[^A-Z0-9&-]/g, "");
     if (sym) router.push(`/c/${encodeURIComponent(sym)}`);
   }
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-20 border-t border-rule bg-paper/95 backdrop-blur supports-[backdrop-filter]:bg-paper/80">
       <div className="mx-auto max-w-[480px] px-4 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2">
+        {hits.length > 0 && (
+          <ul className="mb-2 max-h-64 overflow-y-auto rounded-md border border-rule bg-paper-raised" role="listbox" aria-label="Matching companies">
+            {hits.map(([s, n]) => (
+              <li key={s} role="option" aria-selected={false}>
+                <button
+                  type="button"
+                  onClick={() => router.push(`/c/${s}`)}
+                  className="flex min-h-[44px] w-full items-center gap-3 px-3 text-left text-[0.875rem] hover:bg-paper"
+                >
+                  <span className="num w-24 shrink-0 text-ink">{s}</span>
+                  <span className="truncate text-ink-2">{n}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
         <form onSubmit={submit} role="search">
           <label htmlFor="ask" className="sr-only">
             Research any NSE company

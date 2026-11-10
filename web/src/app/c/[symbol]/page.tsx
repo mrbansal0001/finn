@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { getLedger, getView } from "@/lib/data";
+import { getLedger, getRequest, getUniverse, getView } from "@/lib/data";
+import { requestCoverage } from "./actions";
 import { arrow, dirClass, pct, when } from "@/lib/format";
 import { EditionCard } from "@/components/EditionCard";
 import { PromisesLedger } from "@/components/PromisesLedger";
@@ -25,9 +26,30 @@ export default function CompanyPage({ params }: PageProps<"/c/[symbol]">) {
 async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] }) {
   const { symbol: raw } = await params;
   const symbol = decodeURIComponent(raw).toUpperCase();
-  const [snap, ledger] = await Promise.all([getView(), getLedger(symbol)]);
+  const [snap, ledger, uni, req] = await Promise.all([getView(), getLedger(symbol), getUniverse(), getRequest(symbol)]);
+  const listed = uni.find(([s]) => s === symbol);
+  if (!listed) {
+    const close = uni.filter(([s, n]) => s.startsWith(symbol.slice(0, 3)) || n.toUpperCase().includes(symbol)).slice(0, 5);
+    return (
+      <main>
+        <nav className="text-[0.875rem]">
+          <Link href="/" className="inline-flex min-h-[44px] items-center text-ink-2 hover:text-ink">‹ Edition</Link>
+        </nav>
+        <h1 className="font-serif text-[1.5rem]">No NSE equity called {symbol}</h1>
+        {close.length > 0 && (
+          <ul className="mt-3 text-[0.9375rem]">
+            {close.map(([s, n]) => (
+              <li key={s} className="py-1">
+                <Link href={`/c/${s}`} className="text-accent">{s}</Link> <span className="text-ink-2">{n}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </main>
+    );
+  }
   const holding = snap.portfolio.find((h) => h.symbol === symbol);
-  const name = snap.names[symbol] ?? symbol;
+  const name = snap.names[symbol] ?? listed[1];
   const price = snap.prices[symbol];
   const results = snap.results[symbol];
   const all = [...snap.editions["30d"].leads, ...snap.editions["30d"].more].filter((c) => c.symbol === symbol);
@@ -69,7 +91,7 @@ async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] 
             Built from the last four earnings-call transcripts and the annual report, nothing else. Every promise is quoted
             with its page; statuses are computed against filed numbers where they exist.
           </p>
-          <p className="mt-2 text-[0.8125rem] italic text-ink-3">This company&apos;s ledger is built once the model is connected.</p>
+          <Coverage symbol={symbol} req={req} />
         </section>
       )}
 
@@ -100,5 +122,29 @@ async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] 
         </section>
       )}
     </main>
+  );
+}
+
+function Coverage({ symbol, req }: { symbol: string; req: Awaited<ReturnType<typeof getRequest>> }) {
+  if (req?.status === "unavailable") {
+    return <p className="mt-3 text-[0.9375rem] text-ink-2">{req.detail ?? "Not enough primary material to build a ledger."}</p>;
+  }
+  if (req) {
+    return (
+      <p className="mt-3 text-[0.9375rem] text-ink-2">
+        Queued <span className="num text-ink-3">{req.requested_at.slice(0, 16).replace("T", " ")}</span>. The research worker
+        reads the last four transcripts, verifies every quote against its page and computes each status.
+        {req.detail ? <span className="block text-[0.8125rem] italic text-ink-3">{req.detail}</span> : null}
+      </p>
+    );
+  }
+  return (
+    <form action={requestCoverage} className="mt-4">
+      <input type="hidden" name="symbol" value={symbol} />
+      <button type="submit" className="min-h-[44px] rounded-md bg-ink px-4 text-[0.9375rem] text-paper">
+        Build this ledger
+      </button>
+      <p className="mt-2 text-[0.8125rem] text-ink-3">Not covered yet. Built from primary sources only; usually ready within the hour.</p>
+    </form>
   );
 }

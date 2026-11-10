@@ -83,7 +83,15 @@ def snapshot(until: datetime | None = None) -> dict:
     }
 
 
+def write_universe() -> int:
+    """All NSE equities (symbol, name) for search and validation in the app."""
+    rows = sorted([c.symbol, c.name] for c in universe.load().values() if c.series in ("EQ", "BE", "BZ", "SM", "ST"))
+    (ROOT / "data" / "universe.json").write_text(json.dumps(rows, ensure_ascii=False, separators=(",", ":")))
+    return len(rows)
+
+
 def main() -> None:
+    write_universe()
     out = ROOT / "data" / "snapshot.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(snapshot(), ensure_ascii=False, indent=1, default=str))
