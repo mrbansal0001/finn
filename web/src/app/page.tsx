@@ -1,69 +1,133 @@
-import Image from "next/image";
+import Link from "next/link";
+import { Suspense } from "react";
+import { getSnapshot } from "@/lib/data";
+import type { WindowKey } from "@/lib/types";
+import { longDate, when } from "@/lib/format";
+import { EditionCard } from "@/components/EditionCard";
+import { Dock } from "@/components/Dock";
 
-export default function Home() {
+const WINDOWS: { key: WindowKey; label: string }[] = [
+  { key: "24h", label: "24 hours" },
+  { key: "3d", label: "3 days" },
+  { key: "7d", label: "7 days" },
+  { key: "30d", label: "30 days" },
+];
+
+const LEAD_COUNT_WORDS = ["Nothing material", "One thing matters", "Two things matter", "Three things matter"];
+
+export default function EditionPage({ searchParams }: PageProps<"/">) {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <Suspense fallback={<Loading />}>
+      <Edition searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+function Loading() {
+  return (
+    <main aria-busy="true">
+      <h1 className="font-serif text-[1.75rem] font-semibold tracking-tight">FINN</h1>
+      <p className="mt-1 text-[0.8125rem] text-ink-3">Preparing your edition…</p>
+    </main>
+  );
+}
+
+async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchParams"] }) {
+  const sp = await searchParams;
+  const snap = await getSnapshot();
+  const w = (WINDOWS.find((x) => x.key === sp.w)?.key ?? "7d") as WindowKey;
+  const ed = snap.editions[w];
+  const until = snap.data_until;
+
+  return (
+    <main>
+      <header className="flex items-baseline justify-between">
+        <h1 className="font-serif text-[1.75rem] font-semibold tracking-tight">FINN</h1>
+        <p className="num text-[0.8125rem] text-ink-2">{longDate(until)}</p>
+      </header>
+
+      <p className="mt-1 text-[0.8125rem] text-ink-2">
+        Your edition since <span className="num">{when(ed.since)}</span> · {snap.portfolio.length} holdings
+      </p>
+
+      <nav aria-label="Edition window" className="-mx-1 mt-3 flex gap-1 overflow-x-auto">
+        {WINDOWS.map((x) => (
+          <Link
+            key={x.key}
+            href={x.key === "7d" ? "/" : `/?w=${x.key}`}
+            aria-current={x.key === w ? "page" : undefined}
+            className={`inline-flex min-h-[36px] items-center whitespace-nowrap rounded-full px-3 text-[0.8125rem] ${
+              x.key === w ? "bg-ink text-paper" : "text-ink-2 hover:text-ink"
+            }`}
+          >
+            {x.label}
+          </Link>
+        ))}
+      </nav>
+
+      <section aria-labelledby="leads" className="mt-6">
+        <h2 id="leads" className="kicker border-b border-ink pb-2 text-ink">
+          {LEAD_COUNT_WORDS[ed.leads.length]}
+        </h2>
+        {ed.leads.length === 0 ? (
+          <p className="py-6 font-serif text-[1.25rem] leading-snug">
+            Quiet window. {ed.routine_total} routine filing{ed.routine_total === 1 ? "" : "s"}, nothing material.
+            {w !== "30d" && (
+              <Link href={`/?w=${w === "24h" ? "3d" : w === "3d" ? "7d" : "30d"}`} className="mt-2 block font-sans text-[0.875rem] text-accent">
+                Widen the window ›
+              </Link>
+            )}
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+        ) : (
+          <div className="hair">
+            {ed.leads.map((c) => (
+              <EditionCard key={c.id} card={c} refTime={until} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {ed.more.length > 0 && (
+        <details className="group mt-2 border-t border-rule">
+          <summary className="flex min-h-[48px] items-center justify-between text-[0.9375rem]">
+            <span>
+              <span className="num">{ed.more.length}</span> more worth a look
+            </span>
+            <span aria-hidden className="text-ink-3 transition-transform group-open:rotate-90">›</span>
+          </summary>
+          <div className="hair pb-2">
+            {ed.more.map((c) => (
+              <EditionCard key={c.id} card={c} refTime={until} compact />
+            ))}
+          </div>
+        </details>
+      )}
+
+      {ed.routine_total > 0 && (
+        <details className="group border-t border-rule">
+          <summary className="flex min-h-[48px] items-center justify-between text-[0.9375rem] text-ink-2">
+            <span>
+              <span className="num">{ed.routine_total}</span> routine filings, folded
+            </span>
+            <span aria-hidden className="text-ink-3 transition-transform group-open:rotate-90">›</span>
+          </summary>
+          <ul className="pb-3 text-[0.875rem] text-ink-2">
+            {ed.routine.map(([label, n]) => (
+              <li key={label} className="flex justify-between py-1">
+                <span>{label}</span>
+                <span className="num text-ink-3">{n}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+
+      <p className="mt-10 text-center font-serif text-[0.9375rem] italic text-ink-3">· end of edition ·</p>
+      <p className="mt-2 text-center text-[0.75rem] text-ink-3">
+        Data to <span className="num">{when(until)}</span> IST · NSE filings and bhavcopy
+      </p>
+
+      <Dock edition={ed} />
+    </main>
   );
 }
