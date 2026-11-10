@@ -342,7 +342,12 @@ def build(symbol: str) -> dict:
                              if len(th.mentions) > 1 else None),
             "verdict": "",
         })
-    return {"symbol": symbol.upper(), "calls": meta, "rows": rows,
+    from . import annual
+    try:
+        snap = annual.snapshot(symbol)
+    except Exception:  # the ledger stands on its own if the AR can't be read
+        snap = None
+    return {"symbol": symbol.upper(), "calls": meta, "rows": rows, "snapshot": snap,
             "provenance": (f"Built {date.today():%d %b %Y} from {len(found)} earnings-call transcripts only. "
                            f"{verified} quotes verified against their pages; {dropped} unverifiable statements dropped. "
                            "Statuses computed in code.")}

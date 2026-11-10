@@ -81,6 +81,32 @@ async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] 
         )}
       </header>
 
+      {ledger?.snapshot && ledger.snapshot.what_they_do.length > 0 && (
+        <section className="mt-8">
+          <h2 className="kicker border-b border-ink pb-2">
+            What they do · FY{String(ledger.snapshot.year).slice(2)} annual report
+          </h2>
+          <ul className="mt-2 space-y-1.5 text-[0.9375rem] leading-relaxed">
+            {ledger.snapshot.what_they_do.map((s, i) => (
+              <li key={i}>
+                {s.text}{" "}
+                <a href={`${ledger.snapshot!.url}#page=${s.page}`} target="_blank" rel="noopener noreferrer" className="num text-[0.75rem] text-accent">
+                  AR p.{s.page}
+                </a>
+              </li>
+            ))}
+          </ul>
+          {ledger.snapshot.segments.length > 0 && (
+            <p className="mt-2 text-[0.875rem] text-ink-2">
+              Segments:{" "}
+              {ledger.snapshot.segments
+                .map((g) => `${g.name}${g.share_of_revenue_pct != null ? ` (${g.share_of_revenue_pct}% of revenue)` : ""}`)
+                .join(" · ")}
+            </p>
+          )}
+        </section>
+      )}
+
       {ledger ? (
         <div className="mt-8">
           <PromisesLedger ledger={ledger} verifiers={snap.verifiers} />

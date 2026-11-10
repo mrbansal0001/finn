@@ -42,3 +42,5 @@ E20 Rules classifier vs 120 hand-labelled filings (random, worker store): before
 
 E21 GitHub Actions reachability probe could not run: the account is locked for billing (job not started). Same probe from the Mac: all 8 sources 200 with plain urllib and an honest UA. -> worker runs on the Mac; cloud reachability still unmeasured.
 
+E22 Locating the MD&A in annual reports (AR FY26, 6 companies, 218-756 pages): the heading sits at a page top (BEL), as a side title extracted at the end of the page text (Deepak), wrapped over two lines (Deepak, SBI), or mid-page after the Board's Report signature (SBI); contents pages print the page number before the title (Deepak) or after it (Titan, SBI), and running headers list every section name (SBI). Locator: heading-at-top first; else both contents-page neighbours + offset with a heading-line test; end at the next statutory heading after >= 3 pages, or the next contents entry. Clearly correct: BEL 73-90, Deepak 133-167, Titan 153-174. Uncertain: SBI 159-197, Infosys 41-45, L&T 4-43. -> snapshot reads only the first ~60K chars of the located section; every sentence cite-or-drop.
+

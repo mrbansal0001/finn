@@ -112,7 +112,16 @@ export type PromiseRow = {
   verdict: string;
 };
 
+export type ArSnapshot = {
+  year: number;
+  url: string;
+  pages: [number, number];
+  what_they_do: { text: string; quote: string; page: number }[];
+  segments: { name: string; share_of_revenue_pct?: number | null; quote: string; page: number }[];
+};
+
 export type Ledger = {
+  snapshot?: ArSnapshot | null;
   symbol: string;
   calls: { label: string; date: string; url: string }[];
   rows: PromiseRow[];
