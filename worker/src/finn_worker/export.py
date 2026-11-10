@@ -9,7 +9,7 @@ import json
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from . import cards, prices, store, universe
+from . import cards, network, prices, store, universe
 
 ROOT = Path(__file__).resolve().parents[3]
 WINDOWS = {"24h": timedelta(hours=24), "3d": timedelta(days=3), "7d": timedelta(days=7), "30d": timedelta(days=30)}
@@ -44,11 +44,29 @@ def snapshot(until: datetime | None = None) -> dict:
     mv = [{**m.__dict__, "day": m.day.isoformat()} for m in prices.moves(sessions, syms)]
 
     editions = {k: cards.build(filings, mv, weights, names, until - w, until, res) for k, w in WINDOWS.items()}
+
+    # The Network, inside Push and Pull (D-023). Local and deterministic.
+    contacts, edges = network.load()
+    today = until.date()
+    for ed in editions.values():
+        network.annotate(ed["leads"] + ed["more"], today, contacts, edges)
+    people = {s: network.second_degree(network.for_company(s, contacts, today), contacts, edges, today)
+              for s in names}
+    verifiers = {}
+    for lp in (ROOT / "data" / "ledgers").glob("*.json"):
+        led = json.loads(lp.read_text())
+        for row in led["rows"]:
+            text = f"{row['title']} {row.get('metric', '')}"
+            cands = [l for l in network.for_company(led["symbol"], contacts, today, kind="", text=text) if not l["insider"]]
+            if cands:
+                verifiers[f"{led['symbol']}:{row['id']}"] = cands[0]
     return {
         "generated_at": datetime.now().isoformat(timespec="seconds"),
         "data_until": until.isoformat(),
         "portfolio": p["holdings"], "research_set": p.get("research_set", []), "names": names,
-        "editions": editions, "results": res,
+        "editions": editions, "results": res, "people": people, "verifiers": verifiers,
+        # private to the owner; in production this lives behind Supabase row-level security
+        "contacts": json.loads((ROOT / "config" / "network.json").read_text())["contacts"],
         "prices": {m["symbol"]: m for m in mv},
     }
 
