@@ -40,8 +40,9 @@ def snapshot(until: datetime | None = None) -> dict:
                             "values": json.loads(r["values_json"]),
                             "comparatives": json.loads(r["comparatives_json"]) if r["comparatives_json"] else None}
 
-    sessions = prices.history(until.date())
-    mv = [{**m.__dict__, "day": m.day.isoformat()} for m in prices.moves(sessions, syms)]
+    sessions = prices.history(until.date(), trading_days=42, max_calendar_days=70)
+    latest = [{**m.__dict__, "day": m.day.isoformat()} for m in prices.moves(sessions, syms)]
+    mv = [{**m.__dict__, "day": m.day.isoformat()} for m in prices.moves_series(sessions, syms)]
 
     editions = {k: cards.build(filings, mv, weights, names, until - w, until, res) for k, w in WINDOWS.items()}
 
@@ -67,7 +68,7 @@ def snapshot(until: datetime | None = None) -> dict:
         "editions": editions, "results": res, "people": people, "verifiers": verifiers,
         # private to the owner; in production this lives behind Supabase row-level security
         "contacts": json.loads((ROOT / "config" / "network.json").read_text())["contacts"],
-        "prices": {m["symbol"]: m for m in mv},
+        "prices": {m["symbol"]: m for m in latest},
     }
 
 

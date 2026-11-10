@@ -139,7 +139,8 @@ def build(filings: list[dict], moves: list[dict], weights: dict[str, float], nam
         arrow = "▲" if m["change_pct"] >= 0 else "▼"
         cards.append(Card(
             id=f"move-{m['symbol']}-{m['day']}", symbol=m["symbol"], company=names.get(m["symbol"], m["symbol"]),
-            kind="move", tier="lead" if m["price_alert"] else "notable", at=d.isoformat(), nse_subject="",
+            # default tier at the default thresholds (5%, 2x); the app re-tiers with the user's own
+            kind="move", tier="lead" if abs(m["change_pct"]) >= 5 else "notable", at=d.isoformat(), nse_subject="",
             headline=f"{'Up' if m['change_pct'] >= 0 else 'Down'} {abs(m['change_pct']):.1f}% on {m['volume_multiple']:.1f}× usual volume",
             headline_source="rule",
             # D-019: never guess a cause

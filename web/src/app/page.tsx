@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import { cookies } from "next/headers";
+import { applyPrefs, parsePrefs, PREFS_COOKIE } from "@/lib/prefs";
 import { getSnapshot } from "@/lib/data";
 import type { WindowKey } from "@/lib/types";
 import { longDate, when } from "@/lib/format";
@@ -13,7 +15,7 @@ const WINDOWS: { key: WindowKey; label: string }[] = [
   { key: "30d", label: "30 days" },
 ];
 
-const LEAD_COUNT_WORDS = ["Nothing material", "One thing matters", "Two things matter", "Three things matter"];
+const LEAD_COUNT_WORDS = ["Nothing material", "One thing matters", "Two things matter", "Three things matter", "Four things matter", "Five things matter"];
 
 export default function EditionPage({ searchParams }: PageProps<"/">) {
   return (
@@ -33,10 +35,10 @@ function Loading() {
 }
 
 async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchParams"] }) {
-  const sp = await searchParams;
-  const snap = await getSnapshot();
+  const [sp, jar, snap] = await Promise.all([searchParams, cookies(), getSnapshot()]);
+  const prefs = parsePrefs(jar.get(PREFS_COOKIE)?.value);
   const w = (WINDOWS.find((x) => x.key === sp.w)?.key ?? "7d") as WindowKey;
-  const ed = snap.editions[w];
+  const ed = applyPrefs(structuredClone(snap.editions[w]), prefs);
   const until = snap.data_until;
 
   return (

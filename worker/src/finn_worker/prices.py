@@ -101,3 +101,18 @@ def moves(sessions: list[dict[str, Bar]], symbols: list[str], *,
         out.append(Move(s, bar.day, bar.close, round(chg, 2), bar.volume, round(mult, 2),
                         price_alert=abs(chg) >= price_pct, volume_alert=mult >= volume_x))
     return out
+
+
+def moves_series(sessions: list[dict[str, Bar]], symbols: list[str], *, days: int = 22,
+                 floor_pct: float = 2.0, floor_x: float = 1.5) -> list[Move]:
+    """Moves for each of the last `days` sessions, each judged against its own previous 20.
+
+    Exported at a low floor; the app applies the investor's own thresholds (D-027),
+    so 'unusual' is theirs to define."""
+    out: list[Move] = []
+    for i in range(max(1, len(sessions) - days), len(sessions)):
+        window = sessions[max(0, i - 20): i + 1]
+        for m in moves(window, symbols, price_pct=floor_pct, volume_x=floor_x):
+            if m.price_alert or m.volume_alert:
+                out.append(m)
+    return out
