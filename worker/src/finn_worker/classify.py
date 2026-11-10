@@ -45,7 +45,10 @@ _RULES: list[tuple[str, str | None, str, str, bool]] = [
     (r"litigation|dispute|action\(s\) (taken|initiated)|orders passed|forensic audit|fraud|default|insolvency|key licenses|regulatory approvals|strikes|lockouts|closure of operations", None, "litigation", "lead", False),
     # --- corporate structure
     (r"acquisition|amalgamation|merger|demerger|scheme of arrangement|sale or disposal|open offer|takeover|other restructuring|offer for sale", None, "m_and_a", "lead", False),
-    # --- money in
+    # --- money in (equity matters; debt-paper housekeeping doesn't)
+    (r"committee meeting", r"\bPI\b|preferential|qip|rights|allot|fund", "fund_raise", "notable", False),
+    (r"allotment of securities|issue of securities", r"non[- ]convertible|NCD|commercial paper|debenture", "fund_raise", "routine", False),
+    (r"monitoring agency|statement of deviation", None, "fund_raise", "routine", False),
     (r"fund ?raising|alteration of capital|issue of securities|rights issue|preferential|qip|allotment of securities|increase in authori[sz]ed capital|conversion|buyback|utili[sz]ation of funds|statement of deviation|monitoring agency", None, "fund_raise", "notable", False),
     # --- ratings
     (r"credit rating", None, "credit_rating", "notable", False),
@@ -69,6 +72,13 @@ _RULES: list[tuple[str, str | None, str, str, bool]] = [
     (r"press release|disclosure of material issue|monthly business updates", None, "press_release", "notable", True),
     # --- pure housekeeping
     (r"newspaper publication|trading window|record date|esop|esos|esps|options to purchase|loss of share certificates|address change|registrar|depositories and participants|committee meeting|amendment to aoa|board meeting intimation|prior intimation|related party|giving guarantees|certificate under", None, "unclassified", "routine", False),
+    # --- 'Updates' whose summary names the content
+    (r"general updates|^updates$", r"transcript", "earnings_call", "notable", False),
+    (r"general updates|^updates$", r"media statement|press statement", "press_release", "notable", True),
+    # --- 'Updates' whose one-line summary already shows they're housekeeping
+    (r"general updates|^updates$", r"newspaper|clipping|investor conference|commercial paper|esg rating|report of auditors|"
+     r"registrar|share transfer agent|tax deduction at source|\bTDS\b|certificate|audio recording|link of recording|"
+     r"(investor|analyst|results) presentation|to announce .* results|postal ballot", "unclassified", "routine", False),
     # --- unknown: read the document
     (r"general updates|^updates$|others|alteration/revision|rescission|delayed", None, "unclassified", "notable", True),
 ]
