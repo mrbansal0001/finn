@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Dock } from "@/components/Dock";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { getView } from "@/lib/data";
@@ -93,6 +94,7 @@ async function Detail({ params }: { params: PageProps<"/card/[id]">["params"] })
           materiality (people, deals, legal: lead) and your settings in What counts.
         </p>
       </section>
+      <Dock />
     </main>
   );
 }

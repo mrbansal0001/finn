@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Dock } from "@/components/Dock";
 import { Suspense } from "react";
 import { getLedger, getRequest, getUniverse, getView } from "@/lib/data";
 import { requestCoverage } from "./actions";
@@ -121,6 +122,7 @@ async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] 
           </div>
         </section>
       )}
+      <Dock />
     </main>
   );
 }

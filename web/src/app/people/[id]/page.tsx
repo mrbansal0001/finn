@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Dock } from "@/components/Dock";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { getView } from "@/lib/data";
@@ -113,6 +114,7 @@ async function Person({ params }: { params: PageProps<"/people/[id]">["params"] 
         </ol>
       </section>
       <p className="mt-6 text-[0.75rem] text-ink-3">Synthetic profile for this prototype. Real networks come only from your own consented imports.</p>
+      <Dock />
     </main>
   );
 }

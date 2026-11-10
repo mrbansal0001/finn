@@ -7,6 +7,8 @@ import type { WindowKey } from "@/lib/types";
 import { longDate, when } from "@/lib/format";
 import { EditionCard } from "@/components/EditionCard";
 import { Dock } from "@/components/Dock";
+import { SinceLastVisit } from "@/components/SinceLastVisit";
+import type { Edition } from "@/lib/types";
 
 const WINDOWS: { key: WindowKey; label: string }[] = [
   { key: "24h", label: "24 hours" },
@@ -37,8 +39,10 @@ function Loading() {
 async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchParams"] }) {
   const [sp, jar, snap] = await Promise.all([searchParams, cookies(), getView()]);
   const prefs = parsePrefs(jar.get(PREFS_COOKIE)?.value);
-  const w = (WINDOWS.find((x) => x.key === sp.w)?.key ?? "7d") as WindowKey;
-  const ed = applyPrefs(structuredClone(snap.editions[w]), prefs);
+  const sinceVisit = sp.w === "since" && typeof sp.t === "string" && !Number.isNaN(Date.parse(sp.t)) ? sp.t : null;
+  const w = (sinceVisit ? "30d" : (WINDOWS.find((x) => x.key === sp.w)?.key ?? "7d")) as WindowKey;
+  const base = sinceVisit ? sinceEdition(snap.editions["30d"], sinceVisit) : snap.editions[w];
+  const ed = applyPrefs(structuredClone(base), prefs);
   const until = snap.data_until;
 
   return (
@@ -53,13 +57,14 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
       </p>
 
       <nav aria-label="Edition window" className="-mx-1 mt-3 flex gap-1 overflow-x-auto">
+        <SinceLastVisit active={!!sinceVisit} />
         {WINDOWS.map((x) => (
           <Link
             key={x.key}
             href={x.key === "7d" ? "/" : `/?w=${x.key}`}
-            aria-current={x.key === w ? "page" : undefined}
+            aria-current={x.key === w && !sinceVisit ? "page" : undefined}
             className={`inline-flex min-h-[36px] items-center whitespace-nowrap rounded-full px-3 text-[0.8125rem] ${
-              x.key === w ? "bg-ink text-paper" : "text-ink-2 hover:text-ink"
+              x.key === w && !sinceVisit ? "bg-ink text-paper" : "text-ink-2 hover:text-ink"
             }`}
           >
             {x.label}
@@ -132,4 +137,13 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
       <Dock edition={ed} />
     </main>
   );
+}
+
+/** Cards newer than the visitor's last visit (from the 30-day edition). Routine counts are not
+ *  time-split in the export, so the fold row is omitted rather than guessed. */
+function sinceEdition(ed30: Edition, since: string): Edition {
+  const t = Date.parse(since);
+  const fresh = (c: Edition["leads"][number]) => Date.parse(c.at.includes("+") ? c.at : `${c.at}+05:30`) > t;
+  const all = [...ed30.leads, ...ed30.more].filter(fresh);
+  return { ...ed30, since, leads: all.filter((c) => c.tier === "lead"), more: all.filter((c) => c.tier !== "lead"), routine: [], routine_total: 0 };
 }

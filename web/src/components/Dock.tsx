@@ -10,7 +10,7 @@ import type { Edition } from "@/lib/types";
  * aloud with the browser's own speech engine -- no cost, no network), and the
  * "What counts" settings. Chat is the escape hatch, not the front door.
  */
-export function Dock({ edition }: { edition: Edition }) {
+export function Dock({ edition }: { edition?: Edition }) {
   const router = useRouter();
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<[string, string][]>([]);
@@ -42,6 +42,7 @@ export function Dock({ edition }: { edition: Edition }) {
   }, [q]);
 
   function brief() {
+    if (!edition) return;
     if (speaking) {
       window.speechSynthesis.cancel();
       setSpeaking(false);
@@ -103,7 +104,7 @@ export function Dock({ edition }: { edition: Edition }) {
           />
         </form>
         <div className="mt-1.5 flex items-center justify-between text-[0.8125rem]">
-          {canSpeak ? (
+          {canSpeak && edition ? (
             <button type="button" onClick={brief} className="min-h-[36px] text-ink-2 hover:text-ink" aria-pressed={speaking}>
               {speaking ? "■ Stop" : "▶ Brief me · 60s"}
             </button>
