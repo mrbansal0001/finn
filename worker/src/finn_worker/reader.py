@@ -87,7 +87,9 @@ def read_filing(f: dict) -> list[dict]:
     for p in pages:
         parts.append(llm.Part(text=f"[[page {p.number}]]\n{p.text}") if p.clean
                      else llm.Part(png=docs.page_png(f["link"], p.number)))
-    personal = f["category"] == "management_change"
+    # anything that can name people (appointments inside board outcomes, press releases, legal orders)
+    # stays off the free tier; only clearly impersonal categories may use it (D-030)
+    personal = f["category"] not in ("capex", "credit_rating", "fund_raise", "dividend", "bonus_split")
     out = llm.structured("read_filing", SYSTEM, parts, EVENT_SCHEMA, tier="fast", personal_data=personal)
     return [lint(e) for e in out.get("events", []) if e.get("kind") != "routine"]
 
@@ -97,8 +99,11 @@ def read_results(con, f: dict) -> str:
     if not got:
         return "no P&L page found"
     table, page = got
+    # compare with the XBRL for the SAME period and SAME nature (consolidated vs standalone); if it hasn't
+    # arrived yet, the table is checked on its own arithmetic and re-checked at export when the XBRL lands
     row = con.execute("select values_json, source_url from results where symbol=? and source='xbrl' "
-                      "order by period_end desc limit 1", (f["symbol"],)).fetchone()
+                      "and period_end=? and nature=?",
+                      (f["symbol"], table["columns"][0]["period_end"], table["nature"])).fetchone()
     xq = None
     if row:
         v = json.loads(row["values_json"])
@@ -127,9 +132,13 @@ def read_pending(limit: int = MAX_PER_CYCLE) -> str:
         where symbol in ({q}) and link like '%.pdf' and tier in ('lead','notable')
           and (needs_document = 1 or category in ('results','management_change','m_and_a','litigation','capex','fund_raise'))
           and not exists (select 1 from events e where e.filing_id = f.id)
+          -- its twin (same company and type within 10 minutes) already read: don't pay twice
+          and not exists (select 1 from events e join filings g on g.id = e.filing_id
+                          where g.symbol = f.symbol and g.category = f.category
+                            and abs(julianday(g.published_at) - julianday(f.published_at)) * 1440 <= 10)
         order by case tier when 'lead' then 0 else 1 end, published_at desc
         limit ?""", (*syms, limit)).fetchall()
-    done = 0
+    done = skipped = 0
     for f in map(dict, rows):
         try:
             if f["category"] == "results":
@@ -139,9 +148,13 @@ def read_pending(limit: int = MAX_PER_CYCLE) -> str:
             else:
                 evs = read_filing(f)
         except llm.LLMUnavailable:
-            break                                   # rate-limited or no key: resume next cycle
+            skipped += 1                            # no capable model right now (rate limit, no key, budget):
+            continue                                # leave it queued; other filings may still be readable
+        except Exception as e:                      # a broken PDF or a 4xx must not block the queue forever
+            evs = [{"kind": "unreadable", "headline": None, "why": None, "people": [], "quote": "", "page": None,
+                    "headline_ok": False, "error": f"{type(e).__name__}: {str(e)[:160]}"}]
         store.upsert(con, "events", [{
             "id": f"{f['id']}:{i}", "filing_id": f["id"], "symbol": f["symbol"], "kind": e["kind"],
             "tier": f["tier"], "published_at": f["published_at"], "card": e} for i, e in enumerate(evs or [{}])])
         done += 1
-    return f"read {done}/{len(rows)}"
+    return f"read {done}/{len(rows)}, waiting {skipped}"

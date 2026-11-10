@@ -74,3 +74,15 @@ def test_cim_two_people_in_one_file():
 def test_classifier_rules(subject, summary, category, tier, needs):
     label = classify(subject, summary)
     assert (label.category, label.tier, label.needs_document) == (category, tier, needs)
+
+
+def test_twin_filings_become_one_card():
+    from datetime import datetime
+    from finn_worker import cards
+    base = {"symbol": "TITAN", "company_name": "Titan Company Limited", "category": "management_change", "tier": "lead",
+            "subject": "Change in Directors/KMP/SMP/Auditor/RTA", "summary": "", "needs_document": 0}
+    fs = [dict(base, id="a", link="https://x/CIM_1.xml", published_at="2026-11-05T18:51:00"),
+          dict(base, id="b", link="https://x/TITAN_1.pdf", published_at="2026-11-05T18:55:30", subject="Retirement")]
+    ed = cards.build(fs, [], {"TITAN": 5}, {"TITAN": "Titan"}, datetime(2026, 11, 5), datetime(2026, 11, 6))
+    all_cards = ed["leads"] + ed["more"]
+    assert len(all_cards) == 1 and len(all_cards[0]["sources"]) == 2

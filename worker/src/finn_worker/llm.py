@@ -7,8 +7,8 @@ Rules enforced here, not left to callers:
 - every call returns JSON validated against the caller's schema keys
 - every call is logged (tokens, model, estimated cost) to the llm_calls table
 - OpenAI spend stops at OPENAI_BUDGET_USD
-- network/contact data must never be passed in (callers send public filings;
-  bios are sent with the person's name replaced -- see people.py)
+- network/contact data must never be passed in (callers send public filings only);
+  anything that can name people goes with personal_data=True (paid, no-training API only)
 
 Model names are discovered from each provider's model list at runtime instead
 of being hard-coded, because free-tier model availability changes often.
@@ -172,7 +172,10 @@ def structured(purpose: str, system: str, parts: list[Part], schema: dict, tier:
     information, and goes only to the paid API that does not train on inputs (D-025)."""
     con = store.connect()
     errors = []
-    gm = pick_gemini(tier) if os.getenv("GEMINI_API_KEY") and not personal_data else None
+    try:
+        gm = pick_gemini(tier) if os.getenv("GEMINI_API_KEY") and not personal_data else None
+    except httpx.HTTPError as e:
+        gm, errors = None, [f"gemini model list: {e}"]
     if gm:
         try:
             out, tin, tout = _gemini(gm, system, parts, schema)
@@ -186,7 +189,10 @@ def structured(purpose: str, system: str, parts: list[Part], schema: dict, tier:
             errors.append(f"openai budget reached (${spent:.2f})")
         else:
             om = openai_model(tier)
-            out, tin, tout = _openai(om, system, parts, schema)
+            try:
+                out, tin, tout = _openai(om, system, parts, schema)
+            except (httpx.HTTPError, json.JSONDecodeError, KeyError) as e:
+                raise LLMUnavailable(f"openai: {e}") from e
             cost = tin / 1e6 * OPENAI_PRICE_IN + tout / 1e6 * OPENAI_PRICE_OUT
             _log(con, purpose, f"openai:{om}", tin, tout, cost)
             return out

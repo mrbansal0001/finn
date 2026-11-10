@@ -50,7 +50,8 @@ create table if not exists public.coverage_requests (
   symbol        text primary key,
   requested_at  timestamptz not null default now(),
   status        text not null default 'queued',   -- queued | building | ready | unavailable
-  detail        text
+  detail        text,
+  requested_by  uuid default auth.uid()
 );
 
 alter table public.snapshot enable row level security;
@@ -64,9 +65,7 @@ create policy "public read" on public.ledgers for select to anon, authenticated 
 create policy "public read" on public.filings for select to anon, authenticated using (true);
 create policy "public read" on public.results for select to anon, authenticated using (true);
 create policy "public read" on public.coverage_requests for select to anon, authenticated using (true);
--- signed-in users (including anonymous demo users) may ask for a ticker; only the worker updates status
-create policy "request coverage" on public.coverage_requests for insert to authenticated
-  with check (status = 'queued' and detail is null);
+-- insert policy for coverage requests is in 002 (it validates against public.universe)
 -- no insert/update/delete policies otherwise: only the service role (which bypasses RLS) writes.
 
 -- ------------------------------------------------------------------ private investor data
@@ -153,3 +152,18 @@ end $$;
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created after insert on auth.users
   for each row execute function public.seed_demo_user();
+
+-- Re-copy the latest demo network lines to every existing user after each worker sync, so returning
+-- visitors see "who can explain this" on new cards too. Only the worker (service role) may call it.
+create or replace function public.refresh_demo_network_lines() returns integer
+language plpgsql security definer set search_path = '' as $$
+declare n integer;
+begin
+  insert into public.network_lines (owner_id, card_id, lines)
+    select o.owner_id, l.card_id, l.lines
+    from (select distinct owner_id from public.contacts) o cross join public.demo_network_lines l
+  on conflict (owner_id, card_id) do update set lines = excluded.lines, computed_at = now();
+  get diagnostics n = row_count;
+  return n;
+end $$;
+revoke execute on function public.refresh_demo_network_lines() from public, anon, authenticated;

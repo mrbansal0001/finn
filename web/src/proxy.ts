@@ -7,9 +7,14 @@ import { SUPABASE_KEY, SUPABASE_URL, supabaseEnabled } from "@/lib/supabase/conf
  * Supabase user; a database trigger copies the synthetic demo network into rows only
  * they can read (row-level security). No sign-up wall for reviewers.
  */
+const BOT = /bot|crawl|spider|slurp|preview|facebookexternalhit|whatsapp|telegram|curl|wget|python|headless/i;
+
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
   if (!supabaseEnabled) return response;
+  // don't mint anonymous users for link prefetches or crawlers (sign-ups are rate-limited per IP)
+  const prefetch = request.headers.get("next-router-prefetch") || /prefetch/i.test(request.headers.get("sec-purpose") ?? "");
+  if (prefetch || BOT.test(request.headers.get("user-agent") ?? "")) return response;
 
   const supabase = createServerClient(SUPABASE_URL, SUPABASE_KEY, {
     cookies: {
@@ -29,5 +34,5 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   // pages only; skip static assets, icons and the manifest
-  matcher: ["/((?!_next/|icon|apple-icon|manifest|.*\\.(?:png|svg|ico|webmanifest)$).*)"],
+  matcher: ["/((?!_next/|api/|icon|apple-icon|manifest|.*\\.(?:png|svg|ico|webmanifest)$).*)"],
 };

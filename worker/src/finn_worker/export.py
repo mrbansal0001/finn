@@ -27,22 +27,37 @@ def snapshot(until: datetime | None = None) -> dict:
     names = {s: u[s].name for s in syms + p.get("research_set", []) if s in u}
     con = store.connect()
     q = ",".join("?" * len(syms))
-    filings = [dict(r) for r in con.execute(f"select * from filings where symbol in ({q})", syms)]
-    until = until or max(datetime.fromisoformat(f["published_at"]) for f in filings)
+    filings = [dict(r) for r in con.execute(f"select * from filings where symbol in ({q})", syms)] if syms else []
+    # first run / new portfolio: no filings yet is a valid (empty) edition, not a crash
+    until = until or max((datetime.fromisoformat(f["published_at"]) for f in filings), default=datetime.now())
 
     res = {}
     rank = lambda r: (r["period_end"], r["nature"] == "Consolidated",
                       r["comparatives_json"] is not None and r["check_status"] in ("xbrl_match", "arithmetic_ok"))
-    for r in sorted(con.execute(f"select * from results where symbol in ({q})", syms), key=rank):
+    all_results = [dict(r) for r in con.execute(f"select * from results where symbol in ({q})", syms)] if syms else []
+    xbrl_rows = {(r["symbol"], r["period_end"], r["nature"]): json.loads(r["values_json"])
+                 for r in all_results if r["source"] == "xbrl"}
+    for r in all_results:
+        # a PDF table read before its XBRL arrived is re-checked now, on the 1:1 lines (D-021)
+        x = xbrl_rows.get((r["symbol"], r["period_end"], r["nature"]))
+        if r["source"] == "pdf" and r["check_status"] == "arithmetic_ok" and x:
+            v = json.loads(r["values_json"])
+            bad = [k for k in ("revenue", "other_income", "finance_costs", "depreciation", "pat")
+                   if v.get(k) is not None and x.get(k) is not None and abs(v[k] - x[k]) > max(1e5, 0.0002 * abs(x[k]))]
+            r["check_status"] = f"failed: {', '.join(bad)} differ from XBRL" if bad else "xbrl_match"
+    for r in sorted(all_results, key=rank):
         # newest period, consolidated preferred (D-021), checked table with QoQ/YoY preferred over XBRL-only
-        if r["comparatives_json"] is not None and r["check_status"] not in ("xbrl_match", "arithmetic_ok"):
-            continue  # a table that failed its checks is never shown
+        if (r["check_status"] or "").startswith("failed") or (r["source"] == "pdf" and r["check_status"] not in ("xbrl_match", "arithmetic_ok")):
+            continue  # a table that failed (or never passed) its checks is never shown
         res[r["symbol"]] = {"period_end": r["period_end"], "nature": r["nature"], "reporting": r["reporting"],
                             "source": r["source"], "source_url": r["source_url"], "check": r["check_status"],
                             "values": json.loads(r["values_json"]),
                             "comparatives": json.loads(r["comparatives_json"]) if r["comparatives_json"] else None}
 
-    sessions = prices.history(until.date(), trading_days=42, max_calendar_days=70)
+    try:
+        sessions = prices.history(until.date(), trading_days=42, max_calendar_days=70)
+    except Exception:  # an exchange hiccup must not freeze the app on a stale snapshot
+        sessions = []
     latest = [{**m.__dict__, "day": m.day.isoformat()} for m in prices.moves(sessions, syms)]
     mv = [{**m.__dict__, "day": m.day.isoformat()} for m in prices.moves_series(sessions, syms)]
 

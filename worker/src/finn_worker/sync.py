@@ -82,6 +82,8 @@ def push() -> str:
     _upsert(http, base, "demo_network_lines", [{"card_id": k, "lines": v} for k, v in lines.items()])
     uni = json.loads((ROOT / "data" / "universe.json").read_text())
     _upsert(http, base, "universe", [{"symbol": s, "name": n} for s, n in uni])
+    # existing (returning) users get the new cards' network lines too
+    http.post(f"{base}/rpc/refresh_demo_network_lines", content="{}").raise_for_status()
     return f"snapshot + {len(ledgers)} ledgers + {len(lines)} private network rows"
 
 
@@ -97,8 +99,11 @@ def exchange_requests() -> str:
         return f"{len(local)} local requests (no Supabase)"
     http, base = c
     remote = http.get(f"{base}/coverage_requests?select=symbol,status,requested_at,detail").json()
+    valid = {s for s, _ in json.loads((ROOT / "data" / "universe.json").read_text())}
     by = {r["symbol"]: r for r in local}
     for r in remote:
+        if r["symbol"] not in valid:      # defence in depth: the SQL policy already checks this
+            continue
         if r["symbol"] not in by:
             by[r["symbol"]] = {"symbol": r["symbol"], "status": r["status"], "requested_at": r["requested_at"], "detail": r.get("detail")}
     qp.write_text(json.dumps(list(by.values()), indent=1))

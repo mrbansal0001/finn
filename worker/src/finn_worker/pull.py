@@ -270,13 +270,17 @@ def statuses(thread: Thread, call_order: list[str], actuals: list[dict]) -> dict
     if last and thread.period:
         hit = next((a for a in actuals if a.get("period") == thread.period
                     and fuzz.token_set_ratio(_metric_key(a["metric"]), _metric_key(thread.metric)) >= 80), None)
-        if hit:
-            lo, hi = _bounds(last)
+        lo, hi = _bounds(last)
+        if hit and (lo is not None or hi is not None):   # directional/milestone items have no bound to test
             v = hit["value"]
-            ok = (lo is None or v >= lo * 0.995) and (hi is None or v <= hi * 1.005)
-            near = lo is not None and v >= lo * 0.9
-            final = "delivered" if ok else "partly" if near else "missed"
-            out[call_order[-1]] = {"status": final, "note": f"stated actual {v:g}{hit.get('unit', '')} vs {_describe(last)}",
+            if lo is not None and v < lo * 0.995:
+                final = "partly" if v >= lo * 0.9 else "missed"
+            elif hi is not None and v > hi * 1.005 and last.get("kind") == "ceiling":
+                final = "missed"                           # a ceiling breached is a miss
+            else:
+                final = "delivered"                        # within band, or beat it
+            beat = " (beat)" if hi is not None and v > hi * 1.005 and last.get("kind") != "ceiling" else ""
+            out[call_order[-1]] = {"status": final, "note": f"stated actual {v:g}{hit.get('unit', '')} vs {_describe(last)}{beat}",
                                    "evidence": {"quote": hit["quote"], "page": hit["page"]}}
     return out
 
@@ -413,7 +417,11 @@ def drain_requests(limit: int = 2) -> str:
     except (FileNotFoundError, _json.JSONDecodeError):
         return "no requests"
     built = 0
-    for req in [r for r in queue if r["status"] == "queued"][:limit]:
+    try:
+        valid = {s for s, _ in _json.loads((root / "data" / "universe.json").read_text())}
+    except FileNotFoundError:
+        valid = set()
+    for req in [r for r in queue if r["status"] == "queued" and r["symbol"] in valid][:limit]:
         req["status"] = "building"
         qp.write_text(_json.dumps(queue, indent=1))
         try:

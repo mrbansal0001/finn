@@ -105,7 +105,14 @@ def build(filings: list[dict], moves: list[dict], weights: dict[str, float], nam
             routine[label] += 1
             continue
         day = f["published_at"][:10]
-        key = (f["symbol"], f["category"], day if f["category"] in ("results", "earnings_call", "press_release") else f["id"])
+        if f["category"] in ("results", "earnings_call", "press_release"):
+            key = (f["symbol"], f["category"], day)
+        else:
+            # the same event often arrives twice (XBRL item + PDF item, or live feed + backfill):
+            # same company and type within 10 minutes is one card with both sources
+            t = datetime.fromisoformat(f["published_at"])
+            key = next((k for k in groups if k[0] == f["symbol"] and k[1] == f["category"] and isinstance(k[2], datetime)
+                        and abs((k[2] - t).total_seconds()) <= 600), (f["symbol"], f["category"], t))
         groups[key].append(f)
 
     for (sym, cat, _), fs in groups.items():

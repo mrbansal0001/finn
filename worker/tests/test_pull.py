@@ -65,3 +65,17 @@ def test_copy_lint_rejects_slop_and_numberless_why():
     assert good["headline_ok"] and good["why"]
     bad = lint({"headline": "Update on board meeting outcome", "why": "This is a significant development for the company."})
     assert not bad["headline_ok"] and bad["why"] is None
+
+
+def test_directional_promise_is_not_settled_by_any_actual():
+    ths = thread([m("Margins", "directional", period="FY26")], [], [], [])
+    actual = [{"metric": "margins", "period": "FY26", "value": 1.0, "unit": "%", "quote": "q", "page": 1}]
+    s = pull.statuses(ths[0], ORDER, actual)
+    assert s["Q2FY27"]["status"] == "silent"
+
+
+def test_beating_a_range_is_delivered_not_partly():
+    ths = thread([m("Revenue growth", "range", 15, 17, period="FY26")], [], [], [])
+    actual = [{"metric": "revenue growth", "period": "FY26", "value": 22, "unit": "%", "quote": "q", "page": 1}]
+    s = pull.statuses(ths[0], ORDER, actual)
+    assert s["Q2FY27"]["status"] == "delivered" and "(beat)" in s["Q2FY27"]["note"]

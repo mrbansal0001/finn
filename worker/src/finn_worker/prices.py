@@ -73,7 +73,12 @@ def history(end: date, trading_days: int = 21, max_calendar_days: int = 45) -> l
     d = end
     while len(days) < trading_days and (end - d).days <= max_calendar_days:
         if d.weekday() < 5:  # NSE's occasional Sunday sessions (Muhurat) are ignored
-            bars = bhavcopy(d)
+            try:
+                bars = bhavcopy(d)
+            except fetch.Refused:
+                raise              # refused: stop asking (never retry around a refusal)
+            except Exception:
+                bars = None        # timeout / 5xx on one day: skip it, don't mark it a holiday
             if bars:
                 days.append(bars)
         d -= timedelta(days=1)

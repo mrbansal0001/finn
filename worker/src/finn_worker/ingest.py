@@ -39,10 +39,17 @@ def backfill(symbols: list[str], days: int = 30, end: date | None = None) -> int
     start = end - timedelta(days=days)
     rows = []
     for sym in symbols:
-        raw = fetch.get(ANN_API.format(symbol=sym, start=start, end=end), max_age=6 * 3600)
-        data = json.loads(raw)
+        try:
+            raw = fetch.get(ANN_API.format(symbol=sym, start=start, end=end), max_age=6 * 3600)
+            data = json.loads(raw)
+        except fetch.Refused:
+            break          # refused: stop for today, keep what we have (never retry around a refusal)
+        except Exception:
+            continue       # one company's timeout or bad payload shouldn't lose the others
         data = data if isinstance(data, list) else data.get("data", [])
         for x in data:
+            if not x.get("an_dt"):
+                continue
             link = x.get("attchmntFile") or None
             fid = hashlib.sha1(f"{x.get('seq_id')}|{link}".encode()).hexdigest()[:16]
             published = datetime.strptime(x["an_dt"], "%d-%b-%Y %H:%M:%S")
