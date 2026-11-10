@@ -5,6 +5,7 @@ import { arrow, dirClass, pct, when } from "@/lib/format";
 import { EditionCard } from "@/components/EditionCard";
 import { PromisesLedger } from "@/components/PromisesLedger";
 import { ResultsTable } from "@/components/ResultsTable";
+import { NetworkLine } from "@/components/NetworkLine";
 
 export default function CompanyPage({ params }: PageProps<"/c/[symbol]">) {
   return (
@@ -59,7 +60,7 @@ async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] 
 
       {ledger ? (
         <div className="mt-8">
-          <PromisesLedger ledger={ledger} />
+          <PromisesLedger ledger={ledger} verifiers={snap.verifiers} />
         </div>
       ) : (
         <section className="mt-8">
@@ -69,6 +70,15 @@ async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] 
             with its page; statuses are computed against filed numbers where they exist.
           </p>
           <p className="mt-2 text-[0.8125rem] italic text-ink-3">This company&apos;s ledger is built once the model is connected.</p>
+        </section>
+      )}
+
+      {(snap.people[symbol]?.length ?? 0) > 0 && (
+        <section className="mt-10">
+          <h2 className="kicker border-b border-ink pb-2">People who&apos;d know</h2>
+          {snap.people[symbol].map((l) => (
+            <NetworkLine key={l.contact_id} line={l} asOf={snap.data_until} />
+          ))}
         </section>
       )}
 

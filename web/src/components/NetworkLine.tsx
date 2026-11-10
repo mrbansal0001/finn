@@ -6,7 +6,7 @@ import type { NetworkLine as Line } from "@/lib/types";
  * Wording follows the evidence level (D-023): "worked together" only when dates
  * overlap; otherwise the shared organisation with "dates not disclosed".
  */
-export function NetworkLine({ line, compact }: { line: Line; compact?: boolean }) {
+export function NetworkLine({ line, compact, asOf }: { line: Line; compact?: boolean; asOf?: string }) {
   return (
     <p className={`${compact ? "mt-1" : "mt-3"} flex gap-2 text-[0.875rem] leading-snug`}>
       <span aria-hidden className="text-accent">◦</span>
@@ -16,16 +16,20 @@ export function NetworkLine({ line, compact }: { line: Line; compact?: boolean }
         </Link>{" "}
         {line.relation}
         {line.via ? <span className="text-ink-3"> · via {line.via}</span> : null}
-        {!compact && line.last_contact ? (
-          <span className="text-ink-3"> · last spoke {monthsAgo(line.last_contact)}</span>
+        {line.insider ? (
+          <span className="text-ink-3"> · insider{compact ? "" : ": public information only"}</span>
+        ) : null}
+        {!compact && line.last_contact && asOf ? (
+          <span className="text-ink-3"> · last spoke {monthsAgo(line.last_contact, asOf)}</span>
         ) : null}
       </span>
     </p>
   );
 }
 
-function monthsAgo(iso: string): string {
-  const days = Math.round((Date.now() - new Date(iso).getTime()) / 86_400_000);
+function monthsAgo(iso: string, asOf: string): string {
+  // measured against the edition's data time, not the render clock
+  const days = Math.round((new Date(asOf).getTime() - new Date(iso).getTime()) / 86_400_000);
   if (days < 14) return `${days}d ago`;
   if (days < 60) return `${Math.round(days / 7)} wk ago`;
   return `${Math.round(days / 30)} mo ago`;

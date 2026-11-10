@@ -34,7 +34,8 @@ def test_company_alumni_rank_above_current_insiders():
     lines = network.for_company("TITAN", CONTACTS, TODAY, kind="management_change")
     assert lines[0]["name"] == "Rhea Kapoor"            # ex-Head of Strategy, strong tie
     insiders = [l for l in lines if l["insider"]]
-    assert all("unpublished price-sensitive" in l["relation"] for l in insiders)
+    assert all(l["relation"].startswith("works at") for l in insiders)
+    assert not any(l["insider"] for l in lines[:1])
 
 
 def test_topic_routes_irdai_action_to_regulatory_expert():

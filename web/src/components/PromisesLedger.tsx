@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import type { Ledger, PromiseRow, PromiseStatus } from "@/lib/types";
+import type { Ledger, NetworkLine as Line, PromiseRow, PromiseStatus } from "@/lib/types";
+import { NetworkLine } from "./NetworkLine";
 
 /**
  * Promised vs delivered (research 03 §4.2, §9.4; D-024).
@@ -25,7 +26,7 @@ const EVIDENCE_LABEL: Record<PromiseRow["evidence_source"], string> = {
   "not checkable": "not checkable from filings",
 };
 
-export function PromisesLedger({ ledger }: { ledger: Ledger }) {
+export function PromisesLedger({ ledger, verifiers = {} }: { ledger: Ledger; verifiers?: Record<string, Line> }) {
   const [open, setOpen] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "slipped">("slipped");
   const counts = countLatest(ledger.rows);
@@ -92,7 +93,7 @@ export function PromisesLedger({ ledger }: { ledger: Ledger }) {
         </thead>
         <tbody>
           {rows.map((r) => (
-            <Row key={r.id} row={r} ledger={ledger} open={open === r.id} onToggle={() => setOpen(open === r.id ? null : r.id)} />
+            <Row key={r.id} row={r} ledger={ledger} verifier={verifiers[`${ledger.symbol}:${r.id}`]} open={open === r.id} onToggle={() => setOpen(open === r.id ? null : r.id)} />
           ))}
         </tbody>
       </table>
@@ -102,7 +103,7 @@ export function PromisesLedger({ ledger }: { ledger: Ledger }) {
   );
 }
 
-function Row({ row, ledger, open, onToggle }: { row: PromiseRow; ledger: Ledger; open: boolean; onToggle: () => void }) {
+function Row({ row, ledger, verifier, open, onToggle }: { row: PromiseRow; ledger: Ledger; verifier?: Line; open: boolean; onToggle: () => void }) {
   return (
     <>
       <tr className="border-t border-rule align-top">
@@ -139,7 +140,7 @@ function Row({ row, ledger, open, onToggle }: { row: PromiseRow; ledger: Ledger;
       {open && (
         <tr>
           <td colSpan={ledger.calls.length + 1} className="pb-4">
-            <Detail row={row} ledger={ledger} />
+            <Detail row={row} ledger={ledger} verifier={verifier} />
           </td>
         </tr>
       )}
@@ -147,7 +148,7 @@ function Row({ row, ledger, open, onToggle }: { row: PromiseRow; ledger: Ledger;
   );
 }
 
-function Detail({ row, ledger }: { row: PromiseRow; ledger: Ledger }) {
+function Detail({ row, ledger, verifier }: { row: PromiseRow; ledger: Ledger; verifier?: Line }) {
   return (
     <div className="border-l-2 border-rule pl-3 text-[0.875rem] leading-relaxed">
       {row.first_quote && (
@@ -175,6 +176,12 @@ function Detail({ row, ledger }: { row: PromiseRow; ledger: Ledger }) {
       {row.latest_quote && <Quote label={`Latest · ${row.latest_quote.call}`} q={row.latest_quote} />}
       {row.verdict && <p className="mt-2 text-ink-2">{row.verdict}</p>}
       <p className="mt-2 text-[0.75rem] text-ink-3">Evidence: {EVIDENCE_LABEL[row.evidence_source]}.</p>
+      {verifier && (
+        <div className="mt-1">
+          <p className="text-[0.75rem] text-ink-3">Who can verify</p>
+          <NetworkLine line={verifier} compact />
+        </div>
+      )}
     </div>
   );
 }

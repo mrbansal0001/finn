@@ -142,7 +142,7 @@ def for_company(symbol: str, contacts: list[Contact], today: date, *, kind: str 
             if h.get("end") is None:
                 if kind == "move":
                     continue  # never point an investor at an insider to ask why the stock moved
-                rel = f"works at {h['org']} now ({h['role']}). An insider: no unpublished price-sensitive information"
+                rel = f"works at {h['org']} now ({h['role']})"
                 out.append(_line(c, today, rel, "certain", 0.55, insider=True))
             elif h.get("function") == "board":
                 out.append(_line(c, today, f"sat on {h['org']}'s board, {_span(h)}", "certain", 0.85))

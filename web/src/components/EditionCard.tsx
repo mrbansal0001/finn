@@ -39,7 +39,7 @@ export function EditionCard({ card, refTime, compact = false }: { card: Card; re
         <p className="mt-1.5 text-[0.8125rem] italic text-ink-3">Full details are read from the filing once the model is connected.</p>
       )}
 
-      {card.network?.length > 0 && <NetworkLine line={card.network[0]} compact={compact} />}
+      {card.network?.length > 0 && <NetworkLine line={card.network[0]} compact={compact} asOf={refTime} />}
 
       {!compact && card.sources.length > 0 && <SourceChips sources={card.sources} />}
     </article>

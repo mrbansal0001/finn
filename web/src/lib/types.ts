@@ -12,6 +12,22 @@ export type NetworkLine = {
   last_contact: string | null; // ISO date
   confidence: "certain" | "dates overlap" | "same organisation" | "second degree";
   via?: string | null;
+  insider?: boolean;
+};
+
+export type Contact = {
+  id: string;
+  name: string;
+  current: { org: string; role: string };
+  history: { org: string; symbol: string | null; role: string; function: string; start: string; end: string | null }[];
+  education: { school: string; degree: string; year: number }[];
+  domains: string[];
+  city: string;
+  interactions_12m: number;
+  last_contact: string | null;
+  reciprocity: number;
+  rating: number;
+  how_met: string;
 };
 
 export type ResultValues = Record<string, number | string | null>;
@@ -71,6 +87,9 @@ export type Snapshot = {
   editions: Record<WindowKey, Edition>;
   results: Record<string, ResultsFacts>;
   prices: Record<string, { close: number; change_pct: number; volume_multiple: number; day: string }>;
+  people: Record<string, NetworkLine[]>;
+  verifiers: Record<string, NetworkLine>;
+  contacts: Contact[];
 };
 
 export type WindowKey = "24h" | "3d" | "7d" | "30d";
