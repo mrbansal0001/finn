@@ -51,3 +51,29 @@ def backfill(symbols: list[str], days: int = 30, end: date | None = None) -> int
                              published, "backfill", False))
     with store.connect() as con:
         return store.upsert(con, "filings", rows)
+
+
+def poll_results() -> int:
+    """Integrated Filing (Financials) XBRL from the live feed (last ~20 filings)."""
+    return ingest_results_xbrl([i.xbrl_url for i in feeds.poll_results()])
+
+
+def ingest_results_xbrl(urls: list[str]) -> int:
+    """Exact current-quarter numbers from Integrated Filing XBRL files (D-010)."""
+    from . import xbrl
+    rows = []
+    for url in urls:
+        try:
+            r = xbrl.parse_results(fetch.get(url).decode("utf-8", errors="replace"))
+        except Exception:  # one bad file must not stop the poll
+            continue
+        if not (r.symbol and r.period_end and r.values):
+            continue
+        rows.append({
+            "symbol": r.symbol, "period_end": r.period_end, "nature": r.nature or "Unknown",
+            "reporting": r.reporting, "source": "xbrl", "source_url": url,
+            "values_json": {**r.values, "_rounding": r.rounding, "_ebitda": r.ebitda()},
+            "comparatives_json": None, "check_status": "xbrl_exact",
+        })
+    with store.connect() as con:
+        return store.upsert(con, "results", rows)
