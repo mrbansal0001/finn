@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  FINN ingest worker: one cycle every 15 minutes on a residential Mac (D-017, D-026).
+  Edit the two paths below if your checkout or uv live elsewhere.
+
+  Install (you run this yourself):
+    cp worker/ops/com.finn.worker.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.finn.worker.plist
+  Remove:
+    launchctl unload ~/Library/LaunchAgents/com.finn.worker.plist
+    rm ~/Library/LaunchAgents/com.finn.worker.plist
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.finn.worker</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/tanishbansal/.local/bin/uv</string>
+    <string>run</string><string>python</string><string>-I</string><string>-m</string><string>finn_worker.run</string><string>once</string>
+  </array>
+  <key>WorkingDirectory</key><string>/Users/tanishbansal/finn/worker</string>
+  <key>StartInterval</key><integer>900</integer>
+  <key>RunAtLoad</key><true/>
+  <key>StandardOutPath</key><string>/Users/tanishbansal/finn/data/logs/launchd.out.log</string>
+  <key>StandardErrorPath</key><string>/Users/tanishbansal/finn/data/logs/launchd.err.log</string>
+  <key>EnvironmentVariables</key>
+  <dict><key>PATH</key><string>/Users/tanishbansal/.local/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin</string></dict>
+</dict>
+</plist>

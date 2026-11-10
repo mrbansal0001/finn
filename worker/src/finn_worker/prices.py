@@ -32,12 +32,21 @@ class Bar:
     turnover: float
 
 
+def _closed_marker(d: date):
+    return fetch.DATA_DIR / "closed_days" / f"{d:%Y%m%d}"
+
+
 def bhavcopy(d: date) -> dict[str, Bar] | None:
     """All EQ/BE-series bars for one day, or None if the market was shut."""
+    if _closed_marker(d).exists():
+        return None
     try:
         raw = fetch.get(URL.format(d=d))
     except httpx.HTTPStatusError as e:
         if e.response.status_code == 404:
+            if d < date.today():  # a past weekday with no file = holiday; remember, don't re-ask
+                _closed_marker(d).parent.mkdir(parents=True, exist_ok=True)
+                _closed_marker(d).touch()
             return None
         raise
     with zipfile.ZipFile(io.BytesIO(raw)) as z:
