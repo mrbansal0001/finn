@@ -28,7 +28,9 @@ export function EditionCard({ card, refTime, compact = false }: { card: Card; re
         id={`h-${card.id}`}
         className={`mt-1.5 font-serif leading-snug text-ink ${compact ? "text-[1.0625rem]" : "text-[1.3125rem]"}`}
       >
-        {card.headline ?? <PendingHeadline card={card} />}
+        <Link href={`/card/${card.id}`} className="hover:underline decoration-rule underline-offset-4">
+          {card.headline ?? <PendingHeadline card={card} />}
+        </Link>
       </h2>
 
       {!compact && card.why && <p className="mt-1.5 text-[0.9375rem] leading-relaxed text-ink-2">{card.why}</p>}

@@ -28,7 +28,6 @@ ROOT = Path(__file__).resolve().parents[3]
 KIND_DOMAINS = {
     "litigation": ["litigation", "legal", "disputes", "regulation", "compliance", "forensic"],
     "m_and_a": ["m&a", "corporate development", "demergers", "schemes of arrangement", "investment banking", "corporate finance"],
-    "management_change": ["board governance", "board", "strategy"],
     "credit_rating": ["corporate credit", "credit risk"],
     "fund_raise": ["corporate finance", "investment banking"],
     "capex": ["projects", "plant commissioning", "epc", "order inflow"],
