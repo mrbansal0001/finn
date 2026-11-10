@@ -1,0 +1,36 @@
+C = dict(company="DEEPAKNTR", call="Q1FY27", call_date="2026-08-06", file="DEEPAKNTR_2026-08")
+MM = "Maulik Mehta (Deputy MD)"; SU = "Sanjay Upadhyay (Director Finance & Group CFO)"
+ITEMS = [
+ dict(id="DN-16", speaker=MM, page=5, quote="MIBK as well as MIBC will be commissioned along with acetophenone in August itself, and the rest of them will be commissioned within Q2.",
+      metric="MIBK/MIBC + acetophenone (Aug-26); multipurpose agro-intermediates & alkylation plants (within Q2FY27)", scope="projects", period="Aug 2026 / by 30 Sep 2026", type="milestone-date", value_low=None, value_high=None, unit="date",
+      conditionality=None, basis=None, relation="reiterated (MIBK in Q2FY27) + revised (alkylation/multipurpose were 'slated a couple of months earlier' — DN-06 Jun-Jul slipped)", link="DN-10",
+      also_quotes=[(9,"the alkylation plant as well as the multipurpose plant was slated for"),(21,"We're going to commission it this month.")]),
+ dict(id="DN-17", speaker=MM, page=9, quote="So that begins from January, and that is something where we are working hard to see that we remain on track with giving the commercial volumes.",
+      metric="Regular commercial volumes from new plants (CY2027 customer allocations)", scope="products", period="from Jan 2027 (Q4FY27)", type="milestone-date", value_low=None, value_high=None, unit="date",
+      conditionality=None, basis=None, relation="revised (DN-11 said regular commercial production from Q3FY27; now from January 2027)", link="DN-11"),
+ dict(id="DN-18", speaker=MM, page=10, quote="we are going to make, I think, about some INR 70-odd crore investment further in debottlenecking the assets to be able to touch about 4 lakh tonnes",
+      metric="Phenol capacity (Deepak Phenolics) debottleneck", scope="segment (Phenolics)", period="'short to medium term' (undated)", type="point", value_low=400, value_high=400, unit="KTPA phenol (capex ~INR70 cr)",
+      conditionality=None, basis=None, relation="new",
+      also_quotes=[(8,"we should in the short to medium term, be able to achieve the big 4 number")]),
+ dict(id="DN-19", speaker=MM, page=12, quote="I would anticipate that we would target H2 for our polycarbonate commissioning.",
+      metric="Polycarbonate plant commissioning (BPA a couple of months later)", scope="project (Deepak Chem Tech)", period="H2 FY29 (Oct 2028-Mar 2029), per CFO clarification '2028-2029'", type="milestone-date", value_low=None, value_high=None, unit="date",
+      conditionality=None, basis=None, relation="revised down (Jun 2028 -> H2FY29; second slip in 2 quarters)", link="DN-13",
+      also_quotes=[(12,"Yes, FY28-29.")]),
+ dict(id="DN-20", speaker=SU, page=7, quote="INR 11,500 crore being funded by debt and equity ratio of 60:40. The entire debt has been tied up",
+      metric="Propylene-to-polycarbonate project cost & funding", scope="project", period="project life", type="point", value_low=11500, value_high=11500, unit="INR cr project cost (60:40 D:E)",
+      conditionality=None, basis=None, relation="revised up (project cost 11,000 -> 11,500 cr); debt tie-up delivered", link="DN-15"),
+ dict(id="DN-21", speaker=SU, page=15, quote="Further this year, we'll spend around another INR 1,000 crore to INR 1,500 crore this year further.",
+      metric="Capex on polycarbonate/propylene project (remaining FY27 spend)", scope="project", period="FY27 (remainder)", type="range", value_low=1000, value_high=1600, unit="INR cr",
+      conditionality=None, basis="project-level, not company capex", relation="revised/ambiguous vs DN-08 (FY27 capex ~2,500); same call gives 1,000-1,500 and 1,500-1,600", link="DN-08",
+      also_quotes=[(16,"Further, this year, it will be around INR 1,500 crore to INR 1,600 crore."),(16,"whatever we are going to spend in 2027, 2028 will be another INR 3,000 crore")]),
+ dict(id="DN-22", speaker=SU, page=19, quote="But debt-to-equity ratio will be very, very comfortable. It will not cross even 1.",
+      metric="Peak debt / debt-to-equity", scope="company (consolidated)", period="peak (through project commissioning ~FY29)", type="point (ceiling)", value_low=None, value_high=1.0, unit="x D/E (peak debt INR 8,000-8,500 cr)",
+      conditionality=None, basis="consolidated", relation="new",
+      also_quotes=[(19,"So that would be somewhere around INR 8,000 crore to INR 8,500 crore.")]),
+]
+EVIDENCE = {
+ "q1_cons": (4, "Consolidated Revenue from Operations stood at INR 2,592 crore, registering a 35%"),
+ "q1_ebitda": (4, "INR 554 crore, growing 159% year-on-year and 45% sequentially, while EBITDA margins"),
+ "q1_ai": (4, "INR 804 crore, representing a 33% year-on-year and a 14% sequential growth. EBIT was INR"),
+ "de_now": (7, "our debt-to-equity ratio remained comfortable at 0.27x"),
+}

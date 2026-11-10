@@ -1,0 +1,35 @@
+C = dict(company="DEEPAKNTR", call="Q4FY26", call_date="2026-05-18", file="DEEPAKNTR_2026-05")
+MM = "Maulik Mehta (Deputy MD; titled ED & CEO in Feb-26 transcript)"; SU = "Sanjay Upadhyay (Director Finance & Group CFO)"
+ITEMS = [
+ dict(id="DN-09", speaker=MM, page=9, quote="So we anticipate Q1 to be better than Q4, which was, of course, better than Q3.",
+      metric="Quarterly performance QoQ (standalone and consolidated)", scope="company (standalone + consolidated)", period="Q1FY27 vs Q4FY26 (and vs Q1FY26)", type="directional", value_low=None, value_high=None, unit="direction",
+      conditionality=None, basis="standalone and consolidated (explicit)", relation="reiterated & broadened (DN-02 was AI-segment only)", link="DN-02",
+      also_quotes=[(9,"I can say that our Q1 looks on track for numbers, which are better than Q4, whether it is on standalone or on a consolidated basis."),(10,"we anticipate Q1 will be somewhat better than Q4, and also be better than last year's Q1")]),
+ dict(id="DN-10", speaker=MM, page=4, quote="MIBK, MIBC projects, which are scheduled for commissioning in Q2 FY27",
+      metric="MIBK/MIBC (+ multipurpose agrochemical intermediates) commissioning", scope="project", period="Q2FY27 (Jul-Sep 2026)", type="milestone-date", value_low=None, value_high=None, unit="date",
+      conditionality=None, basis=None, relation="revised (slipped from Q4FY26)", link="DN-03",
+      also_quotes=[(8,"maybe perhaps at the tail end of Q1 or the early part of Q2 is when we will be looking at commissioning of the asset")]),
+ dict(id="DN-11", speaker=MM, page=8, quote="we anticipate commercial production on a regularized basis from Q3 onwards",
+      metric="New products (6-7 new + INR220 cr fluorinated molecule) — regular commercial production", scope="products", period="Q3FY27 onwards", type="milestone-date", value_low=None, value_high=None, unit="date",
+      conditionality=None, basis=None, relation="new (fluorinated-molecule plant was originally due Jan-2026 per analyst)"),
+ dict(id="DN-12", speaker=MM, page=12, quote="Therefore, in FY27, we expect a stronger margin profile, even for the standalone business, compared with FY26.",
+      metric="EBITDA margin (standalone and group)", scope="company (standalone explicitly)", period="FY27 vs FY26", type="directional", value_low=None, value_high=None, unit="direction",
+      conditionality=None, basis="standalone", relation="new"),
+ dict(id="DN-13", speaker=MM, page=14, quote="we are expecting it to be commissioned by June 2028",
+      metric="Polycarbonate plant commissioning", scope="project (Deepak Chem Tech)", period="Jun 2028", type="milestone-date", value_low=None, value_high=None, unit="date",
+      conditionality=None, basis=None, relation="revised down (Feb-26: Dec 2027 +/- a couple of months; management frames it as 'in line' — silent slip of ~6 months)", link="DN-07"),
+ dict(id="DN-14", speaker=MM, page=7, quote="So once the plant is under stable operations, we do anticipate the kind of target that we're looking at.",
+      metric="Nitric acid integration EBITDA uplift (INR 90-100 cr per analyst question)", scope="project", period="once stable (undated)", type="point", value_low=90, value_high=100, unit="INR cr EBITDA p.a.",
+      conditionality="'once the plant is under stable operations'", basis=None, relation="reiterated (number stated by analyst, endorsed by management)",
+      also_quotes=[(7,"we were roughly at about 45% of"),(7,"are we on track to get that INR90 crore, INR100 crore of EBITDA addition for the nitric acid")]),
+ dict(id="DN-15", speaker=SU, page=15, quote="We have tied up with the banks for debt. It will be in the ratio of 60-40.",
+      metric="Polycarbonate & related projects funding (debt:equity)", scope="project", period="project life", type="point", value_low=60, value_high=60, unit="% debt (60:40 D:E) on ~INR11,000 cr",
+      conditionality="equity first (25%) before debt drawdown", basis=None, relation="new",
+      also_quotes=[(15,"So, the total project, what we have announced is around INR11,000 crore.")]),
+]
+EVIDENCE = {
+ "q4_cons": (4, "During quarter 4, consolidated revenues stood at INR2,127 crore compared to INR2,202 crore"),
+ "q4_ebitda": (4, "EBITDA margins improved significantly to 18% during the quarter under review compared to"),
+ "nitric_util": (7, "we were roughly at about 45% of"),
+ "fy26_cons": (4, "For FY26, consolidated revenue stood at INR7,947 crore, while EBITDA and PAT stood at"),
+}

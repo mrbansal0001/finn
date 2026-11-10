@@ -1,0 +1,17 @@
+# secrets
+.env
+.env.*
+!.env.example
+# assignment PDFs and downloaded source documents are never committed
+*.pdf
+data/raw/
+# python
+__pycache__/
+.venv/
+*.pyc
+# node
+node_modules/
+.next/
+.vercel/
+# os
+.DS_Store

@@ -1,0 +1,90 @@
+# NSE corporate-announcements `desc` values, 3-7 Nov 2026, n=5756 filings (count | desc)
+1164 | Analysts/Institutional Investor Meet/Con. Call Updates
+889 | Outcome of Board Meeting
+840 | Copy of Newspaper Publication
+475 | General Updates
+433 | Press Release
+397 | Investor Presentation
+293 | Updates
+136 | Monitoring Agency Report
+105 | Appointment
+101 | Shareholders meeting
+67 | Change in Management
+63 | Statement of deviation(s) or variation(s) under Reg. 32
+62 | ESOP/ESOS/ESPS
+62 | Record Date
+60 | Resignation of Director/KMP/SMP
+44 | Resignation
+43 | Dividend
+42 | Change in Director(s)
+41 | Acquisition
+32 | Integrated Filing- Financial
+31 | Allotment of Securities
+26 | Bagging/Receiving of orders/contracts
+25 | Credit Rating
+18 | Corporate Insolvency Resolution Process
+18 | Trading Window
+18 | Cessation
+16 | Action(s) taken or orders passed
+14 | Change in Auditors
+13 | Change in Company Secretary/Compliance Officer
+13 | Options to purchase securities
+11 | Capacity addition
+10 | Pendency of Litigation(s)/dispute(s) or the outcome impacting the Company
+10 | Press Release (Revised)
+9 | Action(s) initiated or orders passed
+9 | Agreements
+9 | Amalgamation/Merger
+7 | Spurt in Volume
+7 | Disclosure of material issue
+7 | Amendment to AOA/MOA
+7 | Committee Meeting Updates
+6 | Credit Rating- Revision
+6 | Retirement
+6 | Price movement
+6 | Credit Rating- Others
+6 | Resignation of Statutory Auditor
+6 | News Verification
+5 | Monthly Business Updates
+5 | Giving guarantees/indemnity/ becoming a surety for third party
+5 | Issue of Securities
+5 | Open Offer
+5 | Disclosure under SEBI Takeover Regulations
+4 | Product launch
+4 | Scheme of Arrangement
+4 | Certificate under SEBI (Depositories and Participants) Regulations, 2018
+4 | Related Party Transactions
+4 | Address Change
+3 | Demise
+3 | Other Restructuring
+3 | Credit Rating- New
+2 | Arrangements for strategic, technical, manufacturing, or marketing tie up
+2 | Adoption of new line(s) of business
+2 | Sale or disposal
+2 | Bonus
+2 | Commencement of commercial production/operations
+2 | Granting/withdrawal/surrender/cancellation/suspension of key licenses/ regulatory approvals
+2 | Loss of Share Certificates
+2 | Strikes/Lockouts/Disturbances
+2 | Reply to Clarification- Financial results
+1 | Initiation of Forensic Audit
+1 | Closure of operations
+1 | Alteration/revision(s)
+1 | Memorandum of Understanding/Agreements
+1 | Defaults on Payment of Interest/Principal
+1 | Stock split
+1 | Rights Issue
+1 | Rescission/termination(s)
+1 | Reasons for Delayed/Non-submission of Financial Results
+1 | Others
+1 | Conversion
+1 | Demerger
+1 | Rumour Verification - Regulation 30(11)
+1 | Fraud/Default/Arrest
+1 | Utilisation of Funds
+1 | Buyback
+1 | Registrar & Share Transfer Agent Update
+1 | Public Announcement - Buyback of Shares
+1 | Offer for sale
+1 | Clarification - Financial Results
+1 | Awarding of order(s)/contract(s)
