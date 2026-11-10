@@ -42,7 +42,7 @@ create table if not exists public.results (
   check_status  text,
   values_json   jsonb not null,
   comparatives  jsonb,
-  primary key (symbol, period_end, nature)
+  primary key (symbol, period_end, nature, source)
 );
 
 -- pull requests for tickers not yet covered; the residential worker drains this queue

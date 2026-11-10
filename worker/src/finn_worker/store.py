@@ -52,7 +52,7 @@ create table if not exists results (
   values_json   text not null,          -- current period, absolute rupees
   comparatives_json text,               -- {"prev_q": {...}, "prev_y": {...}}
   check_status  text,                   -- 'xbrl_match' | 'arithmetic_ok' | 'unchecked' | 'failed: ...'
-  primary key (symbol, period_end, nature)
+  primary key (symbol, period_end, nature, source)   -- an XBRL row and a PDF table coexist
 );
 
 create table if not exists people_changes (
@@ -78,10 +78,24 @@ create table if not exists llm_calls (
 """
 
 
+def _migrate(con: sqlite3.Connection) -> None:
+    """v1 -> v2: results primary key gains `source`."""
+    row = con.execute("select sql from sqlite_master where name='results'").fetchone()
+    if row and "nature, source)" not in row[0]:
+        con.executescript("""
+            alter table results rename to results_v1;
+            create table results (symbol text not null, period_end text not null, nature text not null,
+              reporting text, source text not null, source_url text, values_json text not null,
+              comparatives_json text, check_status text, primary key (symbol, period_end, nature, source));
+            insert into results select * from results_v1;
+            drop table results_v1;""")
+
+
 def connect() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     con = sqlite3.connect(DB_PATH)
     con.row_factory = sqlite3.Row
+    _migrate(con)
     con.executescript(SCHEMA)
     return con
 
