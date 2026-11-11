@@ -26,6 +26,15 @@ const EVIDENCE_LABEL: Record<PromiseRow["evidence_source"], string> = {
   "not checkable": "not checkable from filings",
 };
 
+/** Two-line column header: "Q3FY26" -> Q3 / FY26; "Feb 2026" -> Feb / '26. */
+function headerParts(label: string): [string, string] {
+  const q = label.match(/^(Q[1-4])\s?(FY\d{2})$/i);
+  if (q) return [q[1], q[2]];
+  const m = label.match(/^([A-Za-z]{3})[a-z]*\s+(\d{4})$/);
+  if (m) return [m[1], `'${m[2].slice(2)}`];
+  return [label.slice(0, 3), label.slice(3)];
+}
+
 export function PromisesLedger({ ledger, verifiers = {} }: { ledger: Ledger; verifiers?: Record<string, Line> }) {
   const [open, setOpen] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "slipped">("slipped");
@@ -84,9 +93,9 @@ export function PromisesLedger({ ledger, verifiers = {} }: { ledger: Ledger; ver
             <th className="pb-1 text-left font-medium">Promise</th>
             {ledger.calls.map((c) => (
               <th key={c.label} className="pb-1 text-center font-medium leading-tight">
-                {c.label.slice(0, 2)}
+                {headerParts(c.label)[0]}
                 <br />
-                {c.label.slice(2)}
+                {headerParts(c.label)[1]}
               </th>
             ))}
           </tr>
