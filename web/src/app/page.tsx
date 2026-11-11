@@ -76,6 +76,13 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
         ))}
       </nav>
 
+      {snap.contacts.length === 0 && (
+        <p className="mt-4 rounded-md border border-rule px-3 py-2 text-[0.8125rem] text-ink-2">
+          Your private demo network didn&apos;t load just now (too many new visitors at once, or cookies blocked). Reload in a
+          minute; filings and numbers are unaffected.
+        </p>
+      )}
+
       <Alerts edition={ed} prefs={prefs} />
 
       <section aria-labelledby="leads" className="mt-6">

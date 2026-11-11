@@ -86,7 +86,16 @@ async function Person({ params }: { params: PageProps<"/people/[id]">["params"] 
               </li>
             ))}
           </ul>
-          <NoteDraft name={c.name} company={cards[0].company} topic={cards[0].headline ?? cards[0].nse_subject} />
+          <NoteDraft
+            name={c.name}
+            company={cards[0].company}
+            topic={cards[0].headline ?? cards[0].nse_subject}
+            kind={cards[0].kind}
+            role={(() => {
+              const h = c.history.find((x) => x.symbol === cards[0].symbol);
+              return h ? `${h.role} there` : undefined;
+            })()}
+          />
         </section>
       )}
 
