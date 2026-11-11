@@ -103,17 +103,30 @@ def _span(h: dict) -> str:
 
 
 def _org_match(a: str, b: str) -> bool:
-    norm = lambda s: re.sub(r"\b(limited|ltd|india|of|the|company|industries)\b|[^a-z0-9 ]", "", s.lower()).strip()
-    return fuzz.token_set_ratio(norm(a), norm(b)) >= 90
+    """Same organisation, not a sibling: 'HDFC Bank Limited' = 'HDFC Bank', but 'HDFC Ltd' != 'HDFC Bank' and
+    'Reliance Industries' != 'Reliance Capital' (a subset match scored 100 before; E29)."""
+    norm = lambda s: re.sub(r"\s+", " ", re.sub(r"\b(limited|ltd|pvt|private|of|the|company|co)\b|[^a-z0-9 ]", " ", s.lower())).strip()
+    return fuzz.token_sort_ratio(norm(a), norm(b)) >= 90
 
 
-def _overlap(h1: dict, h2: dict) -> tuple[int, int] | None:
-    s1, e1 = _year(h1.get("start")), _year(h1.get("end")) or date.today().year
-    s2, e2 = _year(h2.get("start")), _year(h2.get("end")) or date.today().year
+def _ym(s: str | None, end: bool = False) -> float | None:
+    """'2015-02' -> 2015.08; '2015' -> 2015.0 (start) or 2015.99 (end)."""
+    if not s:
+        return None
+    y = int(str(s)[:4])
+    m = int(str(s)[5:7]) if len(str(s)) >= 7 and str(s)[5:7].isdigit() else (12 if end else 1)
+    return y + (m - 1) / 12
+
+
+def _overlap(h1: dict, h2: dict, today: date | None = None) -> tuple[int, int] | None:
+    """Overlapping years of two stints, by month where printed (Feb-2015 end and Nov-2015 start don't overlap)."""
+    now = (today or date.today()).year + 0.99
+    s1, s2 = _ym(h1.get("start")), _ym(h2.get("start"))
+    e1, e2 = _ym(h1.get("end"), end=True) or now, _ym(h2.get("end"), end=True) or now
     if None in (s1, s2):
         return None
     lo, hi = max(s1, s2), min(e1, e2)
-    return (lo, hi) if lo <= hi else None
+    return (int(lo), int(hi)) if lo <= hi else None
 
 
 # ------------------------------------------------------------------ matching
@@ -123,8 +136,11 @@ def for_person(person: dict, contacts: list[Contact], today: date) -> list[dict]
     out = []
     for c in contacts:
         if fuzz.token_sort_ratio(person.get("name", ""), c.name) >= 95:
-            out.append(_line(c, today, "is the same person", "certain", 1.0))
-            continue
+            # a name alone could be a namesake: the same person also shares an organisation (DIN in production)
+            orgs = [h["org"] for h in c.history] + [c.current.get("org", "")]
+            if any(_org_match(po["org"], o) for po in person.get("orgs", []) for o in orgs if o):
+                out.append(_line(c, today, "is the same person", "certain", 1.0))
+                continue
         for po in person.get("orgs", []):
             stints = [h for h in c.history if _org_match(po["org"], h["org"])]
             if not stints:

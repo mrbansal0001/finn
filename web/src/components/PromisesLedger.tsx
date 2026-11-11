@@ -36,7 +36,10 @@ function headerParts(label: string): [string, string] {
   return [label.slice(0, 3), label.slice(3)];
 }
 
-export function PromisesLedger({ ledger, verifiers = {} }: { ledger: Ledger; verifiers?: Record<string, Line> }) {
+export function PromisesLedger({ ledger: built, verifiers = {} }: { ledger: Ledger; verifiers?: Record<string, Line> }) {
+  const [source, setSource] = useState<"built" | "reference">("built");
+  const ledger: Ledger =
+    source === "reference" && built.reference ? { ...built, ...built.reference, reference: built.reference } : built;
   const [open, setOpen] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "slipped">("slipped");
   const [showAll, setShowAll] = useState(false);
@@ -50,6 +53,36 @@ export function PromisesLedger({ ledger, verifiers = {} }: { ledger: Ledger; ver
       <h2 id="promises" className="kicker border-b border-ink pb-2">
         Promised vs delivered · last 4 calls
       </h2>
+
+      {built.reference && (
+        <div className="mt-3">
+          <div className="flex gap-1 text-[0.8125rem]" role="tablist" aria-label="Which ledger">
+            {(
+              [
+                ["built", "Built by FINN"],
+                ["reference", "Hand-checked reference"],
+              ] as const
+            ).map(([k, label]) => (
+              <button
+                key={k}
+                role="tab"
+                aria-selected={source === k}
+                onClick={() => {
+                  setSource(k);
+                  setOpen(null);
+                }}
+                className={`min-h-[44px] rounded-full border border-rule px-3 ${source === k ? "bg-ink text-paper" : "text-ink-2"}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1.5 text-[0.75rem] leading-snug text-ink-3">
+            The reference was labelled by hand from the same transcripts and is what the pipeline is graded on: it finds
+            about 80% of the hand-labelled promises, and every quote it shows is checked against its page.
+          </p>
+        </div>
+      )}
 
       <p className="mt-3 text-[0.875rem] text-ink-2">
         {(["delivered", "partly", "revised", "silent", "missed", "closed", "early"] as PromiseStatus[])

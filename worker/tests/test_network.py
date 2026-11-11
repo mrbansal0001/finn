@@ -95,3 +95,15 @@ def test_studied_at_the_same_school_is_found():
     CONTACTS2, _ = network.load()
     lines = network.for_person({"name": "V. N. Srivatsan", "orgs": [], "schools": ["PSG College of Technology"]}, CONTACTS2, TODAY)
     assert any("alumnus of PSG College of Technology" in ln["relation"] for ln in lines)
+
+
+def test_sibling_companies_are_not_the_same_organisation():
+    assert network._org_match("HDFC Bank Limited", "HDFC Bank")
+    assert not network._org_match("HDFC Ltd", "HDFC Bank")
+    assert not network._org_match("Reliance Industries", "Reliance Capital")
+    assert not network._org_match("State Bank of India", "SBI Mauritius")
+
+
+def test_overlap_by_month_not_year():
+    assert network._overlap({"start": "2010-01", "end": "2015-02"}, {"start": "2015-11", "end": "2018-01"}) is None
+    assert network._overlap({"start": "2010", "end": "2016"}, {"start": "2015-11", "end": None}) == (2015, 2016)

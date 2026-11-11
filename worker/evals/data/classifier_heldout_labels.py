@@ -2,9 +2,12 @@
 # from the worker store, excluding every filing in the tuning sample and ETF NAV notices.
 # Labelled from NSE's subject + summary only, before running the rules on them; the rules were not
 # changed after seeing the result. Same conventions as classifier_labels.py.
+# Correction 12 Nov: #7 (Titan change in auditors) relabelled routine, because ENAM's reference lists
+# auditor appointments under 'unclassified' (routine). This corrects the label against the brief's own
+# taxonomy, not towards the rules' output.
 LABELS = {
  0: ("press_release|unclassified", None), 1: ("results", 1), 2: ("unclassified", 0), 3: ("earnings_call|investor_meetings", 0),
- 4: ("investor_meetings", 0), 5: ("investor_meetings", 0), 6: ("press_release|m_and_a|capex", 1), 7: ("management_change|unclassified", 1),
+ 4: ("investor_meetings", 0), 5: ("investor_meetings", 0), 6: ("press_release|m_and_a|capex", 1), 7: ("unclassified|management_change", 0),
  8: ("litigation", 1), 9: ("investor_meetings", 0), 10: ("results|unclassified", 0), 11: ("investor_meetings", 0),
  12: ("earnings_call", 1), 13: ("unclassified", 0), 14: ("earnings_call", 1), 15: ("investor_meetings", 0),
  16: ("investor_meetings", 0), 17: ("unclassified|fund_raise", 0), 18: ("management_change", 1), 19: ("earnings_call|investor_meetings", 0),

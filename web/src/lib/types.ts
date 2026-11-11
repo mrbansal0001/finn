@@ -132,4 +132,6 @@ export type Ledger = {
   calls: { label: string; date: string; url: string }[];
   rows: PromiseRow[];
   provenance: string;
+  // a hand-checked ledger for the same calls, shown on request to compare the pipeline against
+  reference?: { rows: PromiseRow[]; calls: { label: string; date: string; url: string }[]; provenance: string };
 };

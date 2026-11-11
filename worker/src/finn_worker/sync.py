@@ -69,6 +69,13 @@ def push() -> str:
     for p in (ROOT / "data" / "ledgers").glob("*.json"):
         payload = json.loads(p.read_text())
         kind = "reference (hand-labelled)" if payload.get("provenance", "").startswith("Reference") else "model-built"
+        machine = ROOT / "data" / "ledgers_model" / p.name
+        if kind.startswith("reference") and machine.exists():
+            # show what the pipeline builds by default; the hand-checked ledger rides along to compare against
+            ref = payload
+            payload = json.loads(machine.read_text())
+            payload["reference"] = {"rows": ref["rows"], "calls": ref["calls"], "provenance": ref["provenance"]}
+            kind = "model-built (with hand-checked reference)"
         ledgers.append({"symbol": p.stem, "provenance": kind, "payload": payload})
     if ledgers:
         _upsert(http, base, "ledgers", ledgers)
