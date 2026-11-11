@@ -13,6 +13,7 @@ export type NetworkLine = {
   confidence: "certain" | "dates overlap" | "same organisation" | "second degree";
   via?: string | null;
   insider?: boolean;
+  best_reason?: string;  // why the first person is the one to call (worker, from the evidence)
 };
 
 export type Contact = {

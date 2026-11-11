@@ -19,7 +19,7 @@ export function NoteDraft({ name, company, topic }: { name: string; company: str
         value={text}
         onChange={(e) => setText(e.target.value)}
         rows={4}
-        className="mt-1 w-full rounded-md border border-rule bg-paper-raised p-2 text-[0.9375rem] leading-relaxed focus:border-accent focus:outline-none"
+        className="mt-1 w-full rounded-md border border-ink-3 bg-paper-raised p-2 text-[1rem] leading-relaxed focus:border-accent focus:outline-none"
       />
       <button
         type="button"

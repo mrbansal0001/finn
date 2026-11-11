@@ -2,8 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { Edition } from "@/lib/types";
+
+type Person = { id: string; name: string; why: string };
+const canSpeakNow = () => typeof window !== "undefined" && "speechSynthesis" in window;
 
 /**
  * Bottom dock: Ask (open any NSE company), "Brief me · 60s" (reads the edition
@@ -13,33 +16,33 @@ import type { Edition } from "@/lib/types";
 export function Dock({ edition }: { edition?: Edition }) {
   const router = useRouter();
   const [q, setQ] = useState("");
-  const [hits, setHits] = useState<[string, string][]>([]);
+  // results remember the query they answer, so Enter never acts on a stale, shorter query
+  const [res, setRes] = useState<{ q: string; companies: [string, string][]; people: Person[] }>({ q: "", companies: [], people: [] });
   const [speaking, setSpeaking] = useState(false);
-  const [canSpeak, setCanSpeak] = useState(false);
+  const canSpeak = useSyncExternalStore(() => () => {}, canSpeakNow, () => false);
   const utter = useRef<SpeechSynthesisUtterance | null>(null);
+  const query = q.trim();
+  const current = query.length >= 2 && res.q === query ? res : { q: query, companies: [], people: [] };
+
+  useEffect(() => () => window.speechSynthesis?.cancel(), []);
 
   useEffect(() => {
-    setCanSpeak(typeof window !== "undefined" && "speechSynthesis" in window);
-    return () => window.speechSynthesis?.cancel();
-  }, []);
-
-  useEffect(() => {
-    if (q.trim().length < 2) {
-      setHits([]);
-      return;
-    }
+    if (query.length < 2) return;
     const ctl = new AbortController();
     const t = setTimeout(() => {
-      fetch(`/api/search?q=${encodeURIComponent(q.trim())}`, { signal: ctl.signal })
-        .then((r) => r.json())
-        .then(setHits)
+      const enc = encodeURIComponent(query);
+      Promise.all([
+        fetch(`/api/search?q=${enc}`, { signal: ctl.signal }).then((r) => r.json()),
+        fetch(`/api/network?q=${enc}`, { signal: ctl.signal }).then((r) => (r.ok ? r.json() : [])),
+      ])
+        .then(([companies, people]) => setRes({ q: query, companies, people }))
         .catch(() => {});
     }, 150);
     return () => {
       clearTimeout(t);
       ctl.abort();
     };
-  }, [q]);
+  }, [query]);
 
   function brief() {
     if (!edition) return;
@@ -65,53 +68,78 @@ export function Dock({ edition }: { edition?: Edition }) {
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    const sym = hits[0]?.[0] ?? q.trim().toUpperCase().replace(/[^A-Z0-9&-]/g, "");
-    if (sym) router.push(`/c/${encodeURIComponent(sym)}`);
+    const typed = query.toUpperCase().replace(/[^A-Z0-9&-]/g, "");
+    const exact = current.companies.find(([s]) => s === typed)?.[0];
+    if (exact || (typed && !current.companies.length && !current.people.length)) {
+      router.push(`/c/${encodeURIComponent(exact ?? typed)}`);
+    } else if (current.companies[0]) {
+      router.push(`/c/${encodeURIComponent(current.companies[0][0])}`);
+    } else if (current.people[0]) {
+      router.push(`/people/${current.people[0].id}`);
+    }
   }
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-20 border-t border-rule bg-paper/95 backdrop-blur supports-[backdrop-filter]:bg-paper/80">
       <div className="mx-auto max-w-[480px] px-4 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2">
-        {hits.length > 0 && (
-          <ul className="mb-2 max-h-64 overflow-y-auto rounded-md border border-rule bg-paper-raised" role="listbox" aria-label="Matching companies">
-            {hits.map(([s, n]) => (
-              <li key={s} role="option" aria-selected={false}>
-                <button
-                  type="button"
-                  onClick={() => router.push(`/c/${s}`)}
-                  className="flex min-h-[44px] w-full items-center gap-3 px-3 text-left text-[0.875rem] hover:bg-paper"
-                >
-                  <span className="num w-24 shrink-0 text-ink">{s}</span>
-                  <span className="truncate text-ink-2">{n}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
+        {(current.companies.length > 0 || current.people.length > 0) && (
+          <div className="mb-2 max-h-72 overflow-y-auto rounded-md border border-rule bg-paper-raised">
+            {current.people.length > 0 && (
+              <>
+                <p className="px-3 pt-2 text-[0.6875rem] uppercase tracking-wider text-ink-3">Your network</p>
+                <ul aria-label="People in your network">
+                  {current.people.map((p) => (
+                    <li key={p.id}>
+                      <Link href={`/people/${p.id}`} className="flex min-h-[44px] flex-col justify-center px-3 py-1 text-[0.875rem] hover:bg-paper">
+                        <span className="text-ink">{p.name}</span>
+                        <span className="truncate text-[0.8125rem] text-ink-2">{p.why}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {current.companies.length > 0 && (
+              <>
+                <p className="px-3 pt-2 text-[0.6875rem] uppercase tracking-wider text-ink-3">Companies</p>
+                <ul aria-label="Matching companies">
+                  {current.companies.map(([s, n]) => (
+                    <li key={s}>
+                      <Link href={`/c/${encodeURIComponent(s)}`} className="flex min-h-[44px] w-full items-center gap-3 px-3 text-left text-[0.875rem] hover:bg-paper">
+                        <span className="num w-24 shrink-0 text-ink">{s}</span>
+                        <span className="truncate text-ink-2">{n}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
         )}
         <form onSubmit={submit} role="search">
           <label htmlFor="ask" className="sr-only">
-            Research any NSE company
+            Research any NSE company or search your network
           </label>
           <input
             id="ask"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Research any NSE ticker, e.g. DIXON"
+            placeholder="A company, or ask your network: “specialty chemicals”"
             autoCapitalize="characters"
             autoCorrect="off"
             spellCheck={false}
-            className="h-11 w-full rounded-md border border-rule bg-paper-raised px-3 text-[0.9375rem] placeholder:text-ink-3 focus:border-accent focus:outline-none"
+            className="h-11 w-full rounded-md border border-ink-3 bg-paper-raised px-3 text-[1rem] placeholder:text-ink-3 focus:border-accent focus:outline-none"
           />
         </form>
         <div className="mt-1.5 flex items-center justify-between text-[0.8125rem]">
           {canSpeak && edition ? (
-            <button type="button" onClick={brief} className="min-h-[36px] text-ink-2 hover:text-ink" aria-pressed={speaking}>
+            <button type="button" onClick={brief} className="min-h-[44px] text-ink-2 hover:text-ink" aria-pressed={speaking}>
               {speaking ? "■ Stop" : "▶ Brief me · 60s"}
             </button>
           ) : (
             <span />
           )}
-          <Link href="/settings" className="min-h-[36px] content-center text-ink-2 hover:text-ink">
+          <Link href="/settings" className="min-h-[44px] content-center text-ink-2 hover:text-ink">
             What counts ›
           </Link>
         </div>

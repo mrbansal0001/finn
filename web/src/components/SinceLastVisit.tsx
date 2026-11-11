@@ -1,32 +1,40 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
-const KEY = "finn_last_visit";
+const KEY = "finn_last_seen_data";
 
-/** "Since last visit" window chip. The timestamp lives only in this browser (per-device convenience). */
-export function SinceLastVisit({ active }: { active: boolean }) {
-  const [since, setSince] = useState<string | null>(null);
+function read(): string | null {
+  try {
+    return localStorage.getItem(KEY);
+  } catch {
+    return null; // private mode: no chip
+  }
+}
+
+/** "Since last visit" window chip. Stores the data timestamp the visitor saw (not the wall clock), so a
+ *  filing that reaches FINN after the visit but carries an earlier time still shows next time.
+ *  Lives only in this browser (a per-device convenience). */
+export function SinceLastVisit({ active, seen }: { active: boolean; seen: string }) {
+  const since = useSyncExternalStore(() => () => {}, read, () => null);
 
   useEffect(() => {
-    try {
-      const prev = localStorage.getItem(KEY);
-      setSince(prev);
-      // record this visit for next time, but only after a minute so a quick reload doesn't reset it
-      const t = setTimeout(() => localStorage.setItem(KEY, new Date().toISOString()), 60_000);
-      return () => clearTimeout(t);
-    } catch {
-      /* private mode: no chip */
-    }
-  }, []);
+    // record what this visit saw, after a minute so a quick reload doesn't reset it
+    const t = setTimeout(() => {
+      try {
+        localStorage.setItem(KEY, seen);
+      } catch {}
+    }, 60_000);
+    return () => clearTimeout(t);
+  }, [seen]);
 
-  if (!since) return null;
+  if (!since || since >= seen) return null;
   return (
     <Link
       href={`/?w=since&t=${encodeURIComponent(since)}`}
       aria-current={active ? "page" : undefined}
-      className={`inline-flex min-h-[36px] items-center whitespace-nowrap rounded-full px-3 text-[0.8125rem] ${
+      className={`inline-flex min-h-[44px] items-center whitespace-nowrap rounded-full px-3 text-[0.8125rem] ${
         active ? "bg-ink text-paper" : "text-ink-2 hover:text-ink"
       }`}
     >

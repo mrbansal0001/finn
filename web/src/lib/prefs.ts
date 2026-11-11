@@ -50,11 +50,12 @@ export function applyPrefs(ed: Edition, prefs: Prefs): Edition {
   const kept: Card[] = [];
   for (const c of all) {
     if (c.kind === "move") {
-      const f = c.facts as { change_pct?: number; volume_multiple?: number };
+      const f = c.facts as { change_pct?: number; volume_multiple?: number; explained_by?: string | null };
       const priceHit = Math.abs(f.change_pct ?? 0) >= prefs.price_pct;
       const volHit = (f.volume_multiple ?? 0) >= prefs.volume_x;
       if (!priceHit && !volHit) continue; // below the investor's own bar: not news
-      c.tier = priceHit ? "lead" : "notable";
+      // an explained move is already told on its filing's card; only an unexplained one leads
+      c.tier = priceHit && !f.explained_by ? "lead" : "notable";
     }
     if (prefs.muted.includes(c.kind)) {
       folded++;

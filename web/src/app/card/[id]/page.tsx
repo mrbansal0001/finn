@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { getView } from "@/lib/data";
 import { KIND_LABEL, when } from "@/lib/format";
 import { NetworkLine } from "@/components/NetworkLine";
+import type { NetworkLine as NetworkLineT } from "@/lib/types";
 import { ResultsTable } from "@/components/ResultsTable";
 import { SourceChips } from "@/components/SourceChips";
 
@@ -62,12 +63,18 @@ async function Detail({ params }: { params: PageProps<"/card/[id]">["params"] })
               {p.schools.length > 0 && <p className="text-[0.8125rem] text-ink-3">{p.schools.join(" · ")}</p>}
             </div>
           ))}
+          <p className="mt-1 text-[0.875rem] text-ink-2">{overlapLine(card.network, people, snap.contacts.length)}</p>
         </section>
       )}
 
       {card.network.length > 0 && (
         <section className="mt-6">
           <h2 className="kicker border-b border-ink pb-2">Who can explain this</h2>
+          {card.network[0]?.best_reason && (
+            <p className="mt-2 text-[0.875rem] text-ink-2">
+              <span className="font-medium text-ink">Best placed: {card.network[0].name}.</span> {card.network[0].best_reason}.
+            </p>
+          )}
           {card.network.map((l) => (
             <NetworkLine key={l.contact_id} line={l} asOf={snap.data_until} />
           ))}
@@ -97,4 +104,13 @@ async function Detail({ params }: { params: PageProps<"/card/[id]">["params"] })
       <Dock />
     </main>
   );
+}
+
+/** Answer the brief's question for people cards, from the visitor's own lines: has anyone in my network
+ *  worked with them, studied with them, or sits one connection away? Says "no" plainly when that's the answer. */
+function overlapLine(lines: NetworkLineT[], people: { name: string }[], checked: number): string {
+  const person = lines.find((l) => l.confidence === "dates overlap" || /alumnus|same person|while .* was there/.test(l.relation));
+  const names = people.slice(0, 2).map((p) => p.name).join(" and ");
+  if (person) return `${person.name} ${person.relation}${person.via ? `, reachable through ${person.via}` : ""}.`;
+  return `No one in your network has worked or studied with ${names}${checked ? ` (checked ${checked} contacts' employers, schools and dates)` : ""}; the people below know the company.`;
 }
