@@ -49,7 +49,7 @@ Why a residential worker: NSE and BSE refuse or time out datacenter requests (me
 | Results tables (18 portfolio results PDFs) | 17/18 pass every check (15 reconcile arithmetically, 2 also equal the XBRL exactly); the one failure (Sun Pharma) stays hidden | E25 |
 | Row-level security, live against Supabase | 12/12 checks (two anonymous visitors cannot see each other's network; public data read-only; no contact name in the public payload) | `uv run python -m evals.rls_check` |
 | Model spend for the whole build | $0.65 across 546 calls (Gemini free tier $0; OpenAI ~$0.005 per filing read) | `llm_calls` table |
-| Tests | 54 worker tests | `uv run pytest` |
+| Tests | 58 worker tests | `uv run pytest` |
 
 ## Run it
 
