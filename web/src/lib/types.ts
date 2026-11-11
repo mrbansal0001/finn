@@ -45,6 +45,8 @@ export type ResultsFacts = {
     qoq: Record<string, number | null>;
     yoy: Record<string, number | null>;
     is_bank?: boolean;
+    is_lender?: boolean;
+    net_of_excise?: boolean;
   };
 };
 
@@ -96,7 +98,7 @@ export type WindowKey = "24h" | "3d" | "7d" | "30d";
 
 // ---- Promises ledger
 
-export type PromiseStatus = "delivered" | "partly" | "missed" | "silent" | "revised" | "early" | "conflict";
+export type PromiseStatus = "delivered" | "partly" | "missed" | "silent" | "revised" | "early" | "conflict" | "closed";
 
 export type LedgerCell = { status: PromiseStatus | null; note?: string; missed_then_reset?: boolean };
 

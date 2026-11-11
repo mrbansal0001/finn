@@ -38,7 +38,7 @@ export function EditionCard({ card, refTime, compact = false }: { card: Card; re
       {!compact && results && <ResultsTable r={results} />}
 
       {!compact && card.needs_read && card.headline && (
-        <p className="mt-1.5 text-[0.8125rem] italic text-ink-3">Full details are read from the filing once the model is connected.</p>
+        <p className="mt-1.5 text-[0.8125rem] italic text-ink-3">FINN reads the full filing on its next run.</p>
       )}
 
       {card.network?.length > 0 && <NetworkLine line={card.network[0]} compact={compact} asOf={refTime} />}
@@ -54,7 +54,7 @@ function PendingHeadline({ card }: { card: Card }) {
     <span>
       {card.company.replace(/ Limited$/, "")} filed: {card.nse_subject.toLowerCase()}
       <span className="mt-1 block font-sans text-[0.8125rem] italic text-ink-3">
-        The filing&apos;s content is read by the model; summary pending.
+        FINN reads this filing on its next run; open it below meanwhile.
       </span>
     </span>
   );

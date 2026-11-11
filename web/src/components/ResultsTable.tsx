@@ -11,6 +11,8 @@ export function ResultsTable({ r }: { r: ResultsFacts }) {
   const c = r.comparatives;
   const v = r.values as Record<string, number | null>;
   const isBank = c?.is_bank ?? false;
+  // a lender pays interest as its main cost, so EBITDA isn't meaningful (Bajaj Finance showed "71%")
+  const isLender = c?.is_lender ?? false;
 
   const rows: { label: string; value: string; yoy?: number | null; qoq?: number | null; unit?: "pct" | "bp" }[] = isBank
     ? [
@@ -21,12 +23,14 @@ export function ResultsTable({ r }: { r: ResultsFacts }) {
       ]
     : [
         { label: "Revenue", value: c ? croreFromCr(c.current.revenue) : crore(v.revenue), yoy: c?.yoy?.revenue, qoq: c?.qoq?.revenue },
-        {
-          label: "EBITDA",
-          value: c ? croreFromCr(c.current.ebitda) : crore(v._ebitda as number | null),
-          yoy: c?.yoy?.ebitda,
-          qoq: c?.qoq?.ebitda,
-        },
+        ...(isLender
+          ? []
+          : [{
+              label: "EBITDA",
+              value: c ? croreFromCr(c.current.ebitda) : crore(v._ebitda as number | null),
+              yoy: c?.yoy?.ebitda,
+              qoq: c?.qoq?.ebitda,
+            }]),
         { label: "PBT", value: c ? croreFromCr(c.current.pbt) : crore(v.pbt), yoy: c?.yoy?.pbt, qoq: c?.qoq?.pbt },
         { label: "PAT", value: c ? croreFromCr(c.current.pat) : crore(v.pat), yoy: c?.yoy?.pat, qoq: c?.qoq?.pat },
       ];
@@ -77,9 +81,10 @@ export function ResultsTable({ r }: { r: ResultsFacts }) {
           : r.check === "xbrl_match"
             ? "table checked against XBRL"
             : r.check === "arithmetic_ok"
-              ? "table totals reconciled"
+              ? "columns and totals reconciled (half year = two quarters)"
               : r.check}
-        {" · EBITDA = PBT before exceptional + finance costs + D&A − other income"}
+        {c?.net_of_excise ? " · revenue net of excise duty" : ""}
+        {isBank || isLender ? "" : " · EBITDA = PBT before exceptional + finance costs + D&A − other income"}
       </figcaption>
     </figure>
   );

@@ -18,6 +18,7 @@ const GLYPH: Record<PromiseStatus, { g: string; label: string; color: string }> 
   revised: { g: "↻", label: "revised", color: "var(--s-revised)" },
   early: { g: "·", label: "too early", color: "var(--s-early)" },
   conflict: { g: "⚠", label: "conflicting", color: "var(--s-partly)" },
+  closed: { g: "◌", label: "period ended, outcome not stated", color: "var(--s-silent)" },
 };
 
 const EVIDENCE_LABEL: Record<PromiseRow["evidence_source"], string> = {
@@ -51,7 +52,7 @@ export function PromisesLedger({ ledger, verifiers = {} }: { ledger: Ledger; ver
       </h2>
 
       <p className="mt-3 text-[0.875rem] text-ink-2">
-        {(["delivered", "partly", "revised", "silent", "missed", "early"] as PromiseStatus[])
+        {(["delivered", "partly", "revised", "silent", "missed", "closed", "early"] as PromiseStatus[])
           .filter((s) => counts[s])
           .map((s, i) => (
             <span key={s}>
@@ -226,7 +227,7 @@ function isSlipped(r: PromiseRow) {
   return Object.values(r.calls).some((c) => c.status && ["missed", "revised", "silent", "partly", "conflict"].includes(c.status));
 }
 
-const ORDER: PromiseStatus[] = ["missed", "revised", "conflict", "silent", "partly", "early", "delivered"];
+const ORDER: PromiseStatus[] = ["missed", "revised", "conflict", "silent", "partly", "closed", "early", "delivered"];
 const PAGE = 20;
 // status first; within a status, promises restated on more calls, then ones with a figure to check
 function orderRows(rows: PromiseRow[]) {
