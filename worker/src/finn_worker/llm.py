@@ -38,6 +38,7 @@ OPENAI_BUDGET_USD = float(os.getenv("OPENAI_BUDGET_USD", "4.0"))  # of the $5 ke
 OPENAI_PRICE_IN = float(os.getenv("OPENAI_PRICE_IN", "0.40"))
 OPENAI_PRICE_OUT = float(os.getenv("OPENAI_PRICE_OUT", "1.60"))
 GEMINI_MIN_GAP = float(os.getenv("GEMINI_MIN_GAP", "4.5"))  # seconds between calls (free-tier RPM)
+GEMINI_RETRY = tuple(float(x) for x in os.getenv("GEMINI_RETRY", "10,30").split(",") if x)  # backoff seconds
 # identical requests are answered from disk: rebuilds are free and reproducible (FINN_LLM_CACHE=0 disables)
 CACHE_DIR = Path(__file__).resolve().parents[3] / "data" / "llm_cache"
 
@@ -118,10 +119,16 @@ def _gemini(model: str, system: str, parts: list[Part], schema: dict) -> tuple[d
             for p in parts]}],
         "generationConfig": {"temperature": 0, "responseMimeType": "application/json", "responseSchema": schema},
     }
-    r = _http.post(f"{GEMINI_BASE}/models/{model}:generateContent",
-                   headers={"x-goog-api-key": os.environ["GEMINI_API_KEY"]}, json=body)
-    if r.status_code in (429, 500, 503):
-        raise LLMUnavailable(f"gemini {r.status_code}: {r.text[:200]}")
+    # transient overload (503/500) and per-minute limits (429): short backoff, then give up to the fallback
+    for delay in (*GEMINI_RETRY, None):
+        r = _http.post(f"{GEMINI_BASE}/models/{model}:generateContent",
+                       headers={"x-goog-api-key": os.environ["GEMINI_API_KEY"]}, json=body)
+        if r.status_code not in (429, 500, 503):
+            break
+        if delay is None:
+            raise LLMUnavailable(f"gemini {r.status_code}: {r.text[:200]}")
+        time.sleep(delay)
+    _last_gemini = time.monotonic()
     r.raise_for_status()
     data = r.json()
     try:
