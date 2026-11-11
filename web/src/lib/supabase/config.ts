@@ -7,6 +7,9 @@ function clean(v: string | undefined): string {
 
 function normaliseUrl(v: string): string {
   if (!v) return "";
+  // a URL copied from rendered text can arrive as a Markdown link "[https://x](https://x)": take the first URL
+  const embedded = v.match(/https?:\/\/[^\s\]\)"'<>]+/);
+  if (embedded) v = embedded[0];
   const withScheme = /^https?:\/\//.test(v) ? v : `https://${v}`;
   try {
     return new URL(withScheme).origin;
