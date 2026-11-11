@@ -82,7 +82,7 @@ def test_directional_promise_is_not_settled_by_any_actual():
     ths = thread([m("Margins", "directional", period="FY26")], [], [], [])
     actual = [{"metric": "margins", "period": "FY26", "value": 1.0, "unit": "%", "quote": "q", "page": 1}]
     s = pull.statuses(ths[0], ORDER, actual)
-    assert s["Q2FY27"]["status"] is None and s["Q2FY27"]["note"] == "period ended"   # closed, not settled, not silent
+    assert s["Q2FY27"]["status"] == "closed" and "period ended" in s["Q2FY27"]["note"]   # closed, not settled, not silent
 
 
 def test_beating_a_range_is_delivered_not_partly():
@@ -219,3 +219,79 @@ def test_null_period_and_doubled_scale():
           "unit": "million units"}
     pull.ground(it)
     assert pull._describe(it) == "60–65 million units"
+
+
+# --- status logic (E29) ------------------------------------------------------------------------
+
+def test_fy_parsing_handles_four_digits_and_ranges():
+    assert pull._period_fy("FY2030") == 30 and pull._period_fy("FY26-FY30") == 30 and pull._period_fy("FY26-30") == 30
+    assert pull.normalise_period("FY2030", "Nov 2026") == "FY30"
+    assert pull.period_end_month("H1FY27") == "2026-09" and pull.period_end_month("Q3FY27") == "2026-12"
+    assert pull.call_reviews("Nov 2026") == "2026-09" and pull.call_reviews("Q2FY27") == "2026-09"
+
+
+def test_a_long_range_promise_is_not_closed_early():
+    ths = thread([m("capex plan", "point", 5000, unit="INR crore", period="FY26-FY30")], [], [], [])
+    s = pull.statuses(ths[0], ORDER, [])
+    assert s["Q2FY27"]["status"] == "early"
+
+
+def test_slipped_target_period_is_a_revision():
+    ths = thread([m("QRSAM order receipt", "directional", period="FY27")],
+                 [m("QRSAM order receipt", "directional", period="FY28")], [], [])
+    s = pull.statuses(ths[0], ORDER, [])
+    assert len(ths) == 1 and s["Q4FY26"]["status"] == "revised" and "FY28" in s["Q4FY26"]["note"]
+    # recurring metrics: next year's guidance is a new promise, not a slip
+    assert len(thread([m("EBITDA margin", "point", 20, period="FY27")], [m("EBITDA margin", "point", 22, period="FY28")], [], [])) == 2
+
+
+def test_overdue_date_replaced_is_missed_then_reset():
+    ths = thread([m("plant commissioning", "milestone", due="2026-03")], [], [m("plant commissioning", "milestone", due="2026-12")], [])
+    s = pull.statuses(ths[0], ORDER, [])
+    assert s["Q1FY27"]["status"] == "revised" and s["Q1FY27"].get("missed_then_reset")
+
+
+def test_two_items_from_one_call_never_share_a_row():
+    ths = thread([m("mobile volumes", "range", 33, 34, unit="million", period="FY27"),
+                  m("mobile volumes", "range", 55, 60, unit="million", period="FY27")], [], [], [])
+    assert len(ths) == 2
+
+
+def test_actual_of_another_scope_or_size_does_not_settle():
+    pr = m("IT hardware revenue", "approximate", 1500, unit="INR crore", period="FY26")
+    pr["scope"] = "IT hardware"
+    ths = thread([pr], [], [], [])
+    whole = [{"metric": "revenue", "period": "FY26", "value": 48893, "unit": "INR crore", "quote": "q", "page": 1}]
+    s = pull.statuses(ths[0], ORDER, whole)
+    assert s["Q2FY27"]["status"] not in ("delivered", "partly", "missed")
+
+
+def test_lower_is_better_metrics_are_judged_the_right_way():
+    ths = thread([m("receivable days", "approximate", 60, unit="days", period="FY26")], [], [], [])
+    act = [{"metric": "receivable days", "period": "FY26", "value": 75, "unit": "days", "quote": "q", "page": 1}]
+    assert pull.statuses(ths[0], ORDER, act)["Q2FY27"]["status"] == "missed"
+
+
+def test_half_year_promise_settles_once_the_half_is_reported():
+    ths = thread([], [], [m("revenue growth", "floor", 15, period="H1FY27")], [])
+    act = [{"metric": "revenue growth", "period": "H1FY27", "value": 17, "unit": "%", "quote": "q", "page": 2}]
+    assert pull.statuses(ths[0], ORDER, act)["Q2FY27"]["status"] == "delivered"
+
+
+def test_q4_call_actual_belongs_to_the_year_just_ended():
+    assert pull.normalise_period("this year", "May 2026", actual=True) == "FY26"
+    assert pull.normalise_period("this year", "May 2026") == "FY27"
+
+
+def test_shared_sentence_with_two_targets_keeps_both():
+    a = {"quote": "We expect revenue growth of 15% and EBITDA margin of 22%.", "metric": "revenue growth", "value_low": 15}
+    b = {"quote": "We expect revenue growth of 15% and EBITDA margin of 22%.", "metric": "EBITDA margin", "value_low": 22}
+    assert len(pull._dedupe([a, b])) == 2
+
+
+def test_verified_quote_is_the_page_text():
+    page = {4: "Finally, we feel that the margins will be 16%-17% for the year.\\nNext question please."}
+    it = {"quote": "We feel confident that the margins will be 16%-17% for the year.", "page": 4}
+    assert pull.verify(it, page, threshold=80) == 4
+    assert it["quote"].startswith("we feel that") or it["quote"].startswith("Finally") or "the margins will be 16%-17%" in it["quote"]
+    assert it["quote"] in page[4]

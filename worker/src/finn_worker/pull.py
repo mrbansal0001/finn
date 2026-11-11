@@ -149,11 +149,15 @@ def _drop_vague(items: list[dict]) -> list[dict]:
 
 
 def _dedupe(items: list[dict]) -> list[dict]:
-    """Windows overlap by a page: drop repeats of the same quote."""
+    """Windows overlap by a page: drop repeats of the same statement. One sentence can carry two
+    commitments (a growth target and a margin target): same quote but a different metric or figure stays."""
     out: list[dict] = []
     for it in items:
         q = _norm(it.get("quote", ""))
-        if any(fuzz.partial_ratio(q, _norm(o.get("quote", ""))) >= 90 for o in out):
+        if any(fuzz.partial_ratio(q, _norm(o.get("quote", ""))) >= 90
+               and fuzz.token_sort_ratio(_norm(it.get("metric", "")), _norm(o.get("metric", ""))) >= 70
+               and (it.get("value_low"), it.get("value_high"), it.get("value")) == (o.get("value_low"), o.get("value_high"), o.get("value"))
+               for o in out):
             continue
         out.append(it)
     return out
@@ -167,15 +171,38 @@ def _norm(s: str) -> str:
     return re.sub(r"\s+", " ", s).strip().lower()
 
 
+def _norm_case(s: str) -> str:
+    """_norm without lower-casing, so positions line up with _norm's output."""
+    s = html.unescape(s).replace("’", "'").replace("“", '"').replace("”", '"')
+    s = re.sub(r"-\s*\n\s*", "", s)
+    return re.sub(r"\s+", " ", s).strip()
+
+
 def verify(item: dict, pages: dict[int, str], threshold: int = 90) -> int | None:
-    """Return the page the quote really sits on (cited page, then +/-1, then anywhere), or None."""
+    """Return the page the quote really sits on (cited page, then +/-1, then anywhere), or None.
+    The quote shown is then the page's own text span, so what sits in quotation marks is verbatim
+    even when the model's copy differed by a word (E29: 15 of 267 quotes were near-verbatim)."""
     q = _norm(item.get("quote", ""))
     if len(q) < 12:
         return None
     cited = item.get("page") or 0
     order = [cited, cited + 1, cited - 1] + [p for p in pages if p not in (cited, cited + 1, cited - 1)]
     for p in order:
-        if p in pages and fuzz.partial_ratio(q, _norm(pages[p])) >= threshold:
+        if p not in pages:
+            continue
+        page_case = _norm_case(pages[p])
+        page_low = page_case.lower()
+        if len(page_low) != len(page_case):
+            page_low = _norm(pages[p])
+        al = fuzz.partial_ratio_alignment(q, page_low)
+        if al is not None and al.score >= threshold:
+            if len(page_low) == len(page_case):
+                a, b = al.dest_start, al.dest_end
+                while a > 0 and page_case[a - 1].isalnum():   # widen to whole words
+                    a -= 1
+                while b < len(page_case) and page_case[b].isalnum():
+                    b += 1
+                item["quote"] = page_case[a:b].strip()
             return p
     return None
 
@@ -274,18 +301,19 @@ def looks_backward(it: dict) -> bool:
         r"\b(will|expect|target|aim|guid|should|plan|going to|by (fy|q[1-4]|h[12]|march|the end))", it.get("quote") or "", re.I)
 
 
-def normalise_period(period: str | None, call_label: str) -> str | None:
-    """'current financial year' on a Q3FY26 call -> 'FY26'; 'next year' -> 'FY27'; 'H1 next year' -> 'H1FY27'."""
+def normalise_period(period: str | None, call_label: str, actual: bool = False) -> str | None:
+    """'current financial year' on a Q3FY26 call -> 'FY26'; 'next year' -> 'FY27'; 'H1 next year' -> 'H1FY27'.
+    actual=True: a figure management reports as achieved -- on a Q4 call 'this year' is the year just ended."""
     if not period or str(period).strip().lower() in ("null", "none", "n/a", "na", "-"):
         return None
-    p = period.strip()
-    if re.search(r"FY\s?\d{2}", p):
-        return re.sub(r"FY\s?(\d{2})", r"FY\1", re.sub(r"\s+", "", p.upper()) if len(p) <= 8 else p)
+    p = re.sub(r"FY\s?'?20(\d{2})\b", r"FY\1", period.strip(), flags=re.I)    # FY2030 -> FY30
+    if re.search(r"FY\s?\d{2}", p, re.I):
+        return re.sub(r"FY\s?(\d{2})", r"FY\1", re.sub(r"\s+", "", p.upper()) if len(p) <= 8 else p, flags=re.I)
     fy = call_fy(call_label)
     if fy is None:
         return p
     # on an Apr-Jun call (reviewing Q4), "this year" is the fiscal year just begun, the one being guided
-    if re.search(r"\b(apr|may|jun)\w*\s+\d{4}", call_label or "", re.I) or re.search(r"Q4\s?FY", call_label or ""):
+    if not actual and (re.search(r"\b(apr|may|jun)\w*\s+\d{4}", call_label or "", re.I) or re.search(r"Q4\s?FY", call_label or "")):
         fy += 1
     low = p.lower()
     half = "H1" if re.search(r"\bh1\b|first half", low) else "H2" if re.search(r"\bh2\b|second half", low) else ""
@@ -298,9 +326,54 @@ def normalise_period(period: str | None, call_label: str) -> str | None:
     return p
 
 
+_FY_TOKEN = re.compile(r"FY\s?'?(\d{4}|\d{2})(?:\s*(?:-|–|to)\s*(?:FY\s?'?)?(\d{4}|\d{2}))?", re.I)
+
+
+def fy_years(s: str | None) -> list[int]:
+    """'FY27' -> [27]; 'FY2030' -> [30]; 'FY26-FY30' / 'FY26-30' -> [26, 30] (E29: FY2030 was read as FY20)."""
+    out = []
+    for a, b in _FY_TOKEN.findall(s or ""):
+        out.append(int(a) % 100)
+        if b:
+            out.append(int(b) % 100)
+    return out
+
+
 def _period_fy(period: str | None) -> int | None:
-    m = re.search(r"FY(\d{2})", period or "")
-    return int(m.group(1)) if m else None
+    """The fiscal year a period ENDS in (a range ends in its last year)."""
+    ys = fy_years(period)
+    return max(ys) if ys else None
+
+
+def period_end_month(period: str | None) -> str | None:
+    """'FY27' -> '2027-03'; 'H1FY27' -> '2026-09'; 'Q3FY27' -> '2026-12'; '2027-03' stays; else None."""
+    p = (period or "").strip()
+    if re.fullmatch(r"\d{4}-\d{2}", p):
+        return p
+    fy = _period_fy(p)
+    if fy is None:
+        return None
+    y = 2000 + fy
+    if re.search(r"\bH1|^H1", p, re.I):
+        return f"{y - 1}-09"
+    q = re.search(r"Q([1-4])", p, re.I)
+    if q:
+        return {1: f"{y - 1}-06", 2: f"{y - 1}-09", 3: f"{y - 1}-12", 4: f"{y}-03"}[int(q.group(1))]
+    return f"{y}-03"
+
+
+def call_reviews(call_label: str) -> str | None:
+    """Quarter-end month a results call reviews: 'Nov 2026' -> '2026-09'; 'Q2FY27' -> '2026-09'."""
+    q = re.search(r"Q([1-4])\s?FY\s?(\d{2})", call_label or "", re.I)
+    if q:
+        return period_end_month(f"Q{q.group(1)}FY{q.group(2)}")
+    cm = call_month(call_label)
+    if not cm:
+        return None
+    y, m = int(cm[:4]), int(cm[5:])
+    qe = {1: (y - 1, 12), 2: (y - 1, 12), 3: (y - 1, 12), 4: (y, 3), 5: (y, 3), 6: (y, 3),
+          7: (y, 6), 8: (y, 6), 9: (y, 6), 10: (y, 9), 11: (y, 9), 12: (y, 9)}[m]
+    return f"{qe[0]}-{qe[1]:02d}"
 
 
 # ------------------------------------------------------------------ link + status
@@ -353,8 +426,8 @@ def _facet(s: str) -> str | None:
     return next((f for f, rx in _FACETS.items() if re.search(rx, low)), None)
 
 
-def _fy(s: str | None) -> set[str]:
-    return set(re.findall(r"FY\d{2}", s or ""))
+def _fy(s: str | None) -> set[int]:
+    return set(fy_years(s))
 
 
 def _periods_compatible(a: str | None, b: str | None) -> bool:
@@ -414,14 +487,20 @@ def link(calls: list[tuple[str, list[dict]]]) -> list[Thread]:
             for t in threads:
                 prev = t.mentions[-1].item
                 shared = names & _names(t.metric)
+                same_call = [m.item for m in t.mentions if m.call == call]
+                if same_call and not shared and not all(
+                        _bounds(x) == _bounds(it) and (x.get("due") or None) == (it.get("due") or None) for x in same_call):
+                    continue                  # a different figure in the same call is a different promise (E29: Dixon P95)
                 # a shared programme name outweighs differing amounts (NGC order sized 2-3k, then 10-12k cr)
                 if not scopes_compatible(it, prev) or (not shared and not values_compatible(it, prev)):
                     continue
                 same_facet = facet is None or _facet(t.metric) in (None, facet)
                 if shared and same_facet:
                     s = 100
-                elif not same_facet or not _periods_compatible(per, t.period):
+                elif not same_facet:
                     continue
+                elif not _periods_compatible(per, t.period):
+                    continue                  # a named programme links across periods above; unnamed items don't
                 else:
                     s = fuzz.token_sort_ratio(key, _metric_key(t.metric))
                 if s > best_s:
@@ -446,61 +525,110 @@ def _bounds(it: dict) -> tuple[float | None, float | None]:
     return lo, hi
 
 
+_LOWER_BETTER = re.compile(r"\bdays?\b|cost|debt|leverage|npa|attrition|expense|receivable|inventory|working capital|"
+                           r"d/e|gearing|cycle", re.I)
+
+
+def lower_is_better(metric: str, unit: str | None = None) -> bool:
+    return bool(_LOWER_BETTER.search(f"{metric} {unit or ''}")) and not re.search(r"payable", metric, re.I)
+
+
+def _matching_actual(thread: Thread, last: dict, actuals: list[dict]) -> dict | None:
+    """A stated actual settles a promise only if it is the same metric, scope and unit, for the same period,
+    and of the same order of magnitude (E29: a segment target 'delivered' by whole-company revenue)."""
+    lo, hi = _bounds(last)
+    target = next((x for x in (lo, hi) if x is not None), None)
+    best, best_s = None, 0
+    for a in actuals:
+        if a.get("period") != thread.period:
+            continue
+        s = fuzz.token_sort_ratio(_metric_key(a.get("metric", "")), _metric_key(thread.metric))
+        if s < 80 or _unit_class(a.get("unit")) != _unit_class(last.get("unit")):
+            continue
+        if not scopes_compatible(a, last):
+            continue
+        v = a.get("value")
+        if not isinstance(v, (int, float)):
+            continue
+        if target and _unit_class(last.get("unit")) == "money" and not (0.3 <= v / target <= 3):
+            continue
+        if s > best_s:
+            best, best_s = a, s
+    return best
+
+
 def statuses(thread: Thread, call_order: list[str], actuals: list[dict]) -> dict[str, dict]:
-    """Per-call status computed in code. Revisions come from comparing values/dates/bounds
-    with the previous mention -- never from management's own framing."""
+    """Per-call status computed in code. Revisions come from comparing values/dates/periods/bounds
+    with the previous mention -- never from management's own framing.
+
+    early     stated (or restated) and its period hasn't ended
+    revised   the figure, date or target period changed since the last mention; a date that had
+              already passed when it was replaced is flagged missed_then_reset
+    silent    stated on two or more calls, then dropped while still open
+    closed    its period ended with no stated outcome to check against
+    delivered / partly / missed   settled against a figure management stated for that period"""
     by_call = {}
     for m in thread.mentions:
-        by_call.setdefault(m.call, m.item)  # first mention per call
+        by_call.setdefault(m.call, m.item)  # link() keeps at most one item per call
+    end = period_end_month(thread.period) or (str(thread.mentions[-1].item.get("due") or "")[:7] or None)
     out: dict[str, dict] = {}
     prev = None
     for call in call_order:
         it = by_call.get(call)
+        reviewed = call_reviews(call)
         if prev is None and it is None:
             out[call] = {"status": None}
             continue
         if it is not None and prev is None:
             out[call] = {"status": "early", "note": f"new: {_describe(it)}"}
         elif it is not None:
+            p_old, p_new = prev.get("period"), it.get("period")
+            period_moved = bool(p_old and p_new and p_old != p_new and _period_fy(p_old) and _period_fy(p_new)
+                                and _period_fy(p_new) != _period_fy(p_old))
             changed = (_bounds(it) != _bounds(prev) or (it.get("due") or None) != (prev.get("due") or None)
-                       or it.get("kind") != prev.get("kind"))
+                       or it.get("kind") != prev.get("kind") or period_moved)
             if changed:
-                out[call] = {"status": "revised", "note": f"{_describe(prev)} → {_describe(it)}"}
+                was = f"{_describe(prev)}{' (' + p_old + ')' if period_moved else ''}"
+                now = f"{_describe(it)}{' (' + p_new + ')' if period_moved else ''}"
+                cell = {"status": "revised", "note": f"{was} → {now}"}
+                old_due = str(prev.get("due") or "")[:7] or (period_end_month(p_old) if period_moved else None)
+                cm = call_month(call) or reviewed
+                if old_due and cm and old_due < cm:
+                    cell["missed_then_reset"] = True     # the old date had passed before it was replaced
+                out[call] = cell
             else:
                 out[call] = {"status": "early", "note": f"reiterated: {_describe(it)}"}
         else:
-            due_fy = _period_fy(thread.period)
             mentions_so_far = len({m.call for m in thread.mentions if call_order.index(m.call) < call_order.index(call)})
-            if due_fy is not None and call_fy(call) is not None and call_fy(call) > due_fy:
-                out[call] = {"status": None, "note": "period ended"}      # closed, not silent
+            due = str((prev or {}).get("due") or "")[:7] or end
+            if due and reviewed and reviewed >= due:
+                out[call] = {"status": "closed", "note": f"period ended ({due}); no outcome stated"}
             elif mentions_so_far >= 2:
                 out[call] = {"status": "silent", "note": "repeated before, not mentioned now"}   # dropped: the signal
             else:
                 out[call] = {"status": "early", "note": "open; not revisited"}
         prev = it or prev
-    # settle against stated actuals for the target period, when any
+    # settle against stated actuals for the target period, once a call has reviewed that period
     last = prev
-    if last and thread.period:
-        hit = next((a for a in actuals if a.get("period") == thread.period
-                    and fuzz.token_set_ratio(_metric_key(a["metric"]), _metric_key(thread.metric)) >= 80), None)
+    if last and thread.period and end:
+        over = any((call_reviews(c) or "") >= end for c in call_order)
+        hit = _matching_actual(thread, last, actuals) if over else None
         lo, hi = _bounds(last)
-        due = _period_fy(thread.period)
-        # a full-year promise can't be settled mid-year: only from the call that reviews that year
-        over = due is not None and any(
-            (call_fy(c) or 0) > due or ((call_fy(c) or 0) == due and re.search(r"Q4|\b(apr|may|jun)", c, re.I))
-            for c in call_order)
-        if not over or (thread.period and re.match(r"(H[12]|Q[1-4])", thread.period)):
-            hit = hit if over else None
         if hit and (lo is not None or hi is not None):   # directional/milestone items have no bound to test
             v = hit["value"]
-            if lo is not None and v < lo * 0.995:
-                final = "partly" if v >= lo * 0.9 else "missed"
-            elif hi is not None and v > hi * 1.005 and last.get("kind") == "ceiling":
-                final = "missed"                           # a ceiling breached is a miss
+            if lower_is_better(thread.metric, last.get("unit")):
+                bound = hi if hi is not None else lo
+                final = "delivered" if v <= bound * 1.005 else "partly" if v <= bound * 1.1 else "missed"
+                beat = " (beat)" if lo is not None and v < lo * 0.995 else ""
             else:
-                final = "delivered"                        # within band, or beat it
-            beat = " (beat)" if hi is not None and v > hi * 1.005 and last.get("kind") != "ceiling" else ""
-            out[call_order[-1]] = {"status": final, "note": f"stated actual {v:g}{hit.get('unit', '')} vs {_describe(last)}{beat}",
+                if lo is not None and v < lo * 0.995:
+                    final = "partly" if v >= lo * 0.9 else "missed"
+                elif hi is not None and v > hi * 1.005 and last.get("kind") == "ceiling":
+                    final = "missed"                       # a ceiling breached is a miss
+                else:
+                    final = "delivered"                    # within band, or beat it
+                beat = " (beat)" if hi is not None and v > hi * 1.005 and last.get("kind") != "ceiling" else ""
+            out[call_order[-1]] = {"status": final, "note": f"stated actual {v:g} {hit.get('unit', '')} vs {_describe(last)}{beat}".replace("  ", " "),
                                    "evidence": {"quote": hit["quote"], "page": hit["page"]}}
     return out
 
@@ -546,7 +674,7 @@ def _describe(it: dict) -> str:
 # ------------------------------------------------------------------ build
 
 def _title(th: "Thread", last: dict) -> str:
-    per = th.period
+    per = last.get("period") or last.get("due") or th.period
     if per and last.get("kind") == "milestone" and re.fullmatch(r"\d{4}-\d{2}", str(per)):
         per = None                              # 'by 2027-03' already carries the date
     return f"{th.metric}{' · ' + per if per else ''}: {_describe(last)}"
@@ -577,7 +705,7 @@ def build(symbol: str) -> dict:
             items.append(it)
             verified += 1
         for a in out.get("actuals", []):
-            a["period"] = normalise_period(a.get("period"), t.label)
+            a["period"] = normalise_period(a.get("period"), t.label, actual=True)
             if verify(a, pages) is not None:
                 actuals.append(a)
         calls.append((t.label, items))
@@ -595,7 +723,9 @@ def build(symbol: str) -> dict:
     for th in threads:
         cells = statuses(th, order, actuals)
         sts = [c["status"] for c in cells.values() if c.get("status")]
-        first, last = th.mentions[0].item, th.mentions[-1].item
+        first = th.mentions[0].item
+        last_call = th.mentions[-1].call
+        last = next(m.item for m in th.mentions if m.call == last_call)   # the item the latest cell describes
         settled = any(c.get("evidence") for c in cells.values())
         rows.append({
             "id": th.id, "title": _title(th, last),
