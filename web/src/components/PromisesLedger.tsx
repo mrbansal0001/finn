@@ -38,9 +38,11 @@ function headerParts(label: string): [string, string] {
 export function PromisesLedger({ ledger, verifiers = {} }: { ledger: Ledger; verifiers?: Record<string, Line> }) {
   const [open, setOpen] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "slipped">("slipped");
+  const [showAll, setShowAll] = useState(false);
   const counts = countLatest(ledger.rows);
   const slipped = ledger.rows.filter((r) => isSlipped(r));
-  const rows = filter === "slipped" && slipped.length ? orderRows(slipped) : orderRows(ledger.rows);
+  const ordered = filter === "slipped" && slipped.length ? orderRows(slipped) : orderRows(ledger.rows);
+  const rows = showAll ? ordered : ordered.slice(0, PAGE);
 
   return (
     <section aria-labelledby="promises">
@@ -106,6 +108,11 @@ export function PromisesLedger({ ledger, verifiers = {} }: { ledger: Ledger; ver
           ))}
         </tbody>
       </table>
+      {ordered.length > rows.length && (
+        <button onClick={() => setShowAll(true)} className="mt-2 min-h-[44px] w-full border-t border-rule text-[0.875rem] text-accent">
+          Show all {ordered.length} promises
+        </button>
+      )}
 
       <p className="mt-3 text-[0.75rem] leading-snug text-ink-3">{ledger.provenance}</p>
     </section>
@@ -220,6 +227,14 @@ function isSlipped(r: PromiseRow) {
 }
 
 const ORDER: PromiseStatus[] = ["missed", "revised", "conflict", "silent", "partly", "early", "delivered"];
+const PAGE = 20;
+// status first; within a status, promises restated on more calls, then ones with a figure to check
 function orderRows(rows: PromiseRow[]) {
-  return [...rows].sort((a, b) => ORDER.indexOf(a.latest) - ORDER.indexOf(b.latest));
+  const noFigure = (r: PromiseRow) => (/: (no figure|direction only)$/.test(r.title) ? 1 : 0);
+  return [...rows].sort(
+    (a, b) =>
+      ORDER.indexOf(a.latest) - ORDER.indexOf(b.latest) ||
+      (b.mentions ?? 1) - (a.mentions ?? 1) ||
+      noFigure(a) - noFigure(b),
+  );
 }

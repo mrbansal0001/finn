@@ -110,6 +110,7 @@ export type PromiseRow = {
   first_quote: { text: string; call: string; page: number; speaker?: string; url?: string } | null;
   latest_quote?: { text: string; call: string; page: number; url?: string };
   verdict: string;
+  mentions?: number;        // how many calls stated it (model-built ledgers)
 };
 
 export type ArSnapshot = {
