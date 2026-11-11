@@ -128,7 +128,10 @@ def build(filings: list[dict], moves: list[dict], weights: dict[str, float], nam
         read = [e for f in fs for e in (events or {}).get(f["id"], [])]
         if read:
             needs_read = False
-            best = next((e for e in read if e.get("headline_ok")), None)
+            ok = [e for e in read if e.get("headline_ok")]
+            # same filing can carry several events: a deal card shows the deal, not the results
+            best = next((e for e in ok if e.get("kind") == cat), None) or next(
+                (e for e in ok if e.get("kind") != "results" or cat == "results"), None)
             if best:
                 headline, why, source = best["headline"], best.get("why"), "model"
                 facts = {k: best[k] for k in ("people", "amount_inr_cr", "counterparty", "quote", "page") if best.get(k)}
@@ -156,7 +159,12 @@ def build(filings: list[dict], moves: list[dict], weights: dict[str, float], nam
                               f"profit ₹{v['pat']/1e7:,.0f} cr")
                 c.headline_source = "xbrl"
 
+    biggest: dict[str, dict] = {}
     for m in moves:
+        d = datetime.fromisoformat(m["day"] + "T15:30:00")
+        if since <= d <= until and abs(m["change_pct"]) > abs(biggest.get(m["symbol"], {}).get("change_pct", -1)):
+            biggest[m["symbol"]] = m
+    for m in biggest.values():
         d = datetime.fromisoformat(m["day"] + "T15:30:00")
         if not (since <= d <= until) or not (m["price_alert"] or m["volume_alert"]):
             continue
@@ -225,11 +233,15 @@ def results_copy(n: dict) -> tuple[str, str | None]:
     else:
         top, top_label = y.get("revenue"), "Revenue"
     pat = y.get("pat")
+    cur_pat, prev_pat = cur.get("pat"), (n.get("prev_y") or {}).get("pat")
     parts = []
     if top is not None:
         parts.append(f"{top_label} {_dir(top)} {abs(top):.1f}% YoY")
     if pat is not None:
         parts.append(f"profit {_dir(pat)} {abs(pat):.1f}%")
+    elif cur_pat is not None and prev_pat is not None and (cur_pat < 0) != (prev_pat < 0):
+        parts.append(f"swung to a loss of ₹{abs(cur_pat):,.0f} cr" if cur_pat < 0
+                     else f"back to a ₹{cur_pat:,.0f} cr profit from a loss")
     headline = ", ".join(parts) or "Results filed"
     why = []
     if cur.get("ebitda_margin_pct") is not None and y.get("ebitda_margin_bp") is not None:
@@ -238,6 +250,8 @@ def results_copy(n: dict) -> tuple[str, str | None]:
     if cur.get("exceptional") and y.get("pbt_ex_exceptional") is not None:
         why.append(f"PBT includes a ₹{abs(cur['exceptional']):,.0f} cr exceptional item; before it, PBT {_dir(y['pbt_ex_exceptional'])} "
                    f"{abs(y['pbt_ex_exceptional']):.1f}% YoY.")
+    if cur.get("non_operating_extra"):
+        why.append(f"Total income includes ₹{cur['non_operating_extra']:,.0f} cr of non-operating gains, kept out of EBITDA.")
     if n.get("is_bank") and cur.get("gnpa_pct") is not None:
         why.append(f"Gross NPA {cur['gnpa_pct']:.2f}%.")
     return headline[0].upper() + headline[1:], " ".join(why) or None

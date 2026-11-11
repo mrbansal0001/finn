@@ -155,6 +155,8 @@ def read_pending(limit: int = MAX_PER_CYCLE) -> str:
                     "headline_ok": False, "error": f"{type(e).__name__}: {str(e)[:160]}"}]
         store.upsert(con, "events", [{
             "id": f"{f['id']}:{i}", "filing_id": f["id"], "symbol": f["symbol"], "kind": e["kind"],
-            "tier": f["tier"], "published_at": f["published_at"], "card": e} for i, e in enumerate(evs or [{}])])
+            "tier": f["tier"], "published_at": f["published_at"], "card": e}
+            # nothing material inside: record that it was read, so it's never paid for again
+            for i, e in enumerate(evs or [{"kind": "routine", "headline": None, "headline_ok": False, "people": []}])])
         done += 1
     return f"read {done}/{len(rows)}, waiting {skipped}"

@@ -80,3 +80,28 @@ def test_bank_card_uses_nii_not_ebitda():
     assert n["is_bank"] and "ebitda" not in n["current"]
     assert n["current"]["nii"] == pytest.approx(56800.76)
     assert n["yoy"]["pat"] == pytest.approx(19.7, abs=0.05)
+
+
+def test_titan_fair_value_gain_stays_out_of_revenue_and_ebitda():
+    """Titan Q2 FY27 (PDF p.10): revenue = 20,337 + 277; a 671 fair-value gain sits inside total income."""
+    raw = {"found": True, "nature": "Consolidated", "unit": "crores",
+           "columns": [{"label": "30-09-2026", "period_end": "2026-09-30", "months": 3},
+                       {"label": "30-09-2025", "period_end": "2025-09-30", "months": 3}],
+           "rows": [{"label": "I. Revenue from operations (refer note 4)", "values": [None, None]},
+                    {"label": "- Sale of products/ services", "values": [20337, 16461]},
+                    {"label": "- Other operating revenues", "values": [277, 2264]},
+                    {"label": "II. Other income", "values": [145, 112]},
+                    {"label": "III. Fair value change of put option liability over NCI", "values": [671, None]},
+                    {"label": "IV. Total income (I +II+III)", "values": [21430, 18837]},
+                    {"label": "Finance costs", "values": [536, 277]},
+                    {"label": "Depreciation and amortisation expense", "values": [263, 189]},
+                    {"label": "X. Profit before tax (VIII - IX)", "values": [3000, 1522]},
+                    {"label": "XI. Total tax", "values": [607, 402]},
+                    {"label": "XII. Profit for the period (X - XI)", "values": [2393, 1120]}]}
+    t = results.map_rows(raw)
+    c = t["columns"][0]
+    assert c["revenue"] == 20614
+    assert c["other_income"] == 145 + 671
+    assert results.check(t).ok
+    n = results.card_numbers(t)
+    assert n["current"]["ebitda"] == pytest.approx(3000 + 536 + 263 - 816)   # 2,983: the gain is not operating

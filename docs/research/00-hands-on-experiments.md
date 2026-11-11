@@ -54,3 +54,10 @@ E24 Guidance extraction vs the 84-statement gold set (BEL + Deepak, 8 transcript
 - overlapping 6-page windows, merged in code: recall 79-80% (two runs), precision 50-53%; dropping 'directional' items with no number or date: precision 61%. 40 calls per run, $0.
 - hand check of 30 unmatched predictions: ~50% genuine checkable commitments the gold set didn't label (e.g. "executing more than 90% of that order before this financial year"), ~20% restatements, ~30% vague. Effective precision is therefore nearer 80%.
 
+E25 Results-table reading with the light model (18 portfolio results PDFs, 11 Nov):
+- a wide named-field schema (~20 fields) made the model fill 2-3 fields (Titan: revenue, tax, total income only) -- and the check passed it because it compared only fields present. Fixed both: the check now requires the core lines (revenue/PBT/PAT; banks interest earned/expended/PAT).
+- switched to row transcription (label as printed + one number per column) mapped to fields in code: 10/18 pass.
+- label normalisation ('1 Income a) ...', '(Loss) / profit ...'), 'total revenue from operations' preferred over its sub-line, revenue derived from printed totals when only sub-lines exist (Titan), 'exceptional' anchored so 'profit before exceptional items' isn't taken: 12/18.
+- the model varies run to run; up to three attempts per page (text, image, image), keeping the first that passes every check: 16/18 pass (14 reconcile arithmetically, 2 also equal the Integrated Filing XBRL: Kalyan, Cochin). The 2 failures (tangled layouts) stay hidden.
+- E25 addendum: checked Titan against its PDF page by eye: revenue had been derived as total income - other income (21,285), but total income also held a 671 cr fair-value gain on a put-option liability; true revenue 20,337 + 277 = 20,614. Fixed: revenue from its printed sub-lines; any other income line is non-operating (kept out of EBITDA, named in the copy). Profit swings across zero are described in words, not percentages (Tata Chemicals "swung to a loss of 50 cr", not "-132.5%"). 17/18 tables now pass.
+

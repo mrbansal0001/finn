@@ -79,3 +79,22 @@ def test_beating_a_range_is_delivered_not_partly():
     actual = [{"metric": "revenue growth", "period": "FY26", "value": 22, "unit": "%", "quote": "q", "page": 1}]
     s = pull.statuses(ths[0], ORDER, actual)
     assert s["Q2FY27"]["status"] == "delivered" and "(beat)" in s["Q2FY27"]["note"]
+
+
+def test_reader_records_filings_with_nothing_material(monkeypatch, tmp_path):
+    """A filing the model finds purely routine must be stored as read (else it is re-read and re-billed)."""
+    from finn_worker import reader, store
+    monkeypatch.setattr(store, "DB_PATH", tmp_path / "t.sqlite")
+    con = store.connect()
+    (tmp_path / "config").mkdir()
+    (tmp_path / "config" / "portfolio.json").write_text('{"holdings": [{"symbol": "ABC", "weight": 1}]}')
+    monkeypatch.setattr(store, "DB_PATH", tmp_path / "data" / "t.sqlite")
+    (tmp_path / "data").mkdir()
+    con = store.connect()
+    store.upsert(con, "filings", [{"id": "f1", "symbol": "ABC", "company_name": "ABC Ltd", "subject": "General Updates",
+                                   "summary": "", "link": "https://x/a.pdf", "published_at": "2026-11-10T10:00:00",
+                                   "source": "rss", "category": "unclassified", "tier": "notable", "needs_document": 1}])
+    monkeypatch.setattr(reader, "read_filing", lambda f: [])
+    assert reader.read_pending().startswith("read 1/1")
+    assert con.execute("select count(*) from events where filing_id='f1'").fetchone()[0] == 1
+    assert reader.read_pending().startswith("read 0/0")
