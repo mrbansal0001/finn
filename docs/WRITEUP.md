@@ -115,7 +115,7 @@ Copy rules are enforced in code: a headline needs a verb and a fact, a "why" lin
   - overlapping 6-page windows find 80%, at 61% strict precision;
   - half of the "false positives" were genuine commitments my labels had missed, so effective precision is near 80%.
 - **Linking.** Deterministic, with pairwise precision 0.88 / recall 0.70 on BEL and 0.75 / 0.67 on Deepak Nitrite. Model-assisted linking was noisier run to run, so it stays off. BEL's ledger shows the machine-built version by default, with the hand-checked reference one tap away.
-- **Cost.** $1.18 of paid model spend for the entire build so far, across 1,041 model calls; most of that is the paid fallback when Gemini's free tier was overloaded during the Nifty 50 pre-build. A ledger on the free tier costs $0; reading a filing that names people costs about $0.005, so a day of Push for 18 holdings costs cents.
+- **Cost.** $1.18 of paid model spend for the entire build so far, across 1,041 model calls: $0.72 of it before the pre-build (mostly reading filings that name people, which never go to the free tier), the rest the paid fallback while Gemini's free tier was overloaded. A ledger on the free tier costs $0; reading a filing that names people costs about $0.005, so a day of Push for 18 holdings costs cents.
 
 ## Cloud
 
