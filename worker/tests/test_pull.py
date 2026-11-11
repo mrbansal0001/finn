@@ -124,3 +124,98 @@ def test_model_links_between_unlike_promises_are_refused():
     b = {"metric": "order inflow", "unit": "INR crore"}
     assert not pull._compatible(a, b)
     assert pull._compatible({"metric": "EBITDA margin", "unit": "%"}, {"metric": "EBITDA margin", "unit": "% of revenue"})
+
+
+# --- ledger quality guards (E27) ---------------------------------------------------------
+
+def test_ground_drops_a_value_the_quote_does_not_print():
+    it = {"quote": "This year, we should have revenues close to INR5,200 crores.", "kind": "approximate",
+          "value_low": 1500, "value_high": None, "unit": "INR crore"}
+    pull.ground(it)
+    assert it["value_low"] is None and it["ungrounded"] and pull._describe(it) == "no figure"
+
+
+def test_ground_keeps_printed_values_and_their_scale_word():
+    it = {"quote": "I'm looking at that number of displays, almost 40 million to 50 million.", "kind": "range",
+          "value_low": 40, "value_high": 50, "unit": "units"}
+    pull.ground(it)
+    assert pull._describe(it) == "40–50 mn units"
+
+
+def test_ground_accepts_billion_restated_as_million():
+    it = {"quote": "The $2 billion by FY27, that's a run rate.", "kind": "point", "value_low": 2000,
+          "value_high": None, "unit": "USD mn"}
+    pull.ground(it)
+    assert it["value_low"] == 2000 and not it.get("ungrounded")
+
+
+def test_ground_rejects_double_turned_into_percent():
+    it = {"quote": "We expect the revenues to grow almost to 2x in the current fiscal.", "kind": "floor",
+          "value_low": 200, "value_high": None, "unit": "%"}
+    pull.ground(it)
+    assert it["value_low"] is None
+
+
+def test_degenerate_range_reads_as_a_point():
+    it = {"quote": "run rate being in the range of $500 million", "kind": "range", "value_low": 500,
+          "value_high": 500, "unit": "USD mn"}
+    pull.ground(it)
+    assert pull._describe(it) == "$500 mn"
+
+
+def test_different_segments_do_not_link():
+    a = {"metric": "revenue", "scope": "lighting", "unit": "INR crore", "value_low": 1700}
+    b = {"metric": "revenue", "scope": "mobile phones", "unit": "INR crore", "value_low": 1650}
+    assert not pull.scopes_compatible(a, b)
+    assert pull.scopes_compatible({**a, "scope": "company"}, {**b, "scope": "overall"})
+
+
+def test_amounts_far_apart_without_a_shared_name_do_not_link():
+    calls = [("Feb 2026", [{"metric": "capex", "speaker_role": "management", "kind": "ceiling", "value_high": 3000,
+                            "unit": "INR crore", "quote": "up to INR3,000 crores"}]),
+             ("May 2026", [{"metric": "capex", "speaker_role": "management", "kind": "range", "value_low": 800,
+                            "value_high": 850, "unit": "INR crore", "quote": "INR800 crores to INR850 crores capex"}])]
+    assert len(pull.link(calls)) == 2
+
+
+def test_shared_programme_name_links_despite_resized_amount():
+    calls = [("Q3FY26", [{"metric": "NGC order", "speaker_role": "management", "kind": "range", "value_low": 2000,
+                          "value_high": 3000, "unit": "INR cr", "quote": "x"}]),
+             ("Q4FY26", [{"metric": "NGC order", "speaker_role": "management", "kind": "range", "value_low": 10000,
+                          "value_high": 12000, "unit": "INR cr", "quote": "y"}])]
+    assert len(pull.link(calls)) == 1
+
+
+def test_call_month():
+    assert pull.call_month("Nov 2026") == "2026-11" and pull.call_month("Q3FY26") is None
+
+
+def test_ground_reads_numbers_touching_a_currency_prefix():
+    it = {"quote": "So Bharat Forge, we have said up to INR3,000 crores.", "kind": "ceiling", "value_low": None,
+          "value_high": 3000, "unit": "INR crore"}
+    pull.ground(it)
+    assert pull._describe(it) == "<₹3,000 cr"
+
+
+def test_ground_ignores_durations_unless_the_unit_is_time():
+    dbl = {"quote": "we will double our business in the next 2 years or so.", "kind": "point", "value_low": 2,
+           "value_high": None, "unit": "x"}
+    assert pull.ground(dbl)["value_low"] is None
+    months = {"quote": "the clearance should come in 2 to 4 months", "kind": "range", "value_low": 2, "value_high": 4,
+              "unit": "months"}
+    assert pull.ground(months)["value_low"] == 2
+
+
+def test_backward_statements_are_not_promises():
+    assert pull.looks_backward({"period": "last quarter", "quote": "In last quarter, the company had secured new business worth INR2,388 crores"})
+    assert pull.looks_backward({"period": "last 5 years", "quote": "We have grown at roughly about 23.9% for the last 5 years"})
+    assert not pull.looks_backward({"period": "current fiscal", "quote": "We expect 3x growth in the revenues in the current fiscal"})
+    assert not pull.looks_backward({"period": "FY27", "quote": "we have achieved 20% and we will grow 25% next year"})
+
+
+def test_null_period_and_doubled_scale():
+    assert pull.normalise_period("null", "Nov 2026") is None
+    it = {"quote": "somewhere around 60 million, 65 million units", "kind": "range", "value_low": 60, "value_high": 65,
+          "unit": "million units"}
+    pull.ground(it)
+    assert pull._describe(it) == "60–65 million units"

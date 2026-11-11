@@ -180,6 +180,66 @@ def verify(item: dict, pages: dict[int, str], threshold: int = 90) -> int | None
     return None
 
 
+# ------------------------------------------------------------------ ground numbers
+
+# a currency prefix may touch the number ('INR3,000', 'Rs.500', '$2'); a digit/decimal before it may not
+_NUM = re.compile(r"(?<![\d.,])(\d[\d,]*(?:\.\d+)?)\s*(%|per ?cent|crores?|cr\b|lakhs?|million|mn\b|billion|bn\b|bps|basis points"
+                  r"|years?\b|months?\b|quarters?\b|weeks?\b|days?\b)?", re.I)
+_TIME = {"year", "years", "month", "months", "quarter", "quarters", "week", "weeks", "day", "days"}
+_SCALE = {"crore": " cr", "crores": " cr", "cr": " cr", "lakh": " lakh", "lakhs": " lakh", "million": " mn",
+          "mn": " mn", "billion": " bn", "bn": " bn"}
+
+
+def quote_numbers(quote: str) -> list[tuple[float, str | None]]:
+    """Numbers printed in a quote with the scale word right after them ('60 million' -> (60, 'million'))."""
+    out = []
+    for m in _NUM.finditer(quote.replace("–", "-")):
+        try:
+            out.append((float(m.group(1).replace(",", "")), (m.group(2) or "").lower() or None))
+        except ValueError:
+            pass
+    return out
+
+
+def ground(item: dict) -> dict:
+    """Every number shown must be printed in its quote (cite-or-drop for figures).
+    A value the quote doesn't contain (the model's arithmetic, a figure from a neighbouring
+    sentence, 'double' turned into '200%') is removed; the promise stays, as 'no figure'.
+    Billion<->million restatements (x1000) count as printed. Also records the scale word
+    the quote uses ('60 million units') so the display doesn't lose it."""
+    nums = quote_numbers(item.get("quote", ""))
+    if not re.search(r"year|month|quarter|week|day", item.get("unit") or "", re.I):
+        nums = [(n, w) for n, w in nums if w not in _TIME]      # 'in the next 2 years' is not a value of 2
+    scale = None
+    for k in ("value_low", "value_high"):
+        v = item.get(k)
+        if v is None:
+            continue
+        hit = next(((n, w) for n, w in nums for f in (1, 1000, 0.001) if abs(n * f - v) <= 0.005 * max(abs(v), 1)), None)
+        if hit is None:
+            item["value_low"] = item["value_high"] = None
+            item["ungrounded"] = True
+            return item
+        scale = scale or hit[1]
+    if item.get("value_low") is not None and item.get("value_low") == item.get("value_high") and item.get("kind") == "range":
+        item["kind"] = "point"
+    if scale in _SCALE:
+        item["scale"] = _SCALE[scale]
+    return item
+
+
+def call_month(call_label: str) -> str | None:
+    """'Nov 2026' -> '2026-11' (screener date labels)."""
+    m = re.search(r"([A-Za-z]{3})\w*\s+(\d{4})", call_label or "")
+    if not m:
+        return None
+    months = "jan feb mar apr may jun jul aug sep oct nov dec".split()
+    try:
+        return f"{m.group(2)}-{months.index(m.group(1).lower()[:3]) + 1:02d}"
+    except ValueError:
+        return None
+
+
 # ------------------------------------------------------------------ periods
 
 def call_fy(call_label: str) -> int | None:
@@ -200,9 +260,23 @@ def call_fy(call_label: str) -> int | None:
     return None
 
 
+_BACKWARD_PERIOD = re.compile(r"^\s*(current|to date|so far|ytd)\s*$|\b(last|past|previous|trailing|preceding)\b", re.I)
+_BACKWARD_QUOTE = re.compile(r"\b(had|have|has) (secured|grown|achieved|delivered|reported|won|crossed|received)\b|"
+                             r"\bwe (grew|achieved|delivered|reported|secured|crossed)\b", re.I)
+
+
+def looks_backward(it: dict) -> bool:
+    """Statements of what already happened ('secured INR2,388 crores last quarter', 'grown 23.9% over the
+    last 5 years') sometimes come back as guidance. A forward commitment never has a past period."""
+    if _BACKWARD_PERIOD.search(it.get("period") or ""):
+        return True
+    return bool(_BACKWARD_QUOTE.search(it.get("quote") or "")) and not re.search(
+        r"\b(will|expect|target|aim|guid|should|plan|going to|by (fy|q[1-4]|h[12]|march|the end))", it.get("quote") or "", re.I)
+
+
 def normalise_period(period: str | None, call_label: str) -> str | None:
     """'current financial year' on a Q3FY26 call -> 'FY26'; 'next year' -> 'FY27'; 'H1 next year' -> 'H1FY27'."""
-    if not period:
+    if not period or str(period).strip().lower() in ("null", "none", "n/a", "na", "-"):
         return None
     p = period.strip()
     if re.search(r"FY\s?\d{2}", p):
@@ -288,6 +362,42 @@ def _periods_compatible(a: str | None, b: str | None) -> bool:
     return not (fa and fb) or bool(fa & fb)
 
 
+_SCOPE_GENERIC = re.compile(r"\b(company|overall|consolidated|standalone|group|total|business|segment|division|vertical|"
+                            r"the|and|of|our|we)\b", re.I)
+
+
+def _scope_words(scope: str | None) -> set[str]:
+    return {w for w in re.findall(r"[a-z]{3,}", _SCOPE_GENERIC.sub(" ", (scope or "").lower()))}
+
+
+def scopes_compatible(a: dict, b: dict) -> bool:
+    """Company-level and a named segment/product are different promises ('revenue ~5,200 cr' for one
+    segment is not a revision of another segment's). Company-level = no specific words left."""
+    wa, wb = _scope_words(a.get("scope")), _scope_words(b.get("scope"))
+    if not wa and not wb:
+        return True
+    if not wa or not wb:
+        return not (a.get("scope") and b.get("scope"))   # one unstated: don't block
+    return bool(wa & wb) or fuzz.token_set_ratio(" ".join(wa), " ".join(wb)) >= 70
+
+
+def _mid(it: dict) -> float | None:
+    lo, hi = it.get("value_low"), it.get("value_high")
+    xs = [x for x in (lo, hi) if isinstance(x, (int, float))]
+    return sum(xs) / len(xs) if xs else None
+
+
+def values_compatible(a: dict, b: dict) -> bool:
+    """Amounts more than 2x apart in the same unit are different commitments, not a revision
+    (Rs 3,000 cr programme vs Rs 800 cr plant). Percentages are exempt: growth guidance can halve."""
+    if _unit_class(a.get("unit")) != "money" or _unit_class(b.get("unit")) != "money":
+        return True
+    ma, mb = _mid(a), _mid(b)
+    if not ma or not mb:
+        return True
+    return max(ma, mb) / min(ma, mb) <= 2.0
+
+
 def link(calls: list[tuple[str, list[dict]]]) -> list[Thread]:
     """Deterministic baseline: group management guidance across calls (oldest first).
     Same thread = shared programme name/acronym, or similar metric with compatible FY.
@@ -302,8 +412,12 @@ def link(calls: list[tuple[str, list[dict]]]) -> list[Thread]:
             best, best_s = None, 0
             facet = _facet(it["metric"])
             for t in threads:
-                same_facet = facet is None or _facet(t.metric) in (None, facet)
+                prev = t.mentions[-1].item
                 shared = names & _names(t.metric)
+                # a shared programme name outweighs differing amounts (NGC order sized 2-3k, then 10-12k cr)
+                if not scopes_compatible(it, prev) or (not shared and not values_compatible(it, prev)):
+                    continue
+                same_facet = facet is None or _facet(t.metric) in (None, facet)
                 if shared and same_facet:
                     s = 100
                 elif not same_facet or not _periods_compatible(per, t.period):
@@ -410,7 +524,12 @@ def _g(x: float) -> str:
 def _describe(it: dict) -> str:
     lo, hi = it.get("value_low"), it.get("value_high")
     pre, suf = _fmt_unit(it.get("unit") or "")
+    sc = it.get("scale")
+    if sc and not re.search(r"\b(mn|million|bn|billion|cr|crores?|lakhs?)\b", suf, re.I):
+        suf = f"{sc}{suf}"                # '60 units' printed as '60 million units' -> '60 mn units'
     k = it.get("kind")
+    if k == "range" and lo is not None and lo == hi:
+        k = "point"
     if k == "milestone":
         return f"by {it.get('due') or 'unspecified date'}"
     if k == "range" and lo is not None and hi is not None:
@@ -426,6 +545,13 @@ def _describe(it: dict) -> str:
 
 # ------------------------------------------------------------------ build
 
+def _title(th: "Thread", last: dict) -> str:
+    per = th.period
+    if per and last.get("kind") == "milestone" and re.fullmatch(r"\d{4}-\d{2}", str(per)):
+        per = None                              # 'by 2027-03' already carries the date
+    return f"{th.metric}{' · ' + per if per else ''}: {_describe(last)}"
+
+
 def build(symbol: str) -> dict:
     """End-to-end ledger for one ticker (requires a model key)."""
     found = list(reversed(discover(symbol)))           # oldest first
@@ -435,6 +561,8 @@ def build(symbol: str) -> dict:
         out = extract(t.url)
         items = []
         for it in out.get("guidance", []):
+            if looks_backward(it):
+                continue                          # an achievement, not a commitment
             it["period"] = normalise_period(it.get("period"), t.label)
             p = verify(it, pages)
             if p is None:
@@ -442,6 +570,10 @@ def build(symbol: str) -> dict:
                 continue
             it["page"] = p
             it["url"] = t.url
+            ground(it)
+            cm = call_month(t.label)
+            if it.get("due") and cm and str(it["due"])[:7] < cm:
+                it["due"] = None                  # guidance can't be due before the call it was given on
             items.append(it)
             verified += 1
         for a in out.get("actuals", []):
@@ -466,7 +598,7 @@ def build(symbol: str) -> dict:
         first, last = th.mentions[0].item, th.mentions[-1].item
         settled = any(c.get("evidence") for c in cells.values())
         rows.append({
-            "id": th.id, "title": f"{th.metric}{' · ' + th.period if th.period else ''}: {_describe(last)}",
+            "id": th.id, "title": _title(th, last),
             "metric": th.metric, "calls": cells, "latest": sts[-1] if sts else "early",
             "evidence_source": "per management" if settled else "not checkable",
             "first_quote": {"text": first["quote"], "call": th.mentions[0].call, "page": first["page"],
@@ -474,6 +606,7 @@ def build(symbol: str) -> dict:
             "latest_quote": ({"text": last["quote"], "call": th.mentions[-1].call, "page": last["page"], "url": last.get("url")}
                              if len(th.mentions) > 1 else None),
             "verdict": "",
+            "mentions": len({m.call for m in th.mentions}),
         })
     from . import annual
     try:
@@ -514,6 +647,9 @@ def _compatible(a: dict, b: dict) -> bool:
     if fa and fb and fa != fb:
         return False
     ua, ub = _unit_class(a.get("unit")), _unit_class(b.get("unit"))
+    shared = _names(a.get("metric", "") + " " + (a.get("scope") or "")) & _names(b.get("metric", "") + " " + (b.get("scope") or ""))
+    if not scopes_compatible(a, b) or (not shared and not values_compatible(a, b)):
+        return False
     return ua == ub or "none" in (ua, ub) or "other" in (ua, ub)
 
 
