@@ -16,6 +16,7 @@ of being hard-coded, because free-tier model availability changes often.
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import os
 import re
@@ -37,6 +38,8 @@ OPENAI_BUDGET_USD = float(os.getenv("OPENAI_BUDGET_USD", "4.0"))  # of the $5 ke
 OPENAI_PRICE_IN = float(os.getenv("OPENAI_PRICE_IN", "0.40"))
 OPENAI_PRICE_OUT = float(os.getenv("OPENAI_PRICE_OUT", "1.60"))
 GEMINI_MIN_GAP = float(os.getenv("GEMINI_MIN_GAP", "4.5"))  # seconds between calls (free-tier RPM)
+# identical requests are answered from disk: rebuilds are free and reproducible (FINN_LLM_CACHE=0 disables)
+CACHE_DIR = Path(__file__).resolve().parents[3] / "data" / "llm_cache"
 
 
 class LLMUnavailable(RuntimeError):
@@ -170,6 +173,39 @@ def structured(purpose: str, system: str, parts: list[Part], schema: dict, tier:
     personal_data=True (filings about named people, their bios) skips the Gemini free
     tier, whose terms allow training on inputs and ask users not to send personal
     information, and goes only to the paid API that does not train on inputs (D-025)."""
+    key = _cache_key(purpose, system, parts, schema, tier, personal_data)
+    hit = _cache_get(key)
+    if hit is not None:
+        return hit
+    out = _structured(purpose, system, parts, schema, tier, personal_data)
+    _cache_put(key, out)
+    return out
+
+
+def _cache_key(purpose: str, system: str, parts: list[Part], schema: dict, tier: str, personal_data: bool) -> str:
+    h = hashlib.sha256()
+    for piece in (purpose, system, json.dumps(schema, sort_keys=True), tier, str(personal_data)):
+        h.update(piece.encode() + b"\0")
+    for p in parts:
+        h.update((p.text or "").encode() + b"\0" + hashlib.sha256(p.png or b"").digest())
+    return h.hexdigest()
+
+
+def _cache_get(key: str) -> dict | None:
+    if os.getenv("FINN_LLM_CACHE", "1") == "0":
+        return None
+    try:
+        return json.loads((CACHE_DIR / f"{key}.json").read_text())
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
+
+
+def _cache_put(key: str, out: dict) -> None:
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    (CACHE_DIR / f"{key}.json").write_text(json.dumps(out))
+
+
+def _structured(purpose: str, system: str, parts: list[Part], schema: dict, tier: str, personal_data: bool) -> dict:
     con = store.connect()
     errors = []
     try:
