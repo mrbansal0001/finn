@@ -26,12 +26,28 @@ ROOT = Path(__file__).resolve().parents[3]
 
 # Event kind -> the expertise that helps explain it (matched against contact domains/functions)
 KIND_DOMAINS = {
-    "litigation": ["litigation", "legal", "disputes", "regulation", "compliance", "forensic"],
+    # generic expertise only; regulator-specific matches come from TOPIC_HINTS ("nbfc regulation" is not
+    # expertise on a commercial tribunal claim; E29)
+    "litigation": ["litigation", "legal", "disputes", "arbitration", "forensic"],
     "m_and_a": ["m&a", "corporate development", "demergers", "schemes of arrangement", "investment banking", "corporate finance"],
     "credit_rating": ["corporate credit", "credit risk"],
     "fund_raise": ["corporate finance", "investment banking"],
     "capex": ["projects", "plant commissioning", "epc", "order inflow"],
 }
+# The roles at a company closest to each kind of event: an ex-Legal head for a claim, ex-Finance for a raise
+KIND_FUNCTIONS = {
+    "litigation": {"legal", "secretarial", "compliance"},
+    "m_and_a": {"strategy", "corporate development", "corporate finance", "finance"},
+    "results": {"finance", "investor relations", "strategy"},
+    "fund_raise": {"finance", "treasury", "corporate finance"},
+    "capex": {"operations", "projects", "plant", "manufacturing", "business development"},
+    "credit_rating": {"finance", "treasury"},
+    "management_change": {"strategy", "hr", "leadership", "board"},
+}
+KIND_WORDS = {"litigation": "legal matter", "m_and_a": "deal", "results": "results", "fund_raise": "fund raise",
+              "capex": "order or capex", "credit_rating": "rating", "management_change": "leadership change",
+              "move": "price move"}
+
 # Topic words in a card that point to a specific domain
 TOPIC_HINTS = {
     r"irdai|insurance": "insurance regulation",
@@ -115,7 +131,14 @@ def for_person(person: dict, contacts: list[Contact], today: date) -> list[dict]
                 continue
             spans = [ov for h in stints if (ov := _overlap(po, h))]
             org = stints[0]["org"]
-            if spans:
+            if spans and po.get("inferred"):
+                # tenure derived from the filing's own words ("served the Bank for nearly 27 years")
+                lo, hi = min(s[0] for s in spans), max(s[1] for s in spans)
+                h = stints[0]
+                who = person.get("name", "them").split()[-1] if person.get("name") else "them"
+                out.append(_line(c, today, f"was at {org} {_span(h)}, while {person.get('name', 'they')} was there "
+                                           f"(about {po['start']}–{str(po['end'])[2:]}, per the filing)", "dates overlap", 0.97))
+            elif spans:
                 lo, hi = min(s[0] for s in spans), max(s[1] for s in spans)
                 out.append(_line(c, today, f"worked at {org} at the same time, {lo}–{hi}", "dates overlap", 0.95))
             else:
@@ -146,26 +169,93 @@ def for_company(symbol: str, contacts: list[Contact], today: date, *, kind: str 
             elif h.get("function") == "board":
                 out.append(_line(c, today, f"sat on {h['org']}'s board, {_span(h)}", "certain", 0.85))
             else:
-                out.append(_line(c, today, f"was {h['role']} at {h['org']}, {_span(h)}", "certain", 0.9))
+                ln = _line(c, today, f"was {h['role']} at {h['org']}, {_span(h)}", "certain", 0.9)
+                if _fits(h, kind):
+                    ln["_score"] = round(ln["_score"] + 0.12, 4)
+                    ln["fit"] = f"as {h['role']} there ({_span(h)}), the closest to this {KIND_WORDS.get(kind, 'event')}"
+                out.append(ln)
         if any(h.get("symbol") == symbol for h in c.history):
             continue
         role = c.history[-1]["role"] + ", " + c.history[-1]["org"] if c.history else c.current.get("role", "")
         top = sorted(d for d in doms if any(_same_topic(d, w) for w in topical))
         gen = sorted(d for d in doms if any(_same_topic(d, w) for w in generic))
         if top:
-            out.append(_line(c, today, f"knows {top[0]} ({role})", "same organisation", 0.7))
+            ln = _line(c, today, f"knows {top[0]} ({role})", "same organisation", 0.7)
+            ln["topical"] = True
+            ln["fit"] = f"knows {top[0]}, the subject of this filing"
+            out.append(ln)
         elif gen:
             out.append(_line(c, today, f"knows {gen[0]} ({role})", "same organisation", 0.45))
+    # a specialist in the filing's own subject (an IRDAI licence -> insurance regulation) outranks an alumnus
+    # whose role there has nothing to do with it
+    if any(ln.get("topical") for ln in out) and not any(ln.get("fit") and not ln.get("topical") for ln in out):
+        for ln in out:
+            if ln.get("topical"):
+                ln["_score"] = round(ln["_score"] / 0.7 * 0.95, 4)
+    # fewer, better: a generic expert only when nobody has a direct link to the company
+    direct = [ln for ln in out if ln["confidence"] == "certain" or ln.get("topical")]
+    if direct:
+        out = direct + [ln for ln in out if ln["confidence"] != "certain" and ln["_score"] >= 0.7 * 0.5]
     return _best(out)
+
+
+def _fits(h: dict, kind: str) -> bool:
+    wanted = KIND_FUNCTIONS.get(kind, set())
+    text = f"{h.get('function', '')} {h.get('role', '')}".lower()
+    return any(w in text for w in wanted)
+
+
+def best_reason(ln: dict) -> str:
+    """Why the first person is the one to call, in plain words, from the evidence on the line."""
+    parts = [ln.get("fit") or ln["relation"]]
+    if ln.get("via"):
+        parts.append(f"reach them through {ln['via']}")
+    elif ln["strength"] == "strong":
+        parts.append("a strong tie")
+    if ln.get("insider"):
+        parts.append("still works there, so public information only")
+    return "; ".join(parts)
+
+
+_TENURE = re.compile(r"(?:served|been with|been associated with|associated with|career (?:spanning|of)|worked (?:with|at))"
+                     r"[^.]{0,40}?(?:nearly|over|about|around|approximately|more than|close to)?\s*(\d{1,2})\s*years", re.I)
+_LEAVING = re.compile(r"resign|retir|superannuat|cessation|ceas|vacat|step|demise|relinquish|exit|leav", re.I)
+
+
+_DECADES = re.compile(r"(?:nearly|over|about|around|more than|close to)?\s*(two|three|four)\s+decades", re.I)
+
+
+def tenure_from_text(person: dict, texts: list[str], year: int) -> dict | None:
+    """A leaving person's stint at the filing company, from the filing's own words:
+    'served the Bank for nearly 27 years' filed in 2026 -> about 1999-2026; 'over three decades of
+    service' -> about 1996-2026."""
+    if not _LEAVING.search(person.get("change") or ""):
+        return None
+    for t in texts:
+        m = _TENURE.search(t or "")
+        n = int(m.group(1)) if m else None
+        if n is None and (d := _DECADES.search(t or "")) and re.search(r"servic|career|with the", t, re.I):
+            n = {"two": 20, "three": 30, "four": 40}[d.group(1).lower()]
+        if n and 1 <= n <= 50:
+            return {"start": str(year - n), "end": str(year), "inferred": True}
+    return None
 
 
 def _words(s: str) -> set[str]:
     return {w for w in re.findall(r"[a-z&]+", s.lower()) if len(w) >= 4 or w in {"m&a", "epc", "irdai"}}
 
 
+_GENERIC_WORDS = {"regulation", "regulatory", "management", "business", "services", "markets", "banking", "finance",
+                  "corporate", "industry", "sector", "policy"}
+
+
 def _same_topic(domain: str, wanted: str) -> bool:
-    """Whole-word overlap ('insurance regulation' ~ 'regulation'), never substrings ('pli' !~ 'compliance')."""
-    return domain == wanted or bool(_words(domain) & _words(wanted))
+    """Whole-word overlap on a distinctive word ('insurance regulation' ~ 'irdai insurance'), never substrings
+    ('pli' !~ 'compliance') and never only a generic word ('nbfc regulation' !~ 'insurance regulation'; E29)."""
+    if domain == wanted:
+        return True
+    shared = _words(domain) & _words(wanted)
+    return bool(shared - _GENERIC_WORDS)
 
 
 def second_degree(lines: list[dict], contacts: list[Contact], edges: list[dict], today: date) -> list[dict]:
@@ -195,7 +285,8 @@ def _best(lines: list[dict], k: int = 3) -> list[dict]:
     for ln in lines:
         if ln["contact_id"] not in best or ln["_score"] > best[ln["contact_id"]]["_score"]:
             best[ln["contact_id"]] = ln
-    return sorted(best.values(), key=lambda x: -x["_score"])[:k]
+    # relevance before warmth: someone whose role there or expertise fits this event comes first
+    return sorted(best.values(), key=lambda x: (0 if x.get("fit") else 1, -x["_score"]))[:k]
 
 
 def annotate(cards: list[dict], today: date, contacts: list[Contact] | None = None, edges: list[dict] | None = None) -> None:

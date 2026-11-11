@@ -55,3 +55,43 @@ def test_strength_formula_orders_recent_frequent_above_stale():
 def test_price_move_never_suggests_an_insider():
     lines = network.for_company("SBIN", CONTACTS, TODAY, kind="move")
     assert not any(l["insider"] for l in lines)
+
+
+TODAY = date(2026, 11, 11)
+
+
+def test_tenure_from_the_filings_own_words():
+    p = {"name": "Sanjay D'Souza", "change": "superannuated", "role": "Group Head"}
+    t = network.tenure_from_text(p, ["He served the Bank for nearly 27 years"], 2026)
+    assert t == {"start": "1999", "end": "2026", "inferred": True}
+    assert network.tenure_from_text({**p, "change": "appointed"}, ["served for 27 years"], 2026) is None
+
+
+def test_alumni_who_overlapped_with_a_leaving_person_are_named():
+    person = {"name": "Sanjay D'Souza", "orgs": [{"org": "HDFC Bank", "start": "1999", "end": "2026", "inferred": True}], "schools": []}
+    lines = network.for_person(person, CONTACTS, TODAY)
+    assert lines and all("while Sanjay D'Souza was there" in ln["relation"] for ln in lines)
+    assert all(ln["confidence"] == "dates overlap" for ln in lines)
+
+
+def test_irrelevant_generic_experts_are_dropped_when_someone_knows_the_company():
+    lines = network.for_company("TATACHEM", CONTACTS, TODAY, kind="litigation", text="Tribunal rejects claim")
+    assert not any("nbfc" in ln["relation"].lower() for ln in lines)
+    assert lines[0]["confidence"] == "certain"
+
+
+def test_best_reason_explains_the_first_person():
+    lines = network.for_company("TATACHEM", CONTACTS, TODAY, kind="litigation", text="Tribunal rejects claim")
+    r = network.best_reason(network.second_degree(lines, CONTACTS, EDGES, TODAY)[0])
+    assert "closest to this legal matter" in r or "Legal" in r
+
+
+def test_decades_of_service_count_as_tenure():
+    p = {"name": "Kaizad Bharucha", "change": "resigned", "role": "Deputy Managing Director"}
+    assert network.tenure_from_text(p, ["Resignation effective December 31, 2026, after over three decades of service."], 2026)["start"] == "1996"
+
+
+def test_studied_at_the_same_school_is_found():
+    CONTACTS2, _ = network.load()
+    lines = network.for_person({"name": "V. N. Srivatsan", "orgs": [], "schools": ["PSG College of Technology"]}, CONTACTS2, TODAY)
+    assert any("alumnus of PSG College of Technology" in ln["relation"] for ln in lines)

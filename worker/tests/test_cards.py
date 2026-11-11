@@ -56,3 +56,9 @@ def test_transcript_cards_never_promise_a_summary():
            "link": "x_Transcript.pdf", "needs_document": 0}]
     head, _, needs = _fallback_copy("earnings_call", fs, None, True)
     assert head == "Earnings-call transcript filed" and needs is False
+
+
+def test_no_actual_change_is_not_people_news():
+    assert people_tier([{"name": "Tarun Mehta", "change": "comments", "role": "CEO"}], "Tarun Mehta comments on strong quarter") == "routine"
+    assert people_tier([], "Price Waterhouse appointed as Statutory Auditor") == "routine"
+    assert people_tier([], "CFO Rao resigns, effective 30 Nov") == "lead"

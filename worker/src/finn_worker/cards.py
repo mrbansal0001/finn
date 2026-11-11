@@ -32,11 +32,26 @@ WEAK_CATEGORIES = ("unclassified", "press_release", "earnings_call")
 READ_CATEGORIES = ("results", "management_change", "m_and_a", "litigation", "capex", "fund_raise", "credit_rating")
 
 
-def people_tier(people: list[dict]) -> str:
-    """lead: a senior role changes; routine: only re-appointments / auditors / registrars; else notable."""
-    real = [p for p in people if p.get("name")]
+CHANGE_VERB = re.compile(r"appoint|resign|retir|cessation|ceas|vacat|step(s|ped)? down|superannuat|demise|death|elevat|"
+                         r"redesignat|re-?designat|join|leav|exit|remov|assum|takes? charge|took charge|promot|nominat|"
+                         r"induct|co-?opt|terminat|relinquish|completion of (tenure|term)", re.I)
+
+
+def real_changes(people: list[dict]) -> list[dict]:
+    """People whose record states an actual change (not 'comments on the quarter')."""
+    return [p for p in people if p.get("name") and CHANGE_VERB.search(f"{p.get('change') or ''}")]
+
+
+def people_tier(people: list[dict], headline: str = "") -> str:
+    """lead: a senior role changes; routine: only re-appointments / auditors / registrars, or no actual
+    change at all (an ESOP committee note, a CEO quote); else notable."""
+    real = real_changes(people)
     if not real:
-        return "notable"
+        # no structured change: fall back to the headline ('CFO Rao resigns' still counts; a firm appointed
+        # as auditor, an ESOP committee note or a CEO's comment on the quarter does not)
+        if not CHANGE_VERB.search(headline) or ROUTINE_PEOPLE.search(headline):
+            return "routine"
+        return "lead" if SENIOR_ROLE.search(headline) else "notable"
     def text(p):
         return f"{p.get('change') or ''} {p.get('role') or ''}"
     if any(SENIOR_ROLE.search(p.get("role") or "") and not re.search(r"re-?appoint|continu", p.get("change") or "", re.I)
@@ -186,14 +201,15 @@ def build(filings: list[dict], moves: list[dict], weights: dict[str, float], nam
             # a filing filed under a weak NSE subject ("General Updates") can hold a material event:
             # the event read from the document decides the card's kind (E29: HDFC Bank's new MD & CEO)
             if cat in WEAK_CATEGORIES:
-                material = [e for e in ok if e.get("kind") in MATERIAL_KINDS]
+                material = [e for e in ok if e.get("kind") in MATERIAL_KINDS
+                            and (e.get("kind") != "management_change" or real_changes(e.get("people") or []))]
                 if material:
                     cat = min(material, key=lambda e: MATERIAL_KINDS.index(e["kind"]))["kind"]
             # same filing can carry several events: a deal card shows the deal, not the results
             same = [e for e in ok if e.get("kind") == cat]
             if cat == "management_change" and same:
                 # one card per filing: the most senior change leads, everyone named is listed
-                same.sort(key=lambda e: {"lead": 0, "notable": 1, "routine": 2}[people_tier(e.get("people") or [])])
+                same.sort(key=lambda e: {"lead": 0, "notable": 1, "routine": 2}[people_tier(e.get("people") or [], e.get("headline") or "")])
             best = (same[0] if same else None) or next(
                 (e for e in ok if e.get("kind") != "results" or cat == "results"), None)
             if best:
@@ -202,10 +218,16 @@ def build(filings: list[dict], moves: list[dict], weights: dict[str, float], nam
                 if cat == "management_change":
                     everyone = [p for e in same for p in e.get("people") or []]
                     facts["people"] = list({p["name"]: p for p in everyone}.values())
-                    tier = people_tier(facts["people"])
+                    tier = people_tier(facts["people"], headline or "")
                     others = [e["headline"] for e in same[1:]]
                     if others and not why:
                         why = "Also in this filing: " + "; ".join(others) + "."
+        if read and headline is None and cat != "results":
+            # read, and nothing beyond what another card carries: results decks and shareholder letters
+            # repeat the results card (ENAM's reference counts them as results); the rest is housekeeping
+            only_results = all(e.get("kind") in ("results", "routine") for e in read) and any(e.get("kind") == "results" for e in read)
+            routine["Results decks & letters" if only_results else "Other housekeeping"] += 1
+            continue
         if tier == "routine":
             routine["People: re-appointments & auditors" if cat == "management_change" else "Other housekeeping"] += 1
             continue
@@ -237,6 +259,7 @@ def build(filings: list[dict], moves: list[dict], weights: dict[str, float], nam
                 c.headline_source = "xbrl"
         if c.kind == "results" and not c.headline:
             c.headline, c.headline_source, c.needs_read = "Results filed · numbers withheld", "rule", False
+            c.tier = "notable"                 # nothing to read off it: not a lead
             c.why = c.why or ("FINN shows results only when the table passes its checks against the filing; "
                               "this one did not, so open the filing for the numbers.")
 
@@ -253,6 +276,7 @@ def build(filings: list[dict], moves: list[dict], weights: dict[str, float], nam
     for m in biggest.values():
         d = datetime.fromisoformat(m["day"] + "T15:30:00")
         why_filing = explaining_card(m, cards, trading_days)
+        earlier = None if why_filing else explaining_filing(m, filings, trading_days)   # filed just before the window
         arrow = "▲" if m["change_pct"] >= 0 else "▼"
         move_line = (f"The stock {'rose' if m['change_pct'] >= 0 else 'fell'} {abs(m['change_pct']):.1f}% "
                      f"{'the same session' if why_filing and why_filing.at[:10] == m['day'] else 'the next session'} "
@@ -262,16 +286,23 @@ def build(filings: list[dict], moves: list[dict], weights: dict[str, float], nam
         cards.append(Card(
             id=f"move-{m['symbol']}-{m['day']}", symbol=m["symbol"], company=names.get(m["symbol"], m["symbol"]),
             # default tier at the default thresholds (5%, 2x); the app re-tiers with the user's own
-            kind="move", tier="lead" if round(abs(m["change_pct"]), 1) >= 5 else "notable", at=d.isoformat(), nse_subject="",
+            # a move explained by a filing card is told on that card ("the stock rose 8.6% next session"),
+            # so it doesn't take a second lead slot for the same story
+            kind="move", tier="lead" if round(abs(m["change_pct"]), 1) >= 5 and why_filing is None and not earlier else "notable",
+            at=d.isoformat(), nse_subject="",
             headline=f"{'Up' if m['change_pct'] >= 0 else 'Down'} {abs(m['change_pct']):.1f}% on {m['volume_multiple']:.1f}× usual volume",
             headline_source="rule",
             # D-019: never guess a cause; name the filing that preceded it, if any
             why=(f"Closed ₹{m['close']:,.2f} {arrow}{abs(m['change_pct']):.1f}%; volume {m['volume_multiple']:.1f}× the 20-session average. "
                  + (f"Follows “{why_filing.headline}” ({_when(why_filing.at)}), in this edition." if why_filing
+                    else f"Follows its {earlier} — just before this window." if earlier
                     else "No filing explains this move.")),
-            facts={k: m[k] for k in ("close", "change_pct", "volume", "volume_multiple", "price_alert", "volume_alert")},
+            facts={**{k: m[k] for k in ("close", "change_pct", "volume", "volume_multiple", "price_alert", "volume_alert")},
+                   "explained_by": why_filing.id if why_filing else ("earlier filing" if earlier else None)},
             sources=[Source("NSE bhavcopy", None)],
         ))
+
+    cards = _merge_duplicate_people(cards)
 
     for c in cards:
         age_h = (until - datetime.fromisoformat(c.at)).total_seconds() / 3600
@@ -327,6 +358,22 @@ def _fallback_copy(cat: str, fs: list[dict], why, needs_read: bool):
     return None, why, needs_read                           # the reader will summarise it on a coming run
 
 
+def _merge_duplicate_people(cards: list) -> list:
+    """The same change often arrives as two filings hours or days apart (XBRL item + PDF, or a correction):
+    one card per person and change within three days, with both sources (Gautam Doshi twice; E29)."""
+    out, seen = [], {}
+    for c in sorted(cards, key=lambda c: c.at):
+        if c.kind == "management_change" and c.facts.get("people"):
+            key = (c.symbol, tuple(sorted((p.get("name") or "").lower() for p in c.facts["people"])))
+            first = seen.get(key)
+            if first is not None and abs((datetime.fromisoformat(c.at[:19]) - datetime.fromisoformat(first.at[:19])).days) <= 3:
+                first.sources += [s for s in c.sources if s.url not in {x.url for x in first.sources}]
+                continue
+            seen[key] = c
+        out.append(c)
+    return out
+
+
 def explaining_card(m: dict, cards: list, trading_days: list[str]):
     """The filing card a move follows: published after the previous session's 15:30 close and before
     this session's close. Results filed at 17:08 move the NEXT session's price (Kalyan, Reliance; E29).
@@ -334,10 +381,32 @@ def explaining_card(m: dict, cards: list, trading_days: list[str]):
     prev = [d for d in trading_days if d < m["day"]]
     prev_day = prev[-1] if prev else (datetime.fromisoformat(m["day"]) - timedelta(days=1)).date().isoformat()
     start, end = f"{prev_day}T15:30:00", f"{m['day']}T15:30:00"
-    hits = [c for c in cards if c.symbol == m["symbol"] and c.kind != "move" and start < c.at[:19] <= end and c.headline]
+    # a transcript or recording filed mid-session doesn't explain a price move; filed news does
+    hits = [c for c in cards if c.symbol == m["symbol"] and c.kind not in ("move", "earnings_call", "unclassified")
+            and start < c.at[:19] <= end and c.headline]
     order = ["results", "m_and_a", "management_change", "litigation", "fund_raise", "capex", "credit_rating"]
     hits.sort(key=lambda c: (order.index(c.kind) if c.kind in order else len(order), c.at))
     return hits[0] if hits else None
+
+
+_KIND_WORDS = {"results": "results", "m_and_a": "deal filing", "management_change": "management change filing",
+               "litigation": "legal filing", "fund_raise": "fund-raise filing", "capex": "order/capex filing",
+               "credit_rating": "credit-rating filing"}
+
+
+def explaining_filing(m: dict, filings: list[dict], trading_days: list[str]) -> str | None:
+    """Same window rule as explaining_card, over all filings: a material filing published after the previous
+    close that sits just outside the edition window still explains the move."""
+    prev = [d for d in trading_days if d < m["day"]]
+    prev_day = prev[-1] if prev else (datetime.fromisoformat(m["day"]) - timedelta(days=1)).date().isoformat()
+    start, end = f"{prev_day}T15:30:00", f"{m['day']}T15:30:00"
+    hits = [f for f in filings if f["symbol"] == m["symbol"] and f["tier"] != "routine"
+            and f.get("category") in _KIND_WORDS and start < f["published_at"][:19] <= end]
+    if not hits:
+        return None
+    order = list(_KIND_WORDS)
+    f = min(hits, key=lambda f: order.index(f["category"]))
+    return f"{_KIND_WORDS[f['category']]} ({_when(f['published_at'])})"
 
 
 def _when(at: str) -> str:

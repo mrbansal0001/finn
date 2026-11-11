@@ -73,15 +73,26 @@ def snapshot(until: datetime | None = None) -> dict:
         network.annotate(ed["leads"] + ed["more"], today, contacts, edges)
         # people named in a filing: person-level matches first (dates overlap > same organisation)
         for c in ed["leads"] + ed["more"]:
-            # the filing company itself isn't an insight ("also worked at Titan" on Titan's own card)
+            # the filing company itself isn't an insight without dates ("also worked at Titan" on Titan's own
+            # card); with a tenure the filing states, alumni who overlapped with the person are (E29)
             own = universe.normalise_name(c["company"])
-            people = [{**p, "orgs": [o for o in p.get("orgs", [])
-                                     if universe.normalise_name(o.get("org", "")) not in own and own not in universe.normalise_name(o.get("org", ""))]}
-                      for p in c["facts"].get("people", [])]
-            person_lines = [ln for p in people for ln in network.for_person(p, contacts, today)]
+            is_own = lambda o: universe.normalise_name(o) in own or own in universe.normalise_name(o)
+            texts = [c.get("why") or "", c["facts"].get("quote") or "", c.get("headline") or ""]
+            people = []
+            for person in c["facts"].get("people", []):
+                orgs = [o for o in person.get("orgs", []) if not is_own(o.get("org", ""))]
+                ten = network.tenure_from_text(person, texts, int(c["at"][:4]))
+                if ten:
+                    orgs.append({"org": c["company"], **ten})
+                people.append({**person, "orgs": orgs})
+            person_lines = [ln for person in people for ln in network.for_person(person, contacts, today)]
             if person_lines:
                 seen = {ln["contact_id"] for ln in person_lines}
                 c["network"] = (person_lines + [ln for ln in c["network"] if ln["contact_id"] not in seen])[:3]
+            # (the "no overlap" sentence is written in the app from the visitor's own private lines: card
+            # facts are public, so nothing derived from contacts may go into them)
+            if c["network"]:
+                c["network"][0]["best_reason"] = network.best_reason(c["network"][0])
     people = {s: network.second_degree(network.for_company(s, contacts, today), contacts, edges, today)
               for s in names}
     verifiers = {}

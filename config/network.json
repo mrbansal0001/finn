@@ -1,179 +1,1319 @@
 {
-  "note": "SYNTHETIC network for the ENAM prototype. Every person here is fictional; organisations are real so overlaps with real filings can be demonstrated. Disclosed in the writeup (gate 10). In a real deployment this comes from the investor's own consented imports (LinkedIn Connections.csv, Google Contacts, CRM) - never scraped.",
-  "owner": "demo-investor",
-  "contacts": [
-    {"id": "c01", "name": "Rhea Kapoor", "current": {"org": "Independent", "role": "Retail consultant"},
-     "history": [{"org": "Titan Company", "symbol": "TITAN", "role": "Head of Strategy, Jewellery", "function": "strategy", "start": "2014-04", "end": "2021-03"},
-                 {"org": "Trent", "symbol": "TRENT", "role": "VP Strategy", "function": "strategy", "start": "2021-04", "end": "2024-06"}],
-     "education": [{"school": "IIM Ahmedabad", "degree": "PGP", "year": 2008}],
-     "domains": ["jewellery retail", "consumer retail", "Tata group"], "city": "Bengaluru",
-     "interactions_12m": 9, "last_contact": "2026-09-18", "reciprocity": 0.8, "rating": 5, "how_met": "IIM-A batchmate"},
-    {"id": "c02", "name": "Vikram Sethi", "current": {"org": "Kotak Mahindra Bank", "role": "Group President, Retail Liabilities"},
-     "history": [{"org": "HDFC Bank", "symbol": "HDFCBANK", "role": "Senior EVP, Branch Banking", "function": "retail banking", "start": "2009-06", "end": "2022-12"},
-                 {"org": "Kotak Mahindra Bank", "symbol": "KOTAKBANK", "role": "Group President", "function": "retail banking", "start": "2023-01", "end": null}],
-     "education": [{"school": "XLRI Jamshedpur", "degree": "PGDBM", "year": 2003}],
-     "domains": ["private banking", "deposits", "branch banking"], "city": "Mumbai",
-     "interactions_12m": 4, "last_contact": "2026-06-02", "reciprocity": 0.6, "rating": 4, "how_met": "Ex-colleague of a portfolio CFO"},
-    {"id": "c03", "name": "Ananya Rao", "current": {"org": "Independent", "role": "Board advisor, insurance"},
-     "history": [{"org": "Insurance Regulatory and Development Authority of India", "symbol": null, "role": "General Manager, Intermediaries", "function": "insurance regulation", "start": "2011-02", "end": "2020-08"},
-                 {"org": "PolicyBazaar", "symbol": "POLICYBZR", "role": "Head of Regulatory Affairs", "function": "compliance", "start": "2020-09", "end": "2025-03"}],
-     "education": [{"school": "National Law School of India University", "degree": "BA LLB", "year": 2005}],
-     "domains": ["insurance regulation", "IRDAI", "corporate agency licences", "compliance"], "city": "Hyderabad",
-     "interactions_12m": 2, "last_contact": "2026-01-22", "reciprocity": 0.5, "rating": 4, "how_met": "Panel at a fintech conference"},
-    {"id": "c04", "name": "Col. (retd.) Harish Menon", "current": {"org": "Independent", "role": "Defence procurement advisor"},
-     "history": [{"org": "Indian Army", "symbol": null, "role": "Air Defence, Weapons & Equipment directorate", "function": "defence procurement", "start": "1994-06", "end": "2018-05"},
-                 {"org": "Bharat Electronics", "symbol": "BEL", "role": "Advisor, Land Systems SBU", "function": "defence programmes", "start": "2018-09", "end": "2022-09"}],
-     "education": [{"school": "National Defence Academy", "degree": "BSc", "year": 1993}],
-     "domains": ["defence procurement", "air defence", "QRSAM", "Akash", "MoD contracting"], "city": "New Delhi",
-     "interactions_12m": 6, "last_contact": "2026-08-11", "reciprocity": 0.9, "rating": 5, "how_met": "Introduced by Kabir Anand"},
-    {"id": "c05", "name": "Priya Nair", "current": {"org": "SRF", "role": "Business Head, Fluorochemicals"},
-     "history": [{"org": "Deepak Nitrite", "symbol": "DEEPAKNTR", "role": "GM, Phenolics projects", "function": "projects", "start": "2015-07", "end": "2021-11"},
-                 {"org": "SRF", "symbol": "SRF", "role": "Business Head", "function": "chemicals", "start": "2021-12", "end": null}],
-     "education": [{"school": "Institute of Chemical Technology, Mumbai", "degree": "BTech Chemical", "year": 2004}],
-     "domains": ["phenolics", "polycarbonate", "specialty chemicals", "plant commissioning"], "city": "Gurugram",
-     "interactions_12m": 3, "last_contact": "2026-03-30", "reciprocity": 0.7, "rating": 4, "how_met": "ICT alumni dinner"},
-    {"id": "c06", "name": "Arjun Malhotra", "current": {"org": "Avendus Capital", "role": "Managing Director, Industrials"},
-     "history": [{"org": "Bharat Forge", "symbol": "BHARATFORG", "role": "Head, Corporate Development", "function": "M&A", "start": "2012-01", "end": "2019-06"},
-                 {"org": "Avendus Capital", "symbol": null, "role": "MD", "function": "investment banking", "start": "2019-07", "end": null}],
-     "education": [{"school": "IIT Bombay", "degree": "BTech Mechanical", "year": 2004}, {"school": "INSEAD", "degree": "MBA", "year": 2011}],
-     "domains": ["auto components", "defence", "aerospace", "cross-border M&A"], "city": "Mumbai",
-     "interactions_12m": 11, "last_contact": "2026-10-29", "reciprocity": 0.9, "rating": 5, "how_met": "Co-investor on a deal"},
-    {"id": "c07", "name": "Meera Iyer", "current": {"org": "Independent", "role": "Tax & regulatory counsel"},
-     "history": [{"org": "Tata Chemicals", "symbol": "TATACHEM", "role": "Head, Legal & Secretarial", "function": "legal", "start": "2013-03", "end": "2020-12"},
-                 {"org": "Cyril Amarchand Mangaldas", "symbol": null, "role": "Partner, Disputes", "function": "litigation", "start": "2021-01", "end": "2025-08"}],
-     "education": [{"school": "Government Law College, Mumbai", "degree": "LLB", "year": 2002}],
-     "domains": ["litigation", "indirect tax disputes", "Tata group", "soda ash"], "city": "Mumbai",
-     "interactions_12m": 1, "last_contact": "2025-12-04", "reciprocity": 0.4, "rating": 3, "how_met": "Board of a school trust"},
-    {"id": "c08", "name": "Sandeep Kulkarni", "current": {"org": "Ola Electric", "role": "VP, Supply Chain"},
-     "history": [{"org": "Maruti Suzuki India", "symbol": "MARUTI", "role": "Senior Manager, Supply Chain", "function": "supply chain", "start": "2008-07", "end": "2017-10"},
-                 {"org": "Ather Energy", "symbol": "ATHERENERG", "role": "Director, Sourcing", "function": "supply chain", "start": "2017-11", "end": "2022-05"},
-                 {"org": "Ola Electric", "symbol": "OLAELEC", "role": "VP Supply Chain", "function": "supply chain", "start": "2022-06", "end": null}],
-     "education": [{"school": "College of Engineering Pune", "degree": "BE Mechanical", "year": 2006}],
-     "domains": ["EV two-wheelers", "battery cells", "auto supply chain"], "city": "Bengaluru",
-     "interactions_12m": 5, "last_contact": "2026-07-14", "reciprocity": 0.7, "rating": 4, "how_met": "Plant visit"},
-    {"id": "c09", "name": "Farah Siddiqui", "current": {"org": "Kalyan Jewellers India", "role": "Head, Investor Relations"},
-     "history": [{"org": "Kalyan Jewellers India", "symbol": "KALYANKJIL", "role": "Head IR", "function": "investor relations", "start": "2022-02", "end": null},
-                 {"org": "Titan Company", "symbol": "TITAN", "role": "Manager, Finance", "function": "finance", "start": "2016-05", "end": "2022-01"}],
-     "education": [{"school": "Shri Ram College of Commerce", "degree": "BCom", "year": 2012}, {"school": "ICAI", "degree": "CA", "year": 2015}],
-     "domains": ["jewellery retail", "gold prices", "franchise model"], "city": "Thrissur",
-     "interactions_12m": 7, "last_contact": "2026-10-12", "reciprocity": 0.6, "rating": 3, "how_met": "Company IR contact"},
-    {"id": "c10", "name": "Rahul Bhattacharya", "current": {"org": "Infosys", "role": "Senior VP, Financial Services"},
-     "history": [{"org": "Infosys", "symbol": "INFY", "role": "SVP", "function": "BFSI delivery", "start": "2005-08", "end": null}],
-     "education": [{"school": "Jadavpur University", "degree": "BE", "year": 2001}],
-     "domains": ["IT services", "BFSI deals", "GCCs", "US banks"], "city": "Pune",
-     "interactions_12m": 3, "last_contact": "2026-05-20", "reciprocity": 0.5, "rating": 4, "how_met": "School friend"},
-    {"id": "c11", "name": "Kabir Anand", "current": {"org": "Anand & Co. Family Office", "role": "Principal"},
-     "history": [{"org": "Larsen & Toubro", "symbol": "LT", "role": "Head, Defence Business Development", "function": "defence", "start": "2007-03", "end": "2016-12"},
-                 {"org": "Anand & Co. Family Office", "symbol": null, "role": "Principal", "function": "investing", "start": "2017-01", "end": null}],
-     "education": [{"school": "IIT Delhi", "degree": "BTech", "year": 2001}, {"school": "IIM Bangalore", "degree": "PGP", "year": 2006}],
-     "domains": ["defence", "EPC", "family offices"], "city": "New Delhi",
-     "interactions_12m": 14, "last_contact": "2026-11-02", "reciprocity": 1.0, "rating": 5, "how_met": "Close friend; co-invests"},
-    {"id": "c12", "name": "Neha Joshi", "current": {"org": "Bajaj Finance", "role": "Chief Risk Officer, Consumer"},
-     "history": [{"org": "Bajaj Finance", "symbol": "BAJFINANCE", "role": "CRO Consumer", "function": "risk", "start": "2019-04", "end": null},
-                 {"org": "HDFC Bank", "symbol": "HDFCBANK", "role": "Senior VP, Retail Credit", "function": "credit risk", "start": "2010-07", "end": "2019-03"}],
-     "education": [{"school": "IIM Lucknow", "degree": "PGP", "year": 2009}],
-     "domains": ["consumer lending", "credit risk", "NBFC regulation"], "city": "Pune",
-     "interactions_12m": 2, "last_contact": "2026-02-15", "reciprocity": 0.5, "rating": 4, "how_met": "IIM-L alumni network"},
-    {"id": "c13", "name": "Thomas Varghese", "current": {"org": "Independent", "role": "Naval architect & consultant"},
-     "history": [{"org": "Cochin Shipyard", "symbol": "COCHINSHIP", "role": "Deputy GM, Ship Repair", "function": "operations", "start": "2003-01", "end": "2019-09"},
-                 {"org": "DNV", "symbol": null, "role": "Principal Surveyor", "function": "classification", "start": "2019-10", "end": "2024-12"}],
-     "education": [{"school": "Cochin University of Science and Technology", "degree": "BTech Naval Architecture", "year": 2001}],
-     "domains": ["shipbuilding", "ship repair", "naval contracts"], "city": "Kochi",
-     "interactions_12m": 1, "last_contact": "2025-11-08", "reciprocity": 0.6, "rating": 3, "how_met": "Kochi site visit"},
-    {"id": "c14", "name": "Ishita Banerjee", "current": {"org": "Sun Pharmaceutical Industries", "role": "VP, Specialty Business (US)"},
-     "history": [{"org": "Sun Pharmaceutical Industries", "symbol": "SUNPHARMA", "role": "VP Specialty", "function": "specialty pharma", "start": "2016-09", "end": null},
-                 {"org": "Dr. Reddy's Laboratories", "symbol": "DRREDDY", "role": "Director, Portfolio", "function": "portfolio", "start": "2009-01", "end": "2016-08"}],
-     "education": [{"school": "NIPER Mohali", "degree": "MPharm", "year": 2006}],
-     "domains": ["specialty pharma", "USFDA", "US generics"], "city": "Mumbai",
-     "interactions_12m": 4, "last_contact": "2026-08-27", "reciprocity": 0.7, "rating": 4, "how_met": "Former colleague's spouse"},
-    {"id": "c15", "name": "Aditya Shah", "current": {"org": "Reliance Industries", "role": "Senior VP, New Energy"},
-     "history": [{"org": "Reliance Industries", "symbol": "RELIANCE", "role": "SVP New Energy", "function": "new energy", "start": "2021-06", "end": null},
-                 {"org": "Adani Green Energy", "symbol": "ADANIGREEN", "role": "Head, Solar Manufacturing", "function": "manufacturing", "start": "2016-01", "end": "2021-05"}],
-     "education": [{"school": "IIT Madras", "degree": "BTech", "year": 2007}],
-     "domains": ["solar manufacturing", "green hydrogen", "batteries"], "city": "Jamnagar",
-     "interactions_12m": 2, "last_contact": "2026-04-09", "reciprocity": 0.4, "rating": 3, "how_met": "Conference"},
-    {"id": "c16", "name": "Deepa Krishnan", "current": {"org": "Independent", "role": "Former FMCG CFO"},
-     "history": [{"org": "ITC", "symbol": "ITC", "role": "Head, Corporate Finance & Restructuring", "function": "corporate finance", "start": "2006-04", "end": "2018-03"},
-                 {"org": "Britannia Industries", "symbol": "BRITANNIA", "role": "CFO", "function": "finance", "start": "2018-04", "end": "2023-07"}],
-     "education": [{"school": "Loyola College, Chennai", "degree": "BCom", "year": 1996}, {"school": "ICAI", "degree": "CA", "year": 1999}],
-     "domains": ["FMCG", "demergers", "schemes of arrangement", "hotels"], "city": "Kolkata",
-     "interactions_12m": 3, "last_contact": "2026-03-11", "reciprocity": 0.6, "rating": 4, "how_met": "Board of a listed mid-cap"},
-    {"id": "c17", "name": "Manish Gupta", "current": {"org": "State Bank of India", "role": "Chief General Manager, Corporate Credit"},
-     "history": [{"org": "State Bank of India", "symbol": "SBIN", "role": "CGM", "function": "corporate credit", "start": "1999-07", "end": null}],
-     "education": [{"school": "Delhi School of Economics", "degree": "MA Economics", "year": 1998}],
-     "domains": ["PSU banking", "corporate credit", "infrastructure lending"], "city": "Mumbai",
-     "interactions_12m": 2, "last_contact": "2026-01-30", "reciprocity": 0.5, "rating": 3, "how_met": "DSE alumni"},
-    {"id": "c18", "name": "Lakshmi Subramanian", "current": {"org": "Shaily Engineering Plastics", "role": "Independent Director"},
-     "history": [{"org": "Shaily Engineering Plastics", "symbol": "SHAILY", "role": "Independent Director", "function": "board", "start": "2023-08", "end": null},
-                 {"org": "IKEA India", "symbol": null, "role": "Sourcing Director", "function": "sourcing", "start": "2012-02", "end": "2022-12"}],
-     "education": [{"school": "NIFT Delhi", "degree": "MDes", "year": 2003}],
-     "domains": ["contract manufacturing", "global sourcing", "engineering plastics"], "city": "Vadodara",
-     "interactions_12m": 6, "last_contact": "2026-09-30", "reciprocity": 0.8, "rating": 4, "how_met": "Family friend"},
-    {"id": "c19", "name": "Gaurav Mehta", "current": {"org": "Dixon Technologies", "role": "Head, Mobile Phones Business"},
-     "history": [{"org": "Dixon Technologies", "symbol": "DIXON", "role": "Business Head", "function": "electronics manufacturing", "start": "2019-03", "end": null},
-                 {"org": "LG Electronics India", "symbol": "LGEINDIA", "role": "GM, Manufacturing (Noida)", "function": "manufacturing", "start": "2010-06", "end": "2019-02"}],
-     "education": [{"school": "Delhi College of Engineering", "degree": "BE", "year": 2006}],
-     "domains": ["EMS", "PLI", "consumer electronics"], "city": "Noida",
-     "interactions_12m": 4, "last_contact": "2026-06-25", "reciprocity": 0.6, "rating": 4, "how_met": "Plant visit"},
-    {"id": "c20", "name": "Sneha Pillai", "current": {"org": "Persistent Systems", "role": "VP, Healthcare Vertical"},
-     "history": [{"org": "Persistent Systems", "symbol": "PERSISTENT", "role": "VP Healthcare", "function": "IT services", "start": "2018-01", "end": null},
-                 {"org": "Infosys", "symbol": "INFY", "role": "Senior Manager", "function": "IT services", "start": "2008-07", "end": "2017-12"}],
-     "education": [{"school": "College of Engineering, Trivandrum", "degree": "BTech", "year": 2007}],
-     "domains": ["IT services", "healthcare IT", "deal pipelines"], "city": "Pune",
-     "interactions_12m": 2, "last_contact": "2026-02-02", "reciprocity": 0.5, "rating": 3, "how_met": "Cousin's colleague"},
-    {"id": "c21", "name": "Rajiv Khanna", "current": {"org": "Independent", "role": "Former auto CEO"},
-     "history": [{"org": "Maruti Suzuki India", "symbol": "MARUTI", "role": "Executive Director, Marketing & Sales", "function": "sales", "start": "1998-04", "end": "2016-03"},
-                 {"org": "Bharat Forge", "symbol": "BHARATFORG", "role": "Independent Director", "function": "board", "start": "2017-08", "end": "2023-08"}],
-     "education": [{"school": "IIM Calcutta", "degree": "PGDM", "year": 1990}],
-     "domains": ["passenger vehicles", "auto dealers", "board governance"], "city": "Gurugram",
-     "interactions_12m": 1, "last_contact": "2025-07-19", "reciprocity": 0.7, "rating": 5, "how_met": "Mentor"},
-    {"id": "c22", "name": "Pooja Agarwal", "current": {"org": "Bharat Electronics", "role": "Deputy General Manager, Exports"},
-     "history": [{"org": "Bharat Electronics", "symbol": "BEL", "role": "DGM Exports", "function": "exports", "start": "2012-06", "end": null}],
-     "education": [{"school": "NIT Tiruchirappalli", "degree": "BTech ECE", "year": 2011}],
-     "domains": ["defence exports", "radars", "naval systems"], "city": "Bengaluru",
-     "interactions_12m": 1, "last_contact": "2026-04-28", "reciprocity": 0.3, "rating": 2, "how_met": "Aero India 2025"},
-    {"id": "c23", "name": "Karan Bhatia", "current": {"org": "Motilal Oswal", "role": "Analyst, Chemicals"},
-     "history": [{"org": "Motilal Oswal Financial Services", "symbol": "MOTILALOFS", "role": "Lead Analyst, Chemicals", "function": "equity research", "start": "2017-06", "end": null}],
-     "education": [{"school": "NMIMS Mumbai", "degree": "MBA Finance", "year": 2016}],
-     "domains": ["specialty chemicals", "agrochemicals", "sell-side"], "city": "Mumbai",
-     "interactions_12m": 10, "last_contact": "2026-10-30", "reciprocity": 0.5, "rating": 3, "how_met": "Sell-side coverage"},
-    {"id": "c24", "name": "Nikhil Rao", "current": {"org": "Hindustan Unilever", "role": "Head, M&A"},
-     "history": [{"org": "Hindustan Unilever", "symbol": "HINDUNILVR", "role": "Head M&A", "function": "M&A", "start": "2020-01", "end": null},
-                 {"org": "ITC", "symbol": "ITC", "role": "Manager, Strategy (Hotels)", "function": "strategy", "start": "2012-07", "end": "2019-12"}],
-     "education": [{"school": "IIM Ahmedabad", "degree": "PGP", "year": 2012}],
-     "domains": ["FMCG", "hotels", "demergers"], "city": "Mumbai",
-     "interactions_12m": 2, "last_contact": "2026-05-06", "reciprocity": 0.5, "rating": 3, "how_met": "IIM-A alumni"},
-    {"id": "c25", "name": "Aisha Khan", "current": {"org": "Amcor", "role": "Regional Operations Director, APAC"},
-     "history": [{"org": "Amcor", "symbol": null, "role": "Plant Manager, Indonesia", "function": "operations", "start": "2009-03", "end": "2016-12"},
-                 {"org": "Amcor", "symbol": null, "role": "Regional Operations Director", "function": "operations", "start": "2017-01", "end": null}],
-     "education": [{"school": "IIT Kharagpur", "degree": "BTech", "year": 2005}],
-     "domains": ["flexible packaging", "plant operations"], "city": "Singapore",
-     "interactions_12m": 1, "last_contact": "2026-03-03", "reciprocity": 0.6, "rating": 3, "how_met": "College senior"},
-    {"id": "c26", "name": "Suresh Reddy", "current": {"org": "Larsen & Toubro", "role": "Senior VP, Heavy Civil Infrastructure"},
-     "history": [{"org": "Larsen & Toubro", "symbol": "LT", "role": "SVP Heavy Civil", "function": "EPC", "start": "2002-08", "end": null}],
-     "education": [{"school": "NIT Warangal", "degree": "BTech Civil", "year": 2001}],
-     "domains": ["EPC", "order inflow", "Middle East projects"], "city": "Chennai",
-     "interactions_12m": 3, "last_contact": "2026-07-01", "reciprocity": 0.6, "rating": 4, "how_met": "Introduced by Kabir Anand"},
-    {"id": "c27", "name": "Tanvi Desai", "current": {"org": "Titan Company", "role": "Associate VP, Watches & Wearables"},
-     "history": [{"org": "Titan Company", "symbol": "TITAN", "role": "AVP Watches", "function": "category management", "start": "2018-02", "end": null}],
-     "education": [{"school": "MICA Ahmedabad", "degree": "PGDM-C", "year": 2015}],
-     "domains": ["watches", "wearables", "consumer brands"], "city": "Bengaluru",
-     "interactions_12m": 2, "last_contact": "2026-01-11", "reciprocity": 0.4, "rating": 3, "how_met": "Friend of Rhea Kapoor"},
-    {"id": "c28", "name": "Imran Qureshi", "current": {"org": "Grant Thornton Bharat", "role": "Partner, Forensic"},
-     "history": [{"org": "Grant Thornton Bharat", "symbol": null, "role": "Partner, Forensic", "function": "forensic audit", "start": "2015-04", "end": null},
-                 {"org": "Deloitte India", "symbol": null, "role": "Director, Audit", "function": "audit", "start": "2006-07", "end": "2015-03"}],
-     "education": [{"school": "ICAI", "degree": "CA", "year": 2005}],
-     "domains": ["forensic audit", "auditor changes", "governance red flags"], "city": "Mumbai",
-     "interactions_12m": 3, "last_contact": "2026-06-18", "reciprocity": 0.7, "rating": 5, "how_met": "Worked a diligence together"}
-  ],
-  "edges": [
-    {"a": "c11", "b": "c04", "strength": "strong", "context": "Kabir introduced Harish; they served on a defence-industry panel"},
-    {"a": "c11", "b": "c26", "strength": "strong", "context": "Former L&T colleagues"},
-    {"a": "c01", "b": "c27", "strength": "strong", "context": "Rhea mentored Tanvi at Titan"},
-    {"a": "c01", "b": "c09", "strength": "medium", "context": "Overlapped at Titan 2016-2021"},
-    {"a": "c06", "b": "c21", "strength": "medium", "context": "Bharat Forge board and corporate development, 2017-2019"},
-    {"a": "c12", "b": "c02", "strength": "medium", "context": "Overlapped at HDFC Bank 2010-2019"},
-    {"a": "c05", "b": "c23", "strength": "weak", "context": "Sell-side calls on SRF"},
-    {"a": "c28", "b": "c07", "strength": "medium", "context": "Worked a Tata-group dispute"}
-  ]
+ "note": "SYNTHETIC network for the ENAM prototype. Every person here is fictional; organisations are real so overlaps with real filings can be demonstrated. Disclosed in the writeup (gate 10). In a real deployment this comes from the investor's own consented imports (LinkedIn Connections.csv, Google Contacts, CRM) - never scraped.",
+ "owner": "demo-investor",
+ "contacts": [
+  {
+   "id": "c01",
+   "name": "Rhea Kapoor",
+   "current": {
+    "org": "Independent",
+    "role": "Retail consultant"
+   },
+   "history": [
+    {
+     "org": "Titan Company",
+     "symbol": "TITAN",
+     "role": "Head of Strategy, Jewellery",
+     "function": "strategy",
+     "start": "2014-04",
+     "end": "2021-03"
+    },
+    {
+     "org": "Trent",
+     "symbol": "TRENT",
+     "role": "VP Strategy",
+     "function": "strategy",
+     "start": "2021-04",
+     "end": "2024-06"
+    }
+   ],
+   "education": [
+    {
+     "school": "IIM Ahmedabad",
+     "degree": "PGP",
+     "year": 2008
+    }
+   ],
+   "domains": [
+    "jewellery retail",
+    "consumer retail",
+    "Tata group"
+   ],
+   "city": "Bengaluru",
+   "interactions_12m": 9,
+   "last_contact": "2026-09-18",
+   "reciprocity": 0.8,
+   "rating": 5,
+   "how_met": "IIM-A batchmate"
+  },
+  {
+   "id": "c02",
+   "name": "Vikram Sethi",
+   "current": {
+    "org": "Kotak Mahindra Bank",
+    "role": "Group President, Retail Liabilities"
+   },
+   "history": [
+    {
+     "org": "HDFC Bank",
+     "symbol": "HDFCBANK",
+     "role": "Senior EVP, Branch Banking",
+     "function": "retail banking",
+     "start": "2009-06",
+     "end": "2022-12"
+    },
+    {
+     "org": "Kotak Mahindra Bank",
+     "symbol": "KOTAKBANK",
+     "role": "Group President",
+     "function": "retail banking",
+     "start": "2023-01",
+     "end": null
+    }
+   ],
+   "education": [
+    {
+     "school": "XLRI Jamshedpur",
+     "degree": "PGDBM",
+     "year": 2003
+    }
+   ],
+   "domains": [
+    "private banking",
+    "deposits",
+    "branch banking"
+   ],
+   "city": "Mumbai",
+   "interactions_12m": 4,
+   "last_contact": "2026-06-02",
+   "reciprocity": 0.6,
+   "rating": 4,
+   "how_met": "Ex-colleague of a portfolio CFO"
+  },
+  {
+   "id": "c03",
+   "name": "Ananya Rao",
+   "current": {
+    "org": "Independent",
+    "role": "Board advisor, insurance"
+   },
+   "history": [
+    {
+     "org": "Insurance Regulatory and Development Authority of India",
+     "symbol": null,
+     "role": "General Manager, Intermediaries",
+     "function": "insurance regulation",
+     "start": "2011-02",
+     "end": "2020-08"
+    },
+    {
+     "org": "PolicyBazaar",
+     "symbol": "POLICYBZR",
+     "role": "Head of Regulatory Affairs",
+     "function": "compliance",
+     "start": "2020-09",
+     "end": "2025-03"
+    }
+   ],
+   "education": [
+    {
+     "school": "National Law School of India University",
+     "degree": "BA LLB",
+     "year": 2005
+    }
+   ],
+   "domains": [
+    "insurance regulation",
+    "IRDAI",
+    "corporate agency licences",
+    "compliance"
+   ],
+   "city": "Hyderabad",
+   "interactions_12m": 2,
+   "last_contact": "2026-01-22",
+   "reciprocity": 0.5,
+   "rating": 4,
+   "how_met": "Panel at a fintech conference"
+  },
+  {
+   "id": "c04",
+   "name": "Col. (retd.) Harish Menon",
+   "current": {
+    "org": "Independent",
+    "role": "Defence procurement advisor"
+   },
+   "history": [
+    {
+     "org": "Indian Army",
+     "symbol": null,
+     "role": "Air Defence, Weapons & Equipment directorate",
+     "function": "defence procurement",
+     "start": "1994-06",
+     "end": "2018-05"
+    },
+    {
+     "org": "Bharat Electronics",
+     "symbol": "BEL",
+     "role": "Advisor, Land Systems SBU",
+     "function": "defence programmes",
+     "start": "2018-09",
+     "end": "2022-09"
+    }
+   ],
+   "education": [
+    {
+     "school": "National Defence Academy",
+     "degree": "BSc",
+     "year": 1993
+    }
+   ],
+   "domains": [
+    "defence procurement",
+    "air defence",
+    "QRSAM",
+    "Akash",
+    "MoD contracting"
+   ],
+   "city": "New Delhi",
+   "interactions_12m": 6,
+   "last_contact": "2026-08-11",
+   "reciprocity": 0.9,
+   "rating": 5,
+   "how_met": "Introduced by Kabir Anand"
+  },
+  {
+   "id": "c05",
+   "name": "Priya Nair",
+   "current": {
+    "org": "SRF",
+    "role": "Business Head, Fluorochemicals"
+   },
+   "history": [
+    {
+     "org": "Deepak Nitrite",
+     "symbol": "DEEPAKNTR",
+     "role": "GM, Phenolics projects",
+     "function": "projects",
+     "start": "2015-07",
+     "end": "2021-11"
+    },
+    {
+     "org": "SRF",
+     "symbol": "SRF",
+     "role": "Business Head",
+     "function": "chemicals",
+     "start": "2021-12",
+     "end": null
+    }
+   ],
+   "education": [
+    {
+     "school": "Institute of Chemical Technology, Mumbai",
+     "degree": "BTech Chemical",
+     "year": 2004
+    }
+   ],
+   "domains": [
+    "phenolics",
+    "polycarbonate",
+    "specialty chemicals",
+    "plant commissioning"
+   ],
+   "city": "Gurugram",
+   "interactions_12m": 3,
+   "last_contact": "2026-03-30",
+   "reciprocity": 0.7,
+   "rating": 4,
+   "how_met": "ICT alumni dinner"
+  },
+  {
+   "id": "c06",
+   "name": "Arjun Malhotra",
+   "current": {
+    "org": "Avendus Capital",
+    "role": "Managing Director, Industrials"
+   },
+   "history": [
+    {
+     "org": "Bharat Forge",
+     "symbol": "BHARATFORG",
+     "role": "Head, Corporate Development",
+     "function": "M&A",
+     "start": "2012-01",
+     "end": "2019-06"
+    },
+    {
+     "org": "Avendus Capital",
+     "symbol": null,
+     "role": "MD",
+     "function": "investment banking",
+     "start": "2019-07",
+     "end": null
+    }
+   ],
+   "education": [
+    {
+     "school": "IIT Bombay",
+     "degree": "BTech Mechanical",
+     "year": 2004
+    },
+    {
+     "school": "INSEAD",
+     "degree": "MBA",
+     "year": 2011
+    }
+   ],
+   "domains": [
+    "auto components",
+    "defence",
+    "aerospace",
+    "cross-border M&A"
+   ],
+   "city": "Mumbai",
+   "interactions_12m": 11,
+   "last_contact": "2026-10-29",
+   "reciprocity": 0.9,
+   "rating": 5,
+   "how_met": "Co-investor on a deal"
+  },
+  {
+   "id": "c07",
+   "name": "Meera Iyer",
+   "current": {
+    "org": "Independent",
+    "role": "Tax & regulatory counsel"
+   },
+   "history": [
+    {
+     "org": "Tata Chemicals",
+     "symbol": "TATACHEM",
+     "role": "Head, Legal & Secretarial",
+     "function": "legal",
+     "start": "2013-03",
+     "end": "2020-12"
+    },
+    {
+     "org": "Cyril Amarchand Mangaldas",
+     "symbol": null,
+     "role": "Partner, Disputes",
+     "function": "litigation",
+     "start": "2021-01",
+     "end": "2025-08"
+    }
+   ],
+   "education": [
+    {
+     "school": "Government Law College, Mumbai",
+     "degree": "LLB",
+     "year": 2002
+    }
+   ],
+   "domains": [
+    "litigation",
+    "indirect tax disputes",
+    "Tata group",
+    "soda ash"
+   ],
+   "city": "Mumbai",
+   "interactions_12m": 1,
+   "last_contact": "2025-12-04",
+   "reciprocity": 0.4,
+   "rating": 3,
+   "how_met": "Board of a school trust"
+  },
+  {
+   "id": "c08",
+   "name": "Sandeep Kulkarni",
+   "current": {
+    "org": "Ola Electric",
+    "role": "VP, Supply Chain"
+   },
+   "history": [
+    {
+     "org": "Maruti Suzuki India",
+     "symbol": "MARUTI",
+     "role": "Senior Manager, Supply Chain",
+     "function": "supply chain",
+     "start": "2008-07",
+     "end": "2017-10"
+    },
+    {
+     "org": "Ather Energy",
+     "symbol": "ATHERENERG",
+     "role": "Director, Sourcing",
+     "function": "supply chain",
+     "start": "2017-11",
+     "end": "2022-05"
+    },
+    {
+     "org": "Ola Electric",
+     "symbol": "OLAELEC",
+     "role": "VP Supply Chain",
+     "function": "supply chain",
+     "start": "2022-06",
+     "end": null
+    }
+   ],
+   "education": [
+    {
+     "school": "College of Engineering Pune",
+     "degree": "BE Mechanical",
+     "year": 2006
+    }
+   ],
+   "domains": [
+    "EV two-wheelers",
+    "battery cells",
+    "auto supply chain"
+   ],
+   "city": "Bengaluru",
+   "interactions_12m": 5,
+   "last_contact": "2026-07-14",
+   "reciprocity": 0.7,
+   "rating": 4,
+   "how_met": "Plant visit"
+  },
+  {
+   "id": "c09",
+   "name": "Farah Siddiqui",
+   "current": {
+    "org": "Kalyan Jewellers India",
+    "role": "Head, Investor Relations"
+   },
+   "history": [
+    {
+     "org": "Kalyan Jewellers India",
+     "symbol": "KALYANKJIL",
+     "role": "Head IR",
+     "function": "investor relations",
+     "start": "2022-02",
+     "end": null
+    },
+    {
+     "org": "Titan Company",
+     "symbol": "TITAN",
+     "role": "Manager, Finance",
+     "function": "finance",
+     "start": "2016-05",
+     "end": "2022-01"
+    }
+   ],
+   "education": [
+    {
+     "school": "Shri Ram College of Commerce",
+     "degree": "BCom",
+     "year": 2012
+    },
+    {
+     "school": "ICAI",
+     "degree": "CA",
+     "year": 2015
+    }
+   ],
+   "domains": [
+    "jewellery retail",
+    "gold prices",
+    "franchise model"
+   ],
+   "city": "Thrissur",
+   "interactions_12m": 7,
+   "last_contact": "2026-10-12",
+   "reciprocity": 0.6,
+   "rating": 3,
+   "how_met": "Company IR contact"
+  },
+  {
+   "id": "c10",
+   "name": "Rahul Bhattacharya",
+   "current": {
+    "org": "Infosys",
+    "role": "Senior VP, Financial Services"
+   },
+   "history": [
+    {
+     "org": "Infosys",
+     "symbol": "INFY",
+     "role": "SVP",
+     "function": "BFSI delivery",
+     "start": "2005-08",
+     "end": null
+    }
+   ],
+   "education": [
+    {
+     "school": "Jadavpur University",
+     "degree": "BE",
+     "year": 2001
+    }
+   ],
+   "domains": [
+    "IT services",
+    "BFSI deals",
+    "GCCs",
+    "US banks"
+   ],
+   "city": "Pune",
+   "interactions_12m": 3,
+   "last_contact": "2026-05-20",
+   "reciprocity": 0.5,
+   "rating": 4,
+   "how_met": "School friend"
+  },
+  {
+   "id": "c11",
+   "name": "Kabir Anand",
+   "current": {
+    "org": "Anand & Co. Family Office",
+    "role": "Principal"
+   },
+   "history": [
+    {
+     "org": "Larsen & Toubro",
+     "symbol": "LT",
+     "role": "Head, Defence Business Development",
+     "function": "defence",
+     "start": "2007-03",
+     "end": "2016-12"
+    },
+    {
+     "org": "Anand & Co. Family Office",
+     "symbol": null,
+     "role": "Principal",
+     "function": "investing",
+     "start": "2017-01",
+     "end": null
+    }
+   ],
+   "education": [
+    {
+     "school": "IIT Delhi",
+     "degree": "BTech",
+     "year": 2001
+    },
+    {
+     "school": "IIM Bangalore",
+     "degree": "PGP",
+     "year": 2006
+    }
+   ],
+   "domains": [
+    "defence",
+    "EPC",
+    "family offices"
+   ],
+   "city": "New Delhi",
+   "interactions_12m": 14,
+   "last_contact": "2026-11-02",
+   "reciprocity": 1.0,
+   "rating": 5,
+   "how_met": "Close friend; co-invests"
+  },
+  {
+   "id": "c12",
+   "name": "Neha Joshi",
+   "current": {
+    "org": "Bajaj Finance",
+    "role": "Chief Risk Officer, Consumer"
+   },
+   "history": [
+    {
+     "org": "Bajaj Finance",
+     "symbol": "BAJFINANCE",
+     "role": "CRO Consumer",
+     "function": "risk",
+     "start": "2019-04",
+     "end": null
+    },
+    {
+     "org": "HDFC Bank",
+     "symbol": "HDFCBANK",
+     "role": "Senior VP, Retail Credit",
+     "function": "credit risk",
+     "start": "2010-07",
+     "end": "2019-03"
+    }
+   ],
+   "education": [
+    {
+     "school": "IIM Lucknow",
+     "degree": "PGP",
+     "year": 2009
+    }
+   ],
+   "domains": [
+    "consumer lending",
+    "credit risk",
+    "NBFC regulation"
+   ],
+   "city": "Pune",
+   "interactions_12m": 2,
+   "last_contact": "2026-02-15",
+   "reciprocity": 0.5,
+   "rating": 4,
+   "how_met": "IIM-L alumni network"
+  },
+  {
+   "id": "c13",
+   "name": "Thomas Varghese",
+   "current": {
+    "org": "Independent",
+    "role": "Naval architect & consultant"
+   },
+   "history": [
+    {
+     "org": "Cochin Shipyard",
+     "symbol": "COCHINSHIP",
+     "role": "Deputy GM, Ship Repair",
+     "function": "operations",
+     "start": "2003-01",
+     "end": "2019-09"
+    },
+    {
+     "org": "DNV",
+     "symbol": null,
+     "role": "Principal Surveyor",
+     "function": "classification",
+     "start": "2019-10",
+     "end": "2024-12"
+    }
+   ],
+   "education": [
+    {
+     "school": "Cochin University of Science and Technology",
+     "degree": "BTech Naval Architecture",
+     "year": 2001
+    }
+   ],
+   "domains": [
+    "shipbuilding",
+    "ship repair",
+    "naval contracts"
+   ],
+   "city": "Kochi",
+   "interactions_12m": 1,
+   "last_contact": "2025-11-08",
+   "reciprocity": 0.6,
+   "rating": 3,
+   "how_met": "Kochi site visit"
+  },
+  {
+   "id": "c14",
+   "name": "Ishita Banerjee",
+   "current": {
+    "org": "Sun Pharmaceutical Industries",
+    "role": "VP, Specialty Business (US)"
+   },
+   "history": [
+    {
+     "org": "Sun Pharmaceutical Industries",
+     "symbol": "SUNPHARMA",
+     "role": "VP Specialty",
+     "function": "specialty pharma",
+     "start": "2016-09",
+     "end": null
+    },
+    {
+     "org": "Dr. Reddy's Laboratories",
+     "symbol": "DRREDDY",
+     "role": "Director, Portfolio",
+     "function": "portfolio",
+     "start": "2009-01",
+     "end": "2016-08"
+    }
+   ],
+   "education": [
+    {
+     "school": "NIPER Mohali",
+     "degree": "MPharm",
+     "year": 2006
+    }
+   ],
+   "domains": [
+    "specialty pharma",
+    "USFDA",
+    "US generics"
+   ],
+   "city": "Mumbai",
+   "interactions_12m": 4,
+   "last_contact": "2026-08-27",
+   "reciprocity": 0.7,
+   "rating": 4,
+   "how_met": "Former colleague's spouse"
+  },
+  {
+   "id": "c15",
+   "name": "Aditya Shah",
+   "current": {
+    "org": "Reliance Industries",
+    "role": "Senior VP, New Energy"
+   },
+   "history": [
+    {
+     "org": "Reliance Industries",
+     "symbol": "RELIANCE",
+     "role": "SVP New Energy",
+     "function": "new energy",
+     "start": "2021-06",
+     "end": null
+    },
+    {
+     "org": "Adani Green Energy",
+     "symbol": "ADANIGREEN",
+     "role": "Head, Solar Manufacturing",
+     "function": "manufacturing",
+     "start": "2016-01",
+     "end": "2021-05"
+    }
+   ],
+   "education": [
+    {
+     "school": "IIT Madras",
+     "degree": "BTech",
+     "year": 2007
+    }
+   ],
+   "domains": [
+    "solar manufacturing",
+    "green hydrogen",
+    "batteries"
+   ],
+   "city": "Jamnagar",
+   "interactions_12m": 2,
+   "last_contact": "2026-04-09",
+   "reciprocity": 0.4,
+   "rating": 3,
+   "how_met": "Conference"
+  },
+  {
+   "id": "c16",
+   "name": "Deepa Krishnan",
+   "current": {
+    "org": "Independent",
+    "role": "Former FMCG CFO"
+   },
+   "history": [
+    {
+     "org": "ITC",
+     "symbol": "ITC",
+     "role": "Head, Corporate Finance & Restructuring",
+     "function": "corporate finance",
+     "start": "2006-04",
+     "end": "2018-03"
+    },
+    {
+     "org": "Britannia Industries",
+     "symbol": "BRITANNIA",
+     "role": "CFO",
+     "function": "finance",
+     "start": "2018-04",
+     "end": "2023-07"
+    }
+   ],
+   "education": [
+    {
+     "school": "Loyola College, Chennai",
+     "degree": "BCom",
+     "year": 1996
+    },
+    {
+     "school": "ICAI",
+     "degree": "CA",
+     "year": 1999
+    }
+   ],
+   "domains": [
+    "FMCG",
+    "demergers",
+    "schemes of arrangement",
+    "hotels"
+   ],
+   "city": "Kolkata",
+   "interactions_12m": 3,
+   "last_contact": "2026-03-11",
+   "reciprocity": 0.6,
+   "rating": 4,
+   "how_met": "Board of a listed mid-cap"
+  },
+  {
+   "id": "c17",
+   "name": "Manish Gupta",
+   "current": {
+    "org": "State Bank of India",
+    "role": "Chief General Manager, Corporate Credit"
+   },
+   "history": [
+    {
+     "org": "State Bank of India",
+     "symbol": "SBIN",
+     "role": "CGM",
+     "function": "corporate credit",
+     "start": "1999-07",
+     "end": null
+    }
+   ],
+   "education": [
+    {
+     "school": "Delhi School of Economics",
+     "degree": "MA Economics",
+     "year": 1998
+    }
+   ],
+   "domains": [
+    "PSU banking",
+    "corporate credit",
+    "infrastructure lending"
+   ],
+   "city": "Mumbai",
+   "interactions_12m": 2,
+   "last_contact": "2026-01-30",
+   "reciprocity": 0.5,
+   "rating": 3,
+   "how_met": "DSE alumni"
+  },
+  {
+   "id": "c18",
+   "name": "Lakshmi Subramanian",
+   "current": {
+    "org": "Shaily Engineering Plastics",
+    "role": "Independent Director"
+   },
+   "history": [
+    {
+     "org": "Shaily Engineering Plastics",
+     "symbol": "SHAILY",
+     "role": "Independent Director",
+     "function": "board",
+     "start": "2023-08",
+     "end": null
+    },
+    {
+     "org": "IKEA India",
+     "symbol": null,
+     "role": "Sourcing Director",
+     "function": "sourcing",
+     "start": "2012-02",
+     "end": "2022-12"
+    }
+   ],
+   "education": [
+    {
+     "school": "NIFT Delhi",
+     "degree": "MDes",
+     "year": 2003
+    }
+   ],
+   "domains": [
+    "contract manufacturing",
+    "global sourcing",
+    "engineering plastics"
+   ],
+   "city": "Vadodara",
+   "interactions_12m": 6,
+   "last_contact": "2026-09-30",
+   "reciprocity": 0.8,
+   "rating": 4,
+   "how_met": "Family friend"
+  },
+  {
+   "id": "c19",
+   "name": "Gaurav Mehta",
+   "current": {
+    "org": "Dixon Technologies",
+    "role": "Head, Mobile Phones Business"
+   },
+   "history": [
+    {
+     "org": "Dixon Technologies",
+     "symbol": "DIXON",
+     "role": "Business Head",
+     "function": "electronics manufacturing",
+     "start": "2019-03",
+     "end": null
+    },
+    {
+     "org": "LG Electronics India",
+     "symbol": "LGEINDIA",
+     "role": "GM, Manufacturing (Noida)",
+     "function": "manufacturing",
+     "start": "2010-06",
+     "end": "2019-02"
+    }
+   ],
+   "education": [
+    {
+     "school": "Delhi College of Engineering",
+     "degree": "BE",
+     "year": 2006
+    }
+   ],
+   "domains": [
+    "EMS",
+    "PLI",
+    "consumer electronics"
+   ],
+   "city": "Noida",
+   "interactions_12m": 4,
+   "last_contact": "2026-06-25",
+   "reciprocity": 0.6,
+   "rating": 4,
+   "how_met": "Plant visit"
+  },
+  {
+   "id": "c20",
+   "name": "Sneha Pillai",
+   "current": {
+    "org": "Persistent Systems",
+    "role": "VP, Healthcare Vertical"
+   },
+   "history": [
+    {
+     "org": "Persistent Systems",
+     "symbol": "PERSISTENT",
+     "role": "VP Healthcare",
+     "function": "IT services",
+     "start": "2018-01",
+     "end": null
+    },
+    {
+     "org": "Infosys",
+     "symbol": "INFY",
+     "role": "Senior Manager",
+     "function": "IT services",
+     "start": "2008-07",
+     "end": "2017-12"
+    }
+   ],
+   "education": [
+    {
+     "school": "College of Engineering, Trivandrum",
+     "degree": "BTech",
+     "year": 2007
+    }
+   ],
+   "domains": [
+    "IT services",
+    "healthcare IT",
+    "deal pipelines"
+   ],
+   "city": "Pune",
+   "interactions_12m": 2,
+   "last_contact": "2026-02-02",
+   "reciprocity": 0.5,
+   "rating": 3,
+   "how_met": "Cousin's colleague"
+  },
+  {
+   "id": "c21",
+   "name": "Rajiv Khanna",
+   "current": {
+    "org": "Independent",
+    "role": "Former auto CEO"
+   },
+   "history": [
+    {
+     "org": "Maruti Suzuki India",
+     "symbol": "MARUTI",
+     "role": "Executive Director, Marketing & Sales",
+     "function": "sales",
+     "start": "1998-04",
+     "end": "2016-03"
+    },
+    {
+     "org": "Bharat Forge",
+     "symbol": "BHARATFORG",
+     "role": "Independent Director",
+     "function": "board",
+     "start": "2017-08",
+     "end": "2023-08"
+    }
+   ],
+   "education": [
+    {
+     "school": "IIM Calcutta",
+     "degree": "PGDM",
+     "year": 1990
+    }
+   ],
+   "domains": [
+    "passenger vehicles",
+    "auto dealers",
+    "board governance"
+   ],
+   "city": "Gurugram",
+   "interactions_12m": 1,
+   "last_contact": "2025-07-19",
+   "reciprocity": 0.7,
+   "rating": 5,
+   "how_met": "Mentor"
+  },
+  {
+   "id": "c22",
+   "name": "Pooja Agarwal",
+   "current": {
+    "org": "Bharat Electronics",
+    "role": "Deputy General Manager, Exports"
+   },
+   "history": [
+    {
+     "org": "Bharat Electronics",
+     "symbol": "BEL",
+     "role": "DGM Exports",
+     "function": "exports",
+     "start": "2012-06",
+     "end": null
+    }
+   ],
+   "education": [
+    {
+     "school": "NIT Tiruchirappalli",
+     "degree": "BTech ECE",
+     "year": 2011
+    }
+   ],
+   "domains": [
+    "defence exports",
+    "radars",
+    "naval systems"
+   ],
+   "city": "Bengaluru",
+   "interactions_12m": 1,
+   "last_contact": "2026-04-28",
+   "reciprocity": 0.3,
+   "rating": 2,
+   "how_met": "Aero India 2025"
+  },
+  {
+   "id": "c23",
+   "name": "Karan Bhatia",
+   "current": {
+    "org": "Motilal Oswal",
+    "role": "Analyst, Chemicals"
+   },
+   "history": [
+    {
+     "org": "Motilal Oswal Financial Services",
+     "symbol": "MOTILALOFS",
+     "role": "Lead Analyst, Chemicals",
+     "function": "equity research",
+     "start": "2017-06",
+     "end": null
+    }
+   ],
+   "education": [
+    {
+     "school": "NMIMS Mumbai",
+     "degree": "MBA Finance",
+     "year": 2016
+    }
+   ],
+   "domains": [
+    "specialty chemicals",
+    "agrochemicals",
+    "sell-side"
+   ],
+   "city": "Mumbai",
+   "interactions_12m": 10,
+   "last_contact": "2026-10-30",
+   "reciprocity": 0.5,
+   "rating": 3,
+   "how_met": "Sell-side coverage"
+  },
+  {
+   "id": "c24",
+   "name": "Nikhil Rao",
+   "current": {
+    "org": "Hindustan Unilever",
+    "role": "Head, M&A"
+   },
+   "history": [
+    {
+     "org": "Hindustan Unilever",
+     "symbol": "HINDUNILVR",
+     "role": "Head M&A",
+     "function": "M&A",
+     "start": "2020-01",
+     "end": null
+    },
+    {
+     "org": "ITC",
+     "symbol": "ITC",
+     "role": "Manager, Strategy (Hotels)",
+     "function": "strategy",
+     "start": "2012-07",
+     "end": "2019-12"
+    }
+   ],
+   "education": [
+    {
+     "school": "IIM Ahmedabad",
+     "degree": "PGP",
+     "year": 2012
+    }
+   ],
+   "domains": [
+    "FMCG",
+    "hotels",
+    "demergers"
+   ],
+   "city": "Mumbai",
+   "interactions_12m": 2,
+   "last_contact": "2026-05-06",
+   "reciprocity": 0.5,
+   "rating": 3,
+   "how_met": "IIM-A alumni"
+  },
+  {
+   "id": "c25",
+   "name": "Aisha Khan",
+   "current": {
+    "org": "Amcor",
+    "role": "Regional Operations Director, APAC"
+   },
+   "history": [
+    {
+     "org": "Amcor",
+     "symbol": null,
+     "role": "Plant Manager, Indonesia",
+     "function": "operations",
+     "start": "2009-03",
+     "end": "2016-12"
+    },
+    {
+     "org": "Amcor",
+     "symbol": null,
+     "role": "Regional Operations Director",
+     "function": "operations",
+     "start": "2017-01",
+     "end": null
+    }
+   ],
+   "education": [
+    {
+     "school": "IIT Kharagpur",
+     "degree": "BTech",
+     "year": 2005
+    }
+   ],
+   "domains": [
+    "flexible packaging",
+    "plant operations"
+   ],
+   "city": "Singapore",
+   "interactions_12m": 1,
+   "last_contact": "2026-03-03",
+   "reciprocity": 0.6,
+   "rating": 3,
+   "how_met": "College senior"
+  },
+  {
+   "id": "c26",
+   "name": "Suresh Reddy",
+   "current": {
+    "org": "Larsen & Toubro",
+    "role": "Senior VP, Heavy Civil Infrastructure"
+   },
+   "history": [
+    {
+     "org": "Larsen & Toubro",
+     "symbol": "LT",
+     "role": "SVP Heavy Civil",
+     "function": "EPC",
+     "start": "2002-08",
+     "end": null
+    }
+   ],
+   "education": [
+    {
+     "school": "NIT Warangal",
+     "degree": "BTech Civil",
+     "year": 2001
+    }
+   ],
+   "domains": [
+    "EPC",
+    "order inflow",
+    "Middle East projects"
+   ],
+   "city": "Chennai",
+   "interactions_12m": 3,
+   "last_contact": "2026-07-01",
+   "reciprocity": 0.6,
+   "rating": 4,
+   "how_met": "Introduced by Kabir Anand"
+  },
+  {
+   "id": "c27",
+   "name": "Tanvi Desai",
+   "current": {
+    "org": "Titan Company",
+    "role": "Associate VP, Watches & Wearables"
+   },
+   "history": [
+    {
+     "org": "Titan Company",
+     "symbol": "TITAN",
+     "role": "AVP Watches",
+     "function": "category management",
+     "start": "2018-02",
+     "end": null
+    }
+   ],
+   "education": [
+    {
+     "school": "MICA Ahmedabad",
+     "degree": "PGDM-C",
+     "year": 2015
+    }
+   ],
+   "domains": [
+    "watches",
+    "wearables",
+    "consumer brands"
+   ],
+   "city": "Bengaluru",
+   "interactions_12m": 2,
+   "last_contact": "2026-01-11",
+   "reciprocity": 0.4,
+   "rating": 3,
+   "how_met": "Friend of Rhea Kapoor"
+  },
+  {
+   "id": "c28",
+   "name": "Imran Qureshi",
+   "current": {
+    "org": "Grant Thornton Bharat",
+    "role": "Partner, Forensic"
+   },
+   "history": [
+    {
+     "org": "Grant Thornton Bharat",
+     "symbol": null,
+     "role": "Partner, Forensic",
+     "function": "forensic audit",
+     "start": "2015-04",
+     "end": null
+    },
+    {
+     "org": "Deloitte India",
+     "symbol": null,
+     "role": "Director, Audit",
+     "function": "audit",
+     "start": "2006-07",
+     "end": "2015-03"
+    }
+   ],
+   "education": [
+    {
+     "school": "ICAI",
+     "degree": "CA",
+     "year": 2005
+    }
+   ],
+   "domains": [
+    "forensic audit",
+    "auditor changes",
+    "governance red flags"
+   ],
+   "city": "Mumbai",
+   "interactions_12m": 3,
+   "last_contact": "2026-06-18",
+   "reciprocity": 0.7,
+   "rating": 5,
+   "how_met": "Worked a diligence together"
+  },
+  {
+   "id": "c29",
+   "name": "Lakshmi Raghavan",
+   "current": {
+    "org": "Independent",
+    "role": "Banking compliance advisor"
+   },
+   "history": [
+    {
+     "org": "Axis Bank",
+     "symbol": "AXISBANK",
+     "role": "Head, Regulatory Compliance",
+     "function": "compliance",
+     "start": "2009-04",
+     "end": "2021-03"
+    },
+    {
+     "org": "Reserve Bank of India",
+     "symbol": null,
+     "role": "Assistant General Manager, Department of Supervision",
+     "function": "regulation",
+     "start": "1997-07",
+     "end": "2009-03"
+    }
+   ],
+   "education": [
+    {
+     "school": "PSG College of Technology",
+     "degree": "B.E.",
+     "year": 1992
+    }
+   ],
+   "domains": [
+    "compliance",
+    "bank supervision",
+    "PSU banking"
+   ],
+   "city": "Chennai",
+   "interactions_12m": 3,
+   "last_contact": "2026-06-18",
+   "reciprocity": 0.6,
+   "rating": 4,
+   "how_met": "Met at a bank-governance roundtable; stays in touch over email"
+  }
+ ],
+ "edges": [
+  {
+   "a": "c11",
+   "b": "c04",
+   "strength": "strong",
+   "context": "Kabir introduced Harish; they served on a defence-industry panel"
+  },
+  {
+   "a": "c11",
+   "b": "c26",
+   "strength": "strong",
+   "context": "Former L&T colleagues"
+  },
+  {
+   "a": "c01",
+   "b": "c27",
+   "strength": "strong",
+   "context": "Rhea mentored Tanvi at Titan"
+  },
+  {
+   "a": "c01",
+   "b": "c09",
+   "strength": "medium",
+   "context": "Overlapped at Titan 2016-2021"
+  },
+  {
+   "a": "c06",
+   "b": "c21",
+   "strength": "medium",
+   "context": "Bharat Forge board and corporate development, 2017-2019"
+  },
+  {
+   "a": "c12",
+   "b": "c02",
+   "strength": "medium",
+   "context": "Overlapped at HDFC Bank 2010-2019"
+  },
+  {
+   "a": "c05",
+   "b": "c23",
+   "strength": "weak",
+   "context": "Sell-side calls on SRF"
+  },
+  {
+   "a": "c28",
+   "b": "c07",
+   "strength": "medium",
+   "context": "Worked a Tata-group dispute"
+  }
+ ]
 }
