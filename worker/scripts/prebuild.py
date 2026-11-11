@@ -1,10 +1,11 @@
 """Pre-build Promises ledgers for an index so "any NSE ticker" works before anyone asks (PLAN §5 layer 1).
 
-    OPENAI_API_KEY= uv run python scripts/prebuild.py nifty50 [nifty100]
+    OPENAI_BUDGET_USD=2.5 uv run python scripts/prebuild.py nifty50 [nifty100]
 
 Skips tickers that already have a ledger, stops cleanly when the model is unavailable (free-tier
 quota), and is resumable: model responses are cached, so a rerun only pays for what is new.
-Run with OPENAI_API_KEY blank to keep the paid budget for filings that name people.
+A lower OPENAI_BUDGET_USD for this process caps the paid fallback (only used when Gemini is overloaded),
+keeping the rest of the budget for filings that name people.
 """
 import csv
 import io
@@ -19,7 +20,7 @@ from finn_worker import fetch, llm, pull
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "data" / "ledgers"
 LOG = ROOT / "data" / "logs" / "prebuild.log"
-PATIENCE, PAUSE = 6, 300      # up to 30 min of waiting per ticker before giving up
+PATIENCE, PAUSE = 6, 60       # up to 6 min of waiting per ticker before giving up
 INDEX = {"nifty50": "ind_nifty50list.csv", "nifty100": "ind_nifty100list.csv"}
 
 

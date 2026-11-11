@@ -9,7 +9,7 @@ import json
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from . import cards, network, prices, store, universe
+from . import tracking, cards, network, prices, store, universe
 
 ROOT = Path(__file__).resolve().parents[3]
 WINDOWS = {"24h": timedelta(hours=24), "3d": timedelta(days=3), "7d": timedelta(days=7), "30d": timedelta(days=30)}
@@ -34,7 +34,10 @@ def snapshot(until: datetime | None = None) -> dict:
     res = {}
     rank = lambda r: (r["period_end"], r["nature"] == "Consolidated",
                       r["comparatives_json"] is not None and r["check_status"] in ("xbrl_match", "arithmetic_ok"))
-    all_results = [dict(r) for r in con.execute(f"select * from results where symbol in ({q})", syms)] if syms else []
+    # results for every company FINN covers: holdings, research set and any company with a ledger (Pull)
+    covered = list(dict.fromkeys(syms + p.get("research_set", []) + [f.stem for f in (ROOT / "data" / "ledgers").glob("*.json")]))
+    qc = ",".join("?" * len(covered))
+    all_results = [dict(r) for r in con.execute(f"select * from results where symbol in ({qc})", covered)] if covered else []
     xbrl_rows = {(r["symbol"], r["period_end"], r["nature"]): json.loads(r["values_json"])
                  for r in all_results if r["source"] == "xbrl"}
     for r in all_results:
@@ -98,6 +101,10 @@ def snapshot(until: datetime | None = None) -> dict:
     verifiers = {}
     for lp in (ROOT / "data" / "ledgers").glob("*.json"):
         led = json.loads(lp.read_text())
+        before = json.dumps(led, ensure_ascii=False, sort_keys=True)
+        tracking.apply(led, res.get(led["symbol"]))
+        if json.dumps(led, ensure_ascii=False, sort_keys=True) != before:
+            lp.write_text(json.dumps(led, ensure_ascii=False, indent=1))
         for row in led["rows"]:
             text = f"{row['title']} {row.get('metric', '')}"
             cands = [l for l in network.for_company(led["symbol"], contacts, today, kind="", text=text) if not l["insider"]]

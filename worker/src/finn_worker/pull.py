@@ -743,6 +743,9 @@ def build(symbol: str) -> dict:
                              if len(th.mentions) > 1 else None),
             "verdict": "",
             "mentions": len({m.call for m in th.mentions}),
+            # the latest target in structured form, so code can compare it with filed numbers
+            "target": {"low": _bounds(last)[0], "high": _bounds(last)[1], "unit": last.get("unit"),
+                       "kind": last.get("kind"), "period": last.get("period") or th.period, "scope": last.get("scope")},
         })
     from . import annual
     try:

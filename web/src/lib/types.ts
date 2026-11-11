@@ -114,6 +114,8 @@ export type PromiseRow = {
   latest_quote?: { text: string; call: string; page: number; url?: string };
   verdict: string;
   mentions?: number;        // how many calls stated it (model-built ledgers)
+  // the latest filed quarter against a full-year target still running (worker tracking.py)
+  tracking?: { label: string; metric: string; value: number; verdict: "on track" | "below" | "above" | null; source?: string | null };
 };
 
 export type ArSnapshot = {

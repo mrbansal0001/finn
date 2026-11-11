@@ -77,7 +77,7 @@ export function PromisesLedger({ ledger, verifiers = {} }: { ledger: Ledger; ver
             role="tab"
             aria-selected={filter === k}
             onClick={() => setFilter(k)}
-            className={`min-h-[36px] rounded-full px-3 ${filter === k ? "bg-ink text-paper" : "text-ink-2"}`}
+            className={`min-h-[44px] rounded-full px-3 ${filter === k ? "bg-ink text-paper" : "text-ink-2"}`}
           >
             {label}
           </button>
@@ -128,6 +128,12 @@ function Row({ row, ledger, verifier, open, onToggle }: { row: PromiseRow; ledge
           <button onClick={onToggle} aria-expanded={open} className="text-left leading-snug text-ink">
             {row.title}
           </button>
+          {row.tracking && (
+            <span className={`mt-0.5 block text-[0.75rem] ${row.tracking.verdict === "below" ? "text-[color:var(--s-missed)]" : "text-ink-3"}`}>
+              {row.tracking.label}: <span className="num">{row.tracking.value}%</span>
+              {row.tracking.verdict ? ` · ${row.tracking.verdict}` : ""}
+            </span>
+          )}
         </td>
         {ledger.calls.map((c) => {
           const cell = row.calls[c.label];
@@ -135,7 +141,13 @@ function Row({ row, ledger, verifier, open, onToggle }: { row: PromiseRow; ledge
           return (
             <td key={c.label} className="py-2 text-center">
               {s ? (
-                <button onClick={onToggle} className="text-[1rem] leading-none" style={{ color: GLYPH[s].color }} title={GLYPH[s].label}>
+                <button
+                  onClick={onToggle}
+                  className="min-h-[36px] min-w-[36px] text-[1rem] leading-none"
+                  style={{ color: GLYPH[s].color }}
+                  title={GLYPH[s].label}
+                  aria-label={`${row.title}, ${c.label}: ${cell.missed_then_reset ? "missed, then " : ""}${GLYPH[s].label}`}
+                >
                   {cell.missed_then_reset ? (
                     <span>
                       <span style={{ color: GLYPH.missed.color }}>○</span>
@@ -192,6 +204,18 @@ function Detail({ row, ledger, verifier }: { row: PromiseRow; ledger: Ledger; ve
       </ol>
       {row.latest_quote && <Quote label={`Latest · ${row.latest_quote.call}`} q={row.latest_quote} />}
       {row.verdict && <p className="mt-2 text-ink-2">{row.verdict}</p>}
+      {row.tracking && (
+        <p className="mt-2 text-ink-2">
+          So far: {row.tracking.metric} was <span className="num">{row.tracking.value}%</span> in {row.tracking.label}
+          {row.tracking.verdict ? `, ${row.tracking.verdict === "on track" ? "on track for" : `${row.tracking.verdict}`} the target` : ""}. One quarter is
+          not the year, so the status stays open.
+          {row.tracking.source && (
+            <a href={row.tracking.source} target="_blank" rel="noopener noreferrer" className="ml-1 text-[0.75rem] text-accent">
+              results table ↗
+            </a>
+          )}
+        </p>
+      )}
       <p className="mt-2 text-[0.75rem] text-ink-3">Evidence: {EVIDENCE_LABEL[row.evidence_source]}.</p>
       {verifier && (
         <div className="mt-1">
