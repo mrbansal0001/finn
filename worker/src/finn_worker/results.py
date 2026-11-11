@@ -56,6 +56,7 @@ SYSTEM = (
 
 # line-item label -> field (first match wins; order matters: 'total income' before 'income')
 _FIELDS: list[tuple[str, str]] = [
+    ("excise", r"^excise duty"),
     ("revenue_total", r"^total revenue from operations|^revenue from operations \(net\)|^total income from operations"),
     ("revenue", r"^(i\.?\s*)?(revenue|income) from operations|^net sales|^sales"),
     ("rev_part", r"^-?\s*sale of (products|services|goods)|^-?\s*other operating revenue"),
@@ -63,15 +64,25 @@ _FIELDS: list[tuple[str, str]] = [
     ("total_income", r"^total income"),
     ("interest_earned", r"interest earned"),
     ("interest_expended", r"interest expended"),
-    ("finance_costs", r"finance cost"),
+    # not the finance cost of a financial-services arm (L&T prints both; E29)
+    ("finance_costs", r"^finance costs?(?!.*(financial services|financing business|services business))"),
     ("depreciation", r"depreciation"),
     ("total_expenses", r"^total expense"),
     ("operating_profit", r"operating profit.*before provisions|^operating profit"),
     ("provisions", r"^provisions \(other than tax|^provisions and contingencies|^provisions\b(?!.*tax)"),
     ("exceptional", r"^exceptional item"),
-    ("jv_share", r"share of (net )?(profit|loss|\(loss\)).*(associate|joint venture)"),
-    ("pbt", r"profit.{0,30}before tax|^profit\s*/\s*\(loss\) before tax|from ordinary activities before tax"),
+    ("jv_share", r"^share of (net )?(profit|loss|\(loss\)|results?).*(associate|joint venture)"),
+    ("pbt", r"profit.{0,30}before\s*tax|^profit\s*/\s*\(loss\) before\s*tax|from ordinary activities before\s*tax"),
+    # no plain PBT line: 'Profit before share of net profit of associates ... & tax' (BEL consolidated; E29)
+    ("pbt_pre_assoc", r"^profit before (exceptional items,? )?share of .*(associate|joint venture).*(&|and)\s*tax"),
+    # tax printed only as components (current / prior years / deferred) is summed; a total line wins
+    ("tax_total", r"^total tax|^total income tax|^tax expense \(net\)|^income tax expenses?\b|^total provision for tax"),
+    ("tax_part", r"current tax|deferred tax|tax (of|for|relating to|in respect of) (prior|earlier|previous) (years?|periods?)|"
+                 r"(earlier|prior|previous) years?'? tax|^mat credit"),
     ("tax", r"^(total )?tax expense|^tax expense|^total tax"),
+    ("pat_owners", r"^(?!.*\bequity\b(?! holders)).*(attributable to:?\s*(the )?(owners|equity holders|shareholders)|"
+                   r"^(owners|equity holders|shareholders) of (the )?(company|parent|holding))"),
+    ("nci", r"^non[- ]?controlling interests?|^minority interests?"),
     ("pat", r"^(net )?profit.{0,25}for the (period|quarter|year)|^profit after tax|^net profit|from ordinary activities after tax"),
     ("gnpa_pct", r"%\s*of gross npa|gross npa.*%|% of gross non"),
     ("nnpa_pct", r"%\s*of net npa|net npa.*%|% of net non"),
@@ -82,6 +93,9 @@ def _norm_label(s: str) -> str:
     """'1 Income a) Revenue from operations' -> 'revenue from operations';
     '(Loss) / profit for the period (7-8)' -> 'profit for the period (7-8)'."""
     s = re.sub(r"\s+", " ", s).strip().lower()
+    # text-layer misprints of letters as digits ('Revenue from 6perations', 'Pr0fit'): only inside words
+    s = re.sub(r"\b[06](?=[a-z]{4,})|(?<=[a-z])0(?=[a-z])", "o", s)
+    s = re.sub(r"(?<=[a-z])1(?=[a-z])", "l", s)
     s = re.sub(r"\(\s*loss\s*\)\s*/?\s*|/\s*\(\s*loss\s*\)|\bloss\s*/\s*", "", s)       # (loss) variants
     for _ in range(3):  # numbering, sub-lettering and section words, possibly stacked
         s = re.sub(r"^(\d{1,2}|[ivxlcm]{1,5})[.)]?\s+|^\(?[a-z0-9]{1,3}\)\s*|^[a-z][.)]\s+|^(income|expenses?)\s*:?\s+(?=[a-z]\))", "", s)
@@ -92,20 +106,71 @@ def map_rows(table: dict) -> dict:
     """Row-transcribed table -> {nature, unit, is_bank, columns:[{label, period_end, months, field: value}]}."""
     cols = [dict(c) for c in table.get("columns", [])]
     seen: set[str] = set()
+    tax_rows: list[list] = []
+    owners_rows: list[tuple[str, list]] = []   # (line printed just above, values)
+    prev_label = ""
     for row in table.get("rows", []):
         label = _norm_label(row.get("label", ""))
+        context, prev_label = prev_label, label     # the line printed just above this one
         field = next((f for f, rx in _FIELDS if re.search(rx, label)), None)
-        if field == "rev_part":           # revenue printed only as sub-lines: sum them
+        if field in ("rev_part", "tax_part"):   # printed only as sub-lines: sum them
+            key = "rev_parts" if field == "rev_part" else "tax_parts"
             for c, v in zip(cols, row.get("values", [])):
                 if v is not None:
-                    c["rev_parts"] = c.get("rev_parts", 0.0) + v
-            seen.add("rev_part")
+                    c[key] = c.get(key, 0.0) + v
+            seen.add(field)
+            continue
+        if field == "pat_owners" and not all(v is None for v in row.get("values", [])):
+            owners_rows.append((context, list(row.get("values", []))))
+            continue
+        if field in ("tax_total", "tax") and not all(v is None for v in row.get("values", [])):
+            tax_rows.append(list(row.get("values", [])))   # every tax-like row is a candidate; resolved below
+            seen.add(field)
             continue
         if not field or field in seen:
             continue                      # keep the first occurrence (statements repeat e.g. 'profit' lines)
+        if all(v is None for v in row.get("values", [])):
+            continue                      # a heading row ('Tax expense' over 'Current tax'): don't claim the field
         seen.add(field)
         for c, v in zip(cols, row.get("values", [])):
             c[field] = v
+    # profit attributable to owners: statements print an owners line for profit, for OCI and for total
+    # comprehensive income, in varying order (Bharat Forge prints the TCI one first; E29). Prefer the
+    # line under a profit heading, else the one closest to total profit; one line for every column.
+    if owners_rows and cols:
+        pat0 = cols[0].get("pat")
+        def plausible(vals):
+            v = vals[0] if vals else None
+            return v is not None and pat0 not in (None, 0) and 0.5 <= v / pat0 <= 1.05
+        under_profit = [v for ctx, v in owners_rows if re.search(r"profit|net income", ctx)
+                        and not re.search(r"comprehensive income(?!.*profit)", ctx) and plausible(v)]
+        by_closeness = sorted((v for _, v in owners_rows if plausible(v)), key=lambda v: abs(v[0] - pat0))
+        pick = (under_profit or by_closeness or [None])[0]
+        if pick is not None:
+            for c, v in zip(cols, pick):
+                c["pat_owners"] = v
+    for c in cols:   # PBT printed only as 'before share of associates & tax': the associates' share is added at PAT
+        pre = c.pop("pbt_pre_assoc", None)
+        if c.get("pbt") is None and pre is not None:
+            c["pbt"] = pre
+    # tax: statements print several tax-like lines (a JV's own tax inside a breakdown, a heading, the
+    # total, the components). Candidates in print order plus the summed components; the one that makes
+    # PBT - tax = PAT in the current column wins, and the same line is used for every column (E29)
+    parts = [c.pop("tax_parts", None) for c in cols]
+    cands = [[r[i] if i < len(r) else None for i in range(len(cols))] for r in tax_rows]
+    if any(p is not None for p in parts):
+        cands.append(parts)
+    if cands:
+        c0 = cols[0]
+        def fits(cand):
+            t, pbt, pat = cand[0], c0.get("pbt"), c0.get("pat")
+            if None in (t, pbt, pat):
+                return False
+            jv = c0.get("jv_share") or 0.0
+            return abs(pbt - t - pat) <= 1.0 or abs(pbt - t + jv - pat) <= 1.0
+        pick = next((cd for cd in cands if fits(cd)), None) or next((cd for cd in cands if cd[0] is not None), cands[0])
+        for c, v in zip(cols, pick):
+            c["tax"] = v
     for c in cols:   # a printed 'total revenue from operations' beats its sub-line
         if c.get("revenue_total") is not None:
             c["revenue"] = c.pop("revenue_total")
@@ -125,30 +190,41 @@ def map_rows(table: dict) -> dict:
             if extra > max(1.0, 0.002 * abs(c["total_income"])):
                 c["other_income"] = (c.get("other_income") or 0) + extra
                 c["non_operating_extra"] = extra
+    _standard_layout_fix(cols)
+    # a lender (NBFC) pays interest as its main cost: EBITDA would add back the business itself
+    c0 = cols[0] if cols else {}
+    is_lender = (not is_bank and c0.get("finance_costs") is not None and bool(c0.get("revenue"))
+                 and c0["finance_costs"] > 0.25 * c0["revenue"])
     return {"found": table.get("found", True), "nature": table.get("nature", "Consolidated"),
-            "unit": table.get("unit", "crores"), "is_bank": is_bank, "columns": cols}
+            "unit": table.get("unit", "crores"), "is_bank": is_bank, "is_lender": is_lender, "columns": cols}
 
 
-def extract(url: str) -> tuple[dict, int] | None:
-    """Model transcription of the best P&L page; returns (table, page_number)."""
-    for page in docs.pnl_candidates(url):
+def extract(url: str, xbrl_for=None) -> tuple[dict, int] | None:
+    """Model transcription of the best P&L page; returns (table, page_number).
+
+    Consolidated is preferred: a passing standalone table is kept only as a fallback while the
+    remaining candidate pages are tried (Deepak prints standalone on p2, consolidated on p3; E29).
+    xbrl_for(period_end, nature) -> QuarterResult | None lets the check use the XBRL when it exists."""
+    fallback = first_seen = None
+    for page in docs.pnl_candidates(url, k=4):
         parts = ([llm.Part(text=page.text)] if page.clean
                  else [llm.Part(png=docs.page_png(url, page.number))])
         # The light model varies run to run; calls are free, so try text then the rendered image,
         # and keep the first transcription that passes every check (E25). Never show one that fails.
         attempts = ([parts] if page.clean else []) + [[llm.Part(png=docs.page_png(url, page.number))]] * 2
-        best = None
         for att in attempts:
             out = llm.structured("results_table", SYSTEM, att, RESULTS_SCHEMA, tier="fast")
             if not (out.get("found") and out.get("columns") and out.get("rows")):
                 continue
             table = map_rows(out)
-            if check(table).ok:
-                return table, page.number
-            best = best or table
-        if best is not None:
-            return best, page.number
-    return None
+            first_seen = first_seen or (table, page.number)
+            xq = xbrl_for(table["columns"][0].get("period_end"), table["nature"]) if xbrl_for else None
+            if check(table, xq).ok:
+                if table["nature"] == "Consolidated":
+                    return table, page.number
+                fallback = fallback or (table, page.number)
+                break                      # this page is standalone; look for a consolidated page
+    return fallback or first_seen
 
 
 # ------------------------------------------------------------------ checks
@@ -169,13 +245,18 @@ def check(table: dict, xbrl: QuarterResult | None = None) -> Check:
     if not cols:
         return Check(False, "failed: no columns", [])
     notes: list[str] = []
-    core = ("interest_earned", "interest_expended", "pat") if table.get("is_bank") else ("revenue", "pbt", "pat")
+    bank = table.get("is_bank")
+    core = ("interest_earned", "interest_expended", "pbt", "pat") if bank else ("revenue", "pbt", "pat")
     missing = [k for k in core if cols[0].get(k) is None]
     if missing:
         return Check(False, f"failed: missing {', '.join(missing)}", [])   # a table without its core lines is not shown
+    # column identity, not just arithmetic: a table whose columns are mislabelled or shifted can still
+    # add up within each column (Ather: last year's column read as this quarter; SBI: rows shifted; E29)
+    notes += _structure_notes(table)
     tol = 0.02 * 2  # rounding: two printed decimals on each side
     for c in cols:
-        if table.get("is_bank"):
+        if bank:
+            notes += _bank_notes(c)
             continue
         if None not in (c.get("revenue"), c.get("other_income"), c.get("total_income")):
             if not _close(c["revenue"] + c["other_income"], c["total_income"], tol + 0.011 * abs(c["total_income"]) / 1000):
@@ -200,7 +281,80 @@ def check(table: dict, xbrl: QuarterResult | None = None) -> Check:
     return Check(True, "arithmetic_ok", ["internal totals reconcile; no XBRL available to cross-check"])
 
 
+def _near(a, b, rel=0.005, absolute=1.0) -> bool:
+    return abs(a - b) <= max(absolute, rel * max(abs(a), abs(b)))
+
+
+def _date(c: dict):
+    from datetime import date
+    try:
+        return date.fromisoformat(str(c.get("period_end")))
+    except ValueError:
+        return None
+
+
+def _structure_notes(table: dict) -> list[str]:
+    cols = table["columns"]
+    cur, d0 = cols[0], _date(cols[0])
+    if d0 is None:
+        return ["current column has no readable period"]
+    out = []
+    if any((d := _date(c)) and d > d0 for c in cols[1:]):
+        out.append("current column is not the latest period")
+    # half year (or nine months) = this quarter + the earlier cumulative/quarter columns of the same year
+    if cur.get("months") == 3:
+        prev_q = _pick(cols, 3, 3)
+        h1 = next((c for c in cols[1:] if c.get("months") == 6 and _date(c) == d0), None)
+        keys = ("interest_earned", "pat") if table.get("is_bank") else ("revenue", "pat")
+        if prev_q and h1:
+            for k in keys:
+                if None not in (cur.get(k), prev_q.get(k), h1.get(k)) and not _near(cur[k] + prev_q[k], h1[k]):
+                    out.append(f"half year {k} {h1[k]} != quarter {cur[k]} + previous quarter {prev_q[k]}")
+    # the same profit in this quarter and a year ago, to the paisa, means a column was copied or shifted
+    prev_y = _pick(cols, cur.get("months") or 3, 12)
+    if prev_y and cur.get("pat") not in (None, 0) and cur.get("pat") == prev_y.get("pat"):
+        out.append("current and year-ago profit identical")
+    return out
+
+
+def _bank_notes(c: dict) -> list[str]:
+    """Bank statements have their own identities; check them instead of skipping (SBI shifted rows; E29)."""
+    out = []
+    ie, ix, oi, ti = (c.get(k) for k in ("interest_earned", "interest_expended", "other_income", "total_income"))
+    if None not in (ie, oi, ti) and not _near(ie + oi, ti):
+        out.append(f"{c.get('label')}: interest earned + other income != total income")
+    if None not in (ie, ix) and ix >= ie:
+        out.append(f"{c.get('label')}: interest expended >= interest earned")
+    op, pr, pbt = c.get("operating_profit"), c.get("provisions"), c.get("pbt")
+    if ti is not None and op is not None and op >= ti:
+        out.append(f"{c.get('label')}: operating profit >= total income")
+    if None not in (op, pr, pbt) and not _near(op - pr - (c.get("exceptional") or 0), pbt, rel=0.01):
+        out.append(f"{c.get('label')}: operating profit - provisions != PBT")
+    g = c.get("gnpa_pct")
+    if g is not None and not 0 <= g <= 20:
+        out.append(f"{c.get('label')}: gross NPA {g}% is not a plausible ratio")
+    return out
+
+
 # ------------------------------------------------------------------ numbers for the card
+
+def _standard_layout_fix(cols: list[dict]) -> None:
+    """Indian results print six columns in a fixed order: Q, Q-1, Q-4, H1, H1-1, FY (or 9M for Q3).
+    When the other columns confirm that layout, a mislabelled third column is the year-ago quarter
+    (Reliance: 'Half Year Ended 30th Seo'25' printed over the Sep-25 quarter; E29)."""
+    from datetime import date
+    if len(cols) != 6 or cols[0].get("months") != 3:
+        return
+    d = [_date(c) for c in cols]
+    if None in (d[0], d[1], d[3]):
+        return
+    back = lambda a, b: (a.year - b.year) * 12 + (a.month - b.month)
+    if (cols[1].get("months") == 3 and back(d[0], d[1]) == 3 and cols[3].get("months") in (6, 9) and d[3] == d[0]
+            and not (cols[2].get("months") == 3 and d[2] and back(d[0], d[2]) == 12)):
+        cols[2]["months"] = 3
+        cols[2]["period_end"] = date(d[0].year - 1, d[0].month, d[0].day).isoformat()
+        cols[2]["layout_inferred"] = True
+
 
 def _pick(cols: list[dict], months: int, offset_months: int) -> dict | None:
     """Column ending `offset_months` before the current column, with the given length."""
@@ -225,6 +379,13 @@ def _growth(cur, prev):
     return round((cur / prev - 1) * 100 * (1 if prev > 0 else -1), 1)
 
 
+def _owners_pat(c: dict, g) -> float | None:
+    """Profit attributable to owners when map_rows chose an owners line (one line for every column, so
+    QoQ/YoY never mix bases); else total profit."""
+    po = g("pat_owners")
+    return po if po is not None else g("pat")
+
+
 def card_numbers(table: dict) -> dict:
     """Everything the results card shows, computed in code (rupee crore + % + bp)."""
     cols = table["columns"]
@@ -244,17 +405,23 @@ def card_numbers(table: dict) -> dict:
             return {"nii": nii, "ppop": g("operating_profit"), "provisions": g("provisions"),
                     "pat": g("pat"), "gnpa_pct": c.get("gnpa_pct"), "nnpa_pct": c.get("nnpa_pct")}
         rev, pbt = g("revenue"), g("pbt")
+        if rev is not None and g("excise"):
+            rev -= g("excise")            # revenue net of excise duty (ITC, Reliance print it gross; E29)
         exc = g("exceptional") or 0.0
+        extra = g("non_operating_extra") or 0.0
         ebitda = None
-        if None not in (pbt, g("finance_costs"), g("depreciation"), g("other_income")):
+        if not table.get("is_lender") and None not in (pbt, g("finance_costs"), g("depreciation"), g("other_income")):
             ebitda = (pbt - exc) + g("finance_costs") + g("depreciation") - g("other_income")
         return {"revenue": rev, "ebitda": ebitda, "pbt": pbt, "pbt_ex_exceptional": None if pbt is None else pbt - exc,
-                "pat": g("pat"), "exceptional": exc or None, "non_operating_extra": g("non_operating_extra"),
+                # profit before one-offs: exceptional items and named non-operating gains (Titan's put-option gain)
+                "pbt_underlying": None if pbt is None else pbt - exc - extra,
+                "pat": _owners_pat(c, g), "exceptional": exc or None, "non_operating_extra": extra or None,
                 "ebitda_margin_pct": round(ebitda / rev * 100, 2) if ebitda is not None and rev else None}
 
     m_cur, m_q, m_y = metrics(cur), metrics(prev_q), metrics(prev_y)
     out = {"period_end": cur["period_end"], "months": months, "nature": table["nature"],
-           "is_bank": table.get("is_bank", False), "current": m_cur, "qoq": {}, "yoy": {},
+           "is_bank": table.get("is_bank", False), "is_lender": table.get("is_lender", False),
+           "net_of_excise": cur.get("excise") is not None, "current": m_cur, "qoq": {}, "yoy": {},
            "prev_y": m_y, "prev_q": m_q}
     for label, base in (("qoq", m_q), ("yoy", m_y)):
         if not base:

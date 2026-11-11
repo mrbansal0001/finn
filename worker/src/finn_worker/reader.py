@@ -91,24 +91,31 @@ def read_filing(f: dict) -> list[dict]:
     # stays off the free tier; only clearly impersonal categories may use it (D-030)
     personal = f["category"] not in ("capex", "credit_rating", "fund_raise", "dividend", "bonus_split")
     out = llm.structured("read_filing", SYSTEM, parts, EVENT_SCHEMA, tier="fast", personal_data=personal)
-    return [lint(e) for e in out.get("events", []) if e.get("kind") != "routine"]
+    from .cards import scrub_event
+    return [lint(scrub_event(e)) for e in out.get("events", []) if e.get("kind") != "routine"]
+
+
+def _xbrl_for(con, symbol: str):
+    """Lookup of the Integrated Filing XBRL for the SAME period and SAME nature (consolidated vs standalone).
+    If it hasn't arrived yet, a table is checked on its own identities and re-checked at export."""
+    def look(period_end, nature):
+        row = con.execute("select values_json from results where symbol=? and source='xbrl' and period_end=? and nature=?",
+                          (symbol, period_end, nature)).fetchone()
+        if not row:
+            return None
+        v = json.loads(row["values_json"])
+        return xbrl.QuarterResult(symbol, None, "", "", "", "", None, v.get("_rounding"),
+                                  {k: x for k, x in v.items() if not k.startswith("_")})
+    return look
 
 
 def read_results(con, f: dict) -> str:
-    got = results.extract(f["link"])
+    look = _xbrl_for(con, f["symbol"])
+    got = results.extract(f["link"], look)
     if not got:
         return "no P&L page found"
     table, page = got
-    # compare with the XBRL for the SAME period and SAME nature (consolidated vs standalone); if it hasn't
-    # arrived yet, the table is checked on its own arithmetic and re-checked at export when the XBRL lands
-    row = con.execute("select values_json, source_url from results where symbol=? and source='xbrl' "
-                      "and period_end=? and nature=?",
-                      (f["symbol"], table["columns"][0]["period_end"], table["nature"])).fetchone()
-    xq = None
-    if row:
-        v = json.loads(row["values_json"])
-        xq = xbrl.QuarterResult(f["symbol"], None, "", "", "", "", None, v.get("_rounding"),
-                                {k: x for k, x in v.items() if not k.startswith("_")})
+    xq = look(table["columns"][0].get("period_end"), table["nature"])
     chk = results.check(table, xq)
     nums = results.card_numbers(table) if chk.ok else None
     store.upsert(con, "results", [{
@@ -119,6 +126,11 @@ def read_results(con, f: dict) -> str:
                            for k, v in table["columns"][0].items()}, "_unit": table["unit"]},
         "comparatives_json": nums, "check_status": chk.status,
     }])
+    if chk.ok and table["nature"] == "Consolidated":
+        # a passing consolidated table supersedes an older standalone read of the same quarter
+        con.execute("delete from results where symbol=? and source='pdf' and period_end=? and nature='Standalone'",
+                    (f["symbol"], table["columns"][0]["period_end"]))
+        con.commit()
     return chk.status
 
 
@@ -130,7 +142,7 @@ def read_pending(limit: int = MAX_PER_CYCLE) -> str:
     rows = con.execute(f"""
         select * from filings f
         where symbol in ({q}) and link like '%.pdf' and tier in ('lead','notable')
-          and (needs_document = 1 or category in ('results','management_change','m_and_a','litigation','capex','fund_raise'))
+          and (needs_document = 1 or category in ('results','management_change','m_and_a','litigation','capex','fund_raise','credit_rating'))
           and not exists (select 1 from events e where e.filing_id = f.id)
           -- its twin (same company and type within 10 minutes) already read: don't pay twice
           and not exists (select 1 from events e join filings g on g.id = e.filing_id
