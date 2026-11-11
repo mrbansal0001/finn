@@ -301,3 +301,16 @@ def test_a_figure_given_later_is_not_a_revision():
     ths = thread([m("revenue", "directional", unit=None, period="FY27")], [m("revenue", "approximate", 56000, unit="INR crore", period="FY27")], [], [])
     s = pull.statuses(ths[0], ORDER, [])
     assert s["Q4FY26"]["status"] == "early" and "quantified" in s["Q4FY26"]["note"]
+
+
+def test_full_number_behind_a_scale_word_is_grounded():
+    it = {"quote": "somewhere around 60 million, 65 million units", "kind": "range", "value_low": 60_000_000,
+          "value_high": 65_000_000, "unit": "units"}
+    pull.ground(it)
+    assert it["value_low"] == 60 and pull._describe(it) == "60–65 mn units"
+
+
+def test_same_figure_said_differently_is_not_a_revision():
+    ths = thread([m("net debt to EBITDA", "point", 2.5, unit="x", period="FY27")],
+                 [m("net debt to EBITDA", "ceiling", None, 2.5, unit="x", period="FY27")], [], [])
+    assert pull.statuses(ths[0], ORDER, [])["Q4FY26"]["status"] == "early"

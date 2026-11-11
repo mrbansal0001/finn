@@ -242,7 +242,18 @@ def ground(item: dict) -> dict:
         v = item.get(k)
         if v is None:
             continue
+        # printed as-is, as a billion<->million restatement, or as the full number behind a scale word
+        # ('60 million' given back as 60,000,000; '1 lakh crore' as 100,000 crore; E30)
+        word_factor = {"lakh": 1e5, "lakhs": 1e5, "million": 1e6, "mn": 1e6, "crore": 1e7, "crores": 1e7, "cr": 1e7,
+                       "billion": 1e9, "bn": 1e9}
         hit = next(((n, w) for n, w in nums for f in (1, 1000, 0.001) if abs(n * f - v) <= 0.005 * max(abs(v), 1)), None)
+        if hit is None:
+            for n, w in nums:
+                f = word_factor.get(w or "")
+                if f and abs(n * f - v) <= 0.005 * max(abs(v), 1):
+                    hit = (n, w)
+                    item[k] = n                     # keep the figure as printed; the scale word goes in the unit
+                    break
         if hit is None:
             item["value_low"] = item["value_high"] = None
             item["ungrounded"] = True
@@ -589,8 +600,12 @@ def statuses(thread: Thread, call_order: list[str], actuals: list[dict]) -> dict
             period_moved = bool(p_old and p_new and p_old != p_new and _period_fy(p_old) and _period_fy(p_new)
                                 and _period_fy(p_new) != _period_fy(p_old))
             had_value = _bounds(prev) != (None, None) or bool(prev.get("due"))
-            changed = had_value and (_bounds(it) != _bounds(prev) or (it.get("due") or None) != (prev.get("due") or None)
-                                     or it.get("kind") != prev.get("kind")) or period_moved
+            nums_of = lambda x: sorted({v for v in _bounds(x) if v is not None})
+            due_of = lambda x: str(x.get("due") or "")[:7] or None
+            # '2.5x' then '<2.5x' is the same figure said differently; a repeated June date is not a revision (E30)
+            # a bound that weakens is a revision (">28%" -> "~28%", BEL); "2.5x" -> "<2.5x" is not (Adani Ports)
+            weakened = prev.get("kind") in ("floor", "ceiling") and it.get("kind") in ("approximate", "point", "directional")
+            changed = had_value and (nums_of(it) != nums_of(prev) or due_of(it) != due_of(prev) or weakened) or period_moved
             if changed:
                 was = f"{_describe(prev)}{' (' + p_old + ')' if period_moved else ''}"
                 now = f"{_describe(it)}{' (' + p_new + ')' if period_moved else ''}"
@@ -708,6 +723,9 @@ def build(symbol: str) -> dict:
             cm = call_month(t.label)
             if it.get("due") and cm and str(it["due"])[:7] < cm:
                 it["due"] = None                  # guidance can't be due before the call it was given on
+            pe, rv = period_end_month(it.get("period")), call_reviews(t.label)
+            if pe and rv and pe < rv:
+                it["period"] = None               # a target for a period already reported is a misread year (E30)
             items.append(it)
             verified += 1
         for a in out.get("actuals", []):

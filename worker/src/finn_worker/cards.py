@@ -352,7 +352,7 @@ def _fallback_copy(cat: str, fs: list[dict], why, needs_read: bool):
     if cat == "results":
         return None, why, needs_read                       # filled from the results table below, or withheld
     if links and not any(l.lower().endswith(".pdf") for l in links):
-        return f"{fs[0]['subject'].strip()} filed (attachment is not a PDF)", why, False
+        return f"{fs[0]['subject'].strip()} filed", why or "The filing is a ZIP attachment; open it below.", False
     if cat not in READ_CATEGORIES and not any(f.get("needs_document") for f in fs):
         return f"{fs[0]['subject'].strip()} filed", why, False
     return None, why, needs_read                           # the reader will summarise it on a coming run

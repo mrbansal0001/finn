@@ -342,3 +342,91 @@ def test_owners_profit_line_under_profit_heading_not_tci():
                     {"label": "- Non-controlling interests", "values": [28.16, 0.79]}]}
     n = results.card_numbers(results.map_rows(raw))
     assert n["current"]["pat"] == pytest.approx(275.865) and n["yoy"]["pat"] == pytest.approx(-7.8, abs=0.05)
+
+
+def test_unit_printed_on_the_page_wins():
+    assert results.unit_from_text("Statement of results (In ₹ Million)\nParticulars") == "millions"
+    assert results.unit_from_text("(Rs. in Lakhs) ... EPS in ₹") == "lakhs"
+    assert results.unit_from_text("Rs in crore ... Rs in lakhs") is None          # ambiguous: keep the model's
+
+
+def test_missed_exceptional_line_fails_the_income_identity():
+    raw = {"found": True, "nature": "Standalone", "unit": "crores", "columns": [_q("Q2", "2026-09-30", 3)],
+           "rows": [{"label": "Revenue from operations", "values": [5968.0]},
+                    {"label": "Other income", "values": [300.0]},
+                    {"label": "Total income", "values": [6268.0]},
+                    {"label": "Total expenses", "values": [5500.0]},
+                    {"label": "Profit before tax", "values": [3412.0]},      # includes a 2,644 exceptional not mapped
+                    {"label": "Tax expense", "values": [800.0]},
+                    {"label": "Profit for the period", "values": [2612.0]}]}
+    assert "exceptional" in results.check(results.map_rows(raw)).status
+
+
+def test_doubled_text_layer_and_equity_shareholders_line():
+    assert results._norm_label("Owners Owners of the the Company Company") == "owners of the company"
+    raw = {"found": True, "nature": "Consolidated", "unit": "crores", "columns": [_q("Q2", "2026-09-30", 3)],
+           "rows": [{"label": "Revenue from operations", "values": [4000.0]},
+                    {"label": "Profit before tax", "values": [-20.0]},
+                    {"label": "Tax expense", "values": [30.0]},
+                    {"label": "Loss for the period", "values": [-50.0]},
+                    {"label": "Profit/(loss) for the period attributable to:", "values": [None]},
+                    {"label": "Equity shareholders of the Company", "values": [-122.0]},
+                    {"label": "Non-controlling interests", "values": [72.0]}]}
+    assert results.card_numbers(results.map_rows(raw))["current"]["pat"] == pytest.approx(-122.0)
+
+
+def test_owners_found_by_pairing_with_minority_interest():
+    """Bajaj Finserv p10: three owners/NCI pairs (profit, OCI, TCI), no headings; profit pair sums to total."""
+    raw = {"found": True, "nature": "Consolidated", "unit": "crores", "columns": [_q("Q2", "2026-09-30", 3)],
+           "rows": [{"label": "Revenue from operations", "values": [43415.7]},
+                    {"label": "Profit before tax", "values": [8000.0]},
+                    {"label": "Tax expense", "values": [2048.0]},
+                    {"label": "Profit for the period", "values": [5952.01]},
+                    {"label": "Total comprehensive income", "values": [3975.06]},
+                    {"label": "Owners of the company", "values": [1241.06]},
+                    {"label": "Non-controlling interests", "values": [2734.0]},
+                    {"label": "Owners of the company", "values": [2757.66]},
+                    {"label": "Non-controlling interests", "values": [3194.35]}]}
+    assert results.card_numbers(results.map_rows(raw))["current"]["pat"] == pytest.approx(2757.66)
+
+
+def test_profit_after_minority_line_is_the_owners_profit():
+    """HDFC Bank p9: 'Less: Minority Interest' then 'Net profit for the period'."""
+    raw = {"found": True, "nature": "Consolidated", "unit": "crores", "columns": [_q("Q2", "2026-09-30", 3)],
+           "rows": [{"label": "Interest earned", "values": [90000.0]}, {"label": "Other income", "values": [10000.0]},
+                    {"label": "Total income", "values": [100000.0]}, {"label": "Interest expended", "values": [45535.8]},
+                    {"label": "Operating profit before provisions and contingencies", "values": [32871.54]},
+                    {"label": "Provisions (other than tax) and contingencies", "values": [4209.0]},
+                    {"label": "Profit from ordinary activities before tax and minority interest", "values": [28662.54]},
+                    {"label": "Tax expense", "values": [7125.45]},
+                    {"label": "Net profit for the period before minority interest", "values": [21537.09]},
+                    {"label": "Less: Minority Interest", "values": [837.06]},
+                    {"label": "Net profit for the period", "values": [20700.03]}]}
+    assert results.card_numbers(results.map_rows(raw))["current"]["pat"] == pytest.approx(20700.03)
+
+
+def test_owners_label_with_list_marker():
+    assert results.map_rows({"found": True, "nature": "Consolidated", "unit": "crores", "columns": [_q("Q2", "2026-09-30", 3)],
+                             "rows": [{"label": "Revenue from operations", "values": [100.0]},
+                                      {"label": "Profit for the period", "values": [41.0]},
+                                      {"label": "Profit for the year attributable to a) Owners of the Company", "values": [34.0]},
+                                      {"label": "b) Non-controlling interests", "values": [7.0]}]})["columns"][0]["pat_owners"] == 34.0
+
+
+def test_add_less_exceptional_label_maps():
+    raw = {"found": True, "nature": "Standalone", "unit": "crores", "columns": [_q("Q2", "2026-09-30", 3), _q("Q1", "2026-06-30", 3)],
+           "rows": [{"label": "Revenue from operations", "values": [6800.0, 6500.0]},
+                    {"label": "Total Income", "values": [7130.41, 6823.4]},
+                    {"label": "Total Expenses", "values": [5534.31, 5369.28]},
+                    {"label": "Add / (Less) : Exceptional items (Refer Note 6)", "values": [None, -2644.02]},
+                    {"label": "Profit/ (Loss) before tax (3+4)", "values": [1596.1, -1189.9]},
+                    {"label": "Total Tax Expense", "values": [371.65, -299.56]},
+                    {"label": "Profit for the period", "values": [1224.45, -890.34]}]}
+    t = results.map_rows(raw)
+    assert t["columns"][1]["exceptional"] == -2644.02
+
+
+def test_unit_from_rupee_amounts_in_the_notes():
+    t = "adjustments of Rs. 3,830 million as at ... Rs. 55 million ... guarantee up to EUR 1,540 million"
+    assert results.unit_from_amounts(t) == "millions"
+    assert results.unit_from_amounts("Rs. 3,830 million and Rs 12 crore") is None
