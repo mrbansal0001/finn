@@ -1,17 +1,25 @@
 """Eval: rules classifier vs hand labels (120 random filings). No model involved.
 
+    uv run python -m evals.eval_classifier            # tuning sample (rules were tuned on it)
+    uv run python -m evals.eval_classifier --heldout  # 80 later filings, never used for tuning
+
 Reports category accuracy, and -- the number that matters -- material recall: of the filings
 that should surface, how many did the rules keep out of the routine fold (lead/notable, or
 flagged to read)? Missing a material filing is the costly error; a few extra notable items
 are cheap.
 """
 import json
+import sys
 from pathlib import Path
 
 from finn_worker.classify import classify
-from evals.data.classifier_labels import LABELS
 
-rows = json.loads((Path(__file__).parent / "data" / "classifier_sample.json").read_text())
+if "--heldout" in sys.argv:
+    from evals.data.classifier_heldout_labels import LABELS
+    rows = json.loads((Path(__file__).parent / "data" / "classifier_heldout.json").read_text())
+else:
+    from evals.data.classifier_labels import LABELS
+    rows = json.loads((Path(__file__).parent / "data" / "classifier_sample.json").read_text())
 cat_ok = mat_tp = mat_fn = mat_fp = mat_tn = 0
 misses, false_alarms = [], []
 for r in rows:
