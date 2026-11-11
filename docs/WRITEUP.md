@@ -1,8 +1,6 @@
-# FINN: writeup (draft for the submission email)
+# FINN: writeup
 
-> Draft. `[pending]` marks numbers that come from the model evals once a key is configured, and links that exist only after deployment.
-
-**Prototype:** [pending: deployed link] · **Repo:** https://github.com/mrbansal0001/finn · **AI build history:** [pending: links]
+**Prototype:** https://finn-red.vercel.app (built for a phone; each visitor gets a private copy of the demo network) · **Repo:** https://github.com/mrbansal0001/finn · **AI build history:** [ADD LINK BEFORE SENDING]
 
 ## What I built
 
@@ -26,7 +24,7 @@ FINN has one point of view: **an investor should be briefed, not fed.** Every In
 ## Decisions and tradeoffs (full log: `docs/DECISIONS.md`, 36 entries)
 
 - **Rules first, model second.**
-  - NSE's own category field plus XBRL types classify filings. On 120 filings I hand-labelled, rules alone reach 100% material recall (98% before tuning) and 94% category accuracy.
+  - NSE's own category field plus XBRL types classify filings. On 80 later filings held out from tuning, rules alone catch 37/37 material ones (100%), with 92% category accuracy. The errors all go the cheap way: 6 routine items surfaced, none missed.
   - The model reads only what rules can't settle, so a day of Push costs cents.
 - **The model never does arithmetic or judges hit/miss.**
   - It transcribes tables and statements. Code computes QoQ/YoY, margins, and every promise status.
@@ -37,6 +35,8 @@ FINN has one point of view: **an investor should be briefed, not fed.** Every In
   - Scanned PDFs are read as images.
   - An exceptional item is shown separately. Kalyan's PBT was +60% YoY headline but +39% underlying.
 - **Cite or drop.** Every quote is verified against the text of its cited page; unverifiable statements are dropped. On the hand-labelled set: 84/84 found, and 84/84 off-by-one pages corrected.
+  - The same rule applies to numbers: a figure shown in the ledger must be printed in its quote. The model once turned "grow almost to 2x" into "200%". Such figures are removed and the promise shows as "no figure".
+  - Amounts more than 2x apart are never linked as a "revision" unless they share a programme name. Rs 3,000 cr and Rs 800 cr capex are different plans; an NGC order re-sized from 2-3k to 10-12k cr is the same one.
 - **Wording follows evidence.** "Worked together" only when dates overlap. Many real bios give employers without years, so FINN says "both ex-McKinsey (dates not disclosed)".
 - **What I left out on purpose:**
   - a chat box as the front door;
@@ -80,8 +80,16 @@ FINN is deliberately **not** an autonomous agent. Push and Pull are fixed pipeli
 Each runs against a JSON schema. Copy rules are enforced in code: the headline needs a verb and a fact, and a "why" line without a number is dropped.
 
 - **Models:** Gemini (free tier) for impersonal public documents; OpenAI (paid, $5 cap enforced in code) as fallback and for anything naming people. Model names are discovered at runtime.
-- **Measured:** extraction recall/precision against the 84-statement hand-labelled set [pending]; cost per ledger [pending]; cost per day of Push [pending].
-- **Linking without a model:** promise threads reach pairwise precision 0.88 / recall 0.70 on BEL. Model-assisted linking improves the semantic cases [pending].
+- **Extraction, measured** against 84 statements I hand-labelled from 8 transcripts:
+  - a single pass found 55%;
+  - overlapping 6-page windows raise recall to 80%, at 61% strict precision;
+  - a hand check of the "false positives" found half were genuine commitments my labels had missed, so effective precision is near 80%;
+  - the stronger model was not better, so the light one is used.
+- **Linking:** deterministic, with pairwise precision 0.88 / recall 0.70 on BEL and 0.75 / 0.67 on Deepak Nitrite. Model-assisted linking was tried and was noisier run to run (BEL precision 0.67-0.79), so it stays off by default.
+- **Cost:** $0.65 for the entire build, 546 model calls.
+  - Public documents run on Gemini's free tier, so a ledger costs $0.
+  - Reading a filing that names people costs about $0.005 on the paid API, so a day of Push for 18 holdings costs cents.
+  - Identical requests are answered from a disk cache, so rebuilds are free and reproducible.
 
 ## Cloud
 
@@ -103,6 +111,6 @@ Each runs against a JSON schema. Copy rules are enforced in code: the headline n
 
 1. A licensed announcements feed, and a cloud worker in Mumbai.
 2. Real-time push for filings: web push for installed PWAs.
-3. Annual-report MD&A in the ledger: capex and capacity promises live there.
+3. Annual-report promises as ledger rows. Today the MD&A is located and summarised with citations beside the ledger; capex and capacity targets stated there should be tracked call by call like the rest.
 4. Sector-specific fourth metric (volumes for autos, order book for capital goods, NIM/GNPA for banks).
 5. A held-out evaluation set refreshed every quarter, with drift alerts on the classifier.

@@ -2,6 +2,8 @@
 
 A mobile-first investor agent for Indian equities, built for the ENAM Holdings Founding AI Engineer build challenge.
 
+**Live:** https://finn-red.vercel.app (open it on a phone; each visitor gets a private copy of the demo network) · **Writeup:** [`docs/WRITEUP.md`](docs/WRITEUP.md) · **Decision log:** [`docs/DECISIONS.md`](docs/DECISIONS.md)
+
 FINN has one opinion: **an investor should be briefed, not fed.** Every Indian tool sends one ping per filing. FINN writes an *edition* that ranks, folds the routine, and ends.
 
 | Layer | What you see | What's underneath |
@@ -39,14 +41,15 @@ Why a residential worker: NSE and BSE refuse or time out datacenter requests (me
 
 | What | Result | Where |
 |---|---|---|
-| Rules classifier, 120 hand-labelled filings | category 92% → 94%, **material recall 98% → 100%**, routine folded 64% → 94% (before → after tuning on the same sample; held-out pending) | `worker/evals/eval_classifier.py` |
-| Results check | current column equals XBRL on the 1:1 lines for Cochin Shipyard (digital PDF) and Kalyan Jewellers (scanned PDF); a transposed digit is caught | `worker/tests/test_results.py` |
-| Quote verification, 84 hand-labelled statements | 84/84 found on the cited page; 84/84 pages corrected when offset by one | `worker/tests/test_pull.py`, E17 |
-| Promise linking without a model | pairwise precision 0.88 / recall 0.70 (BEL), 0.75 / 0.67 (Deepak Nitrite) | `worker/evals/eval_linking.py` |
-| Transcript discovery | 4/4 transcripts found for the gold-set company | E17 |
-| Tests | 37 worker tests | `uv run pytest` |
-
-The model-dependent numbers (extraction recall/precision, filing reading, cost per ledger) are produced by `worker/evals/eval_extraction.py` once a model key is configured.
+| Rules classifier, **held-out** (80 later company filings, labelled before running the rules) | **material recall 37/37 = 100%**, category 92%, routine folded 85% (6 routine items over-surfaced, none missed) | `uv run python -m evals.eval_classifier --heldout` |
+| Rules classifier, tuning sample (120 filings) | category 92% → 94%, material recall 98% → 100%, routine folded 64% → 94% (before → after tuning on this sample) | `uv run python -m evals.eval_classifier` |
+| Guidance extraction vs 84 hand-labelled statements (8 transcripts) | recall 80%, precision 61% strict; a hand check of unmatched predictions puts effective precision near 80% | `worker/evals/eval_extraction.py`, E24 |
+| Quote verification | 84/84 gold quotes found on the cited page; 84/84 pages corrected when offset by one; every model quote is checked the same way (cite-or-drop) | `worker/tests/test_pull.py`, E17 |
+| Promise linking without a model | pairwise precision 0.88 / recall 0.70 (BEL), 0.75 / 0.67 (Deepak Nitrite); model-assisted linking was noisier, so it is off by default | `worker/evals/eval_linking.py`, E26 |
+| Results tables (18 portfolio results PDFs) | 17/18 pass every check (15 reconcile arithmetically, 2 also equal the XBRL exactly); the one failure (Sun Pharma) stays hidden | E25 |
+| Row-level security, live against Supabase | 12/12 checks (two anonymous visitors cannot see each other's network; public data read-only; no contact name in the public payload) | `uv run python -m evals.rls_check` |
+| Model spend for the whole build | $0.65 across 546 calls (Gemini free tier $0; OpenAI ~$0.005 per filing read) | `llm_calls` table |
+| Tests | 54 worker tests | `uv run pytest` |
 
 ## Run it
 
