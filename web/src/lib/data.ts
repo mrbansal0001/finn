@@ -20,7 +20,9 @@ export async function getSnapshot(): Promise<Snapshot> {
     const r = await fetch(`${SUPABASE_URL}/rest/v1/snapshot?id=eq.current&select=payload`, {
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
     });
+    if (!r.ok) throw new Error(`snapshot unavailable (HTTP ${r.status})`);
     const rows = (await r.json()) as { payload: Omit<Snapshot, "people" | "verifiers" | "contacts"> }[];
+    if (!rows[0]) throw new Error("snapshot not published yet");
     // the public payload carries no network data by construction (worker sync.split)
     return { ...rows[0].payload, people: {}, verifiers: {}, contacts: [] };
   }
@@ -29,7 +31,8 @@ export async function getSnapshot(): Promise<Snapshot> {
 
 export async function getLedger(symbol: string): Promise<Ledger | null> {
   "use cache";
-  cacheLife("hours");
+  // minutes, not hours: a ledger a visitor asked for must appear soon after the worker builds it
+  cacheLife("minutes");
   const sym = symbol.toUpperCase();
   // NSE symbols are A-Z, 0-9, '&' and '-'; anything else (e.g. '../') is rejected before touching disk or the API
   if (!/^[A-Z0-9&-]{1,20}$/.test(sym)) return null;
@@ -115,7 +118,8 @@ export async function getRequest(symbol: string): Promise<CoverageRequest | null
   if (supabaseEnabled) {
     await connection();
     const sb = await supabaseForRequest();
-    const { data } = await sb.from("coverage_requests").select("*").eq("symbol", symbol).maybeSingle();
+    // who asked is not readable (migration 003): select only the public columns
+    const { data } = await sb.from("coverage_requests").select("symbol, status, requested_at, detail").eq("symbol", symbol).maybeSingle();
     return (data as CoverageRequest) ?? null;
   }
   try {

@@ -1,8 +1,9 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { Dock } from "@/components/Dock";
 import { Suspense } from "react";
 import { getLedger, getRequest, getUniverse, getView } from "@/lib/data";
-import { requestCoverage } from "./actions";
+import { RequestButton } from "./RequestButton";
 import { arrow, dirClass, pct, when } from "@/lib/format";
 import { EditionCard } from "@/components/EditionCard";
 import { PromisesLedger } from "@/components/PromisesLedger";
@@ -26,7 +27,12 @@ export default function CompanyPage({ params }: PageProps<"/c/[symbol]">) {
 
 async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] }) {
   const { symbol: raw } = await params;
-  const symbol = decodeURIComponent(raw).toUpperCase();
+  let symbol: string;
+  try {
+    symbol = decodeURIComponent(raw).toUpperCase();
+  } catch {
+    notFound();                                   // a malformed address (e.g. /c/%E0%A4) is not a company
+  }
   const [snap, ledger, uni, req] = await Promise.all([getView(), getLedger(symbol), getUniverse(), getRequest(symbol)]);
   const listed = uni.find(([s]) => s === symbol);
   if (!listed) {
@@ -118,7 +124,7 @@ async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] 
             Built from the last four earnings-call transcripts and the annual report, nothing else. Every promise is quoted
             with its page; statuses are computed against filed numbers where they exist.
           </p>
-          <Coverage symbol={symbol} req={req} />
+          <Coverage symbol={symbol} req={req} dataUntil={snap.data_until} />
         </section>
       )}
 
@@ -153,26 +159,22 @@ async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] 
   );
 }
 
-function Coverage({ symbol, req }: { symbol: string; req: Awaited<ReturnType<typeof getRequest>> }) {
+function Coverage({ symbol, req, dataUntil }: { symbol: string; req: Awaited<ReturnType<typeof getRequest>>; dataUntil: string }) {
   if (req?.status === "unavailable") {
     return <p className="mt-3 text-[0.9375rem] text-ink-2">{req.detail ?? "Not enough primary material to build a ledger."}</p>;
+  }
+  if (req?.status === "ready") {
+    return <p className="mt-3 text-[0.9375rem] text-ink-2">Built. The ledger appears here within a few minutes as the cache refreshes.</p>;
   }
   if (req) {
     return (
       <p className="mt-3 text-[0.9375rem] text-ink-2">
-        Queued <span className="num text-ink-3">{req.requested_at.slice(0, 16).replace("T", " ")}</span>. The research worker
-        reads the last four transcripts, verifies every quote against its page and computes each status.
+        {req.status === "building" ? "Building now" : "Queued"} since <span className="num">{when(req.requested_at)}</span> IST. FINN&apos;s
+        research worker reads the last four transcripts, verifies every quote against its page and computes each status on its
+        next run (data last updated <span className="num">{when(dataUntil)}</span> IST).
         {req.detail ? <span className="block text-[0.8125rem] italic text-ink-3">{req.detail}</span> : null}
       </p>
     );
   }
-  return (
-    <form action={requestCoverage} className="mt-4">
-      <input type="hidden" name="symbol" value={symbol} />
-      <button type="submit" className="min-h-[44px] rounded-md bg-ink px-4 text-[0.9375rem] text-paper">
-        Build this ledger
-      </button>
-      <p className="mt-2 text-[0.8125rem] text-ink-3">Not covered yet. Built from primary sources only; usually ready within the hour.</p>
-    </form>
-  );
+  return <RequestButton symbol={symbol} />;
 }

@@ -9,14 +9,25 @@ import { getUniverse } from "@/lib/data";
 
 const DATA_DIR = process.env.FINN_DATA_DIR ?? path.join(process.cwd(), "..", "data");
 
-/** Queue a Promises-ledger build for a ticker we don't cover yet. The residential worker drains the queue. */
-export async function requestCoverage(form: FormData) {
+export type RequestState = { ok: boolean; message: string } | null;
+
+/** Queue a Promises-ledger build for a ticker we don't cover yet. The residential worker drains the queue.
+ *  Returns what happened, so a refused or failed request is never silent. */
+export async function requestCoverage(_prev: RequestState, form: FormData): Promise<RequestState> {
   const symbol = String(form.get("symbol") ?? "").toUpperCase();
   const uni = await getUniverse();
-  if (!uni.some(([s]) => s === symbol)) return;
+  if (!uni.some(([s]) => s === symbol)) return { ok: false, message: "Not an NSE equity symbol." };
   if (supabaseEnabled) {
     const sb = await supabaseForRequest();
-    await sb.from("coverage_requests").insert({ symbol, status: "queued" });
+    const { data: auth } = await sb.auth.getUser();
+    if (!auth.user) return { ok: false, message: "Your session didn't start (cookies blocked?). Reload and try again." };
+    const { error } = await sb.from("coverage_requests").insert({ symbol, status: "queued" });
+    if (error) {
+      const dup = error.code === "23505";
+      revalidatePath(`/c/${symbol}`);
+      return dup ? { ok: true, message: "Already requested; it's in the queue." }
+                 : { ok: false, message: "Request limit reached for now (5 per visitor, 50 a day overall). Try another time." };
+    }
   } else {
     const file = path.join(DATA_DIR, "requests.json");
     let q: { symbol: string; status: string; requested_at: string }[] = [];
@@ -30,4 +41,5 @@ export async function requestCoverage(form: FormData) {
     }
   }
   revalidatePath(`/c/${symbol}`);
+  return { ok: true, message: "Queued." };
 }

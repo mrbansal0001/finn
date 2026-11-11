@@ -53,6 +53,11 @@ def main() -> int:
         check("A cannot read B's network lines", peek2 == [], f"{len(peek2)} rows")
         lines = http.get(f"{URL}/rest/v1/network_lines?select=card_id&limit=5", headers=as_user(ta)).json()
         check("A can read their own network lines", len(lines) > 0, f"{len(lines)} shown")
+        own = http.post(f"{URL}/rest/v1/contacts", headers=as_user(ta),
+                        json={"owner_id": ida, "id": "spam", "name": "x" * 1000, "profile": {}})
+        check("visitors cannot write even their own private rows (003)", own.status_code in (401, 403), f"HTTP {own.status_code}")
+        who = http.get(f"{URL}/rest/v1/coverage_requests?select=requested_by&limit=1", headers=as_user(ta))
+        check("nobody can read who requested coverage (003)", who.status_code in (401, 403), f"HTTP {who.status_code}")
         steal = http.post(f"{URL}/rest/v1/contacts", headers=as_user(ta),
                           json={"owner_id": idb, "id": "x", "name": "planted", "profile": {}})
         check("A cannot write rows owned by B", steal.status_code in (401, 403), f"HTTP {steal.status_code}")
