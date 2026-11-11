@@ -13,6 +13,7 @@ detected in code rather than taken from management's "on track".
 from __future__ import annotations
 
 import html
+import os
 import re
 from dataclasses import dataclass, field
 from datetime import date
@@ -98,22 +99,64 @@ SCHEMA = {
 
 SYSTEM = """You read one Indian listed company's earnings-call transcript and list two things.
 
-1. guidance: every forward-looking, checkable statement made by MANAGEMENT -- targets for revenue,
-   margins, volumes, order inflow, capex, debt, capacity, commissioning or order dates, launches,
-   market share, mix. Include restatements each time they occur. Record analyst-proposed numbers
-   only if management explicitly confirms them, and mark speaker_role accordingly. Exclude vague
-   aspirations with no measurable target or date, and anything about the past.
+1. guidance: every forward-looking, checkable commitment made by MANAGEMENT. Go through the whole
+   transcript in order, including every Q&A answer -- most commitments are made in answers, not in
+   the opening remarks. Count:
+   - financial targets: revenue / volume growth, margins, cost ratios (e.g. employee cost as % of
+     turnover), order inflow, order book, capex, R&D spend, debt, working-capital days, tax rate
+   - expected timing of specific orders, contracts, approvals, launches, plant commissioning,
+     capacity utilisation -- including conversational ones: "we are hopeful of getting the X order
+     by H1", "maybe Q4 of FY27, else FY28", "around 2028-29 we may get production orders"
+   - mix / share targets (exports, non-defence, segment share), indigenisation, market share
+   One item per distinct commitment per call: if management repeats the same target later in the
+   call (closing remarks often restate several), list it once, using the clearest statement.
+   A different target, period or programme is a different item.
+   Record analyst-proposed numbers only if management explicitly confirms them (speaker_role says who).
+   Exclude: pure aspiration with no number, date or measurable end-state; anything about the past.
 2. actuals: figures management states as achieved (e.g. "we grew 16% in FY26").
 
-Rules: quote verbatim exactly as printed, short (one or two sentences). page is the number in the
-nearest [[page N]] marker above the quote. Use only this transcript -- no outside knowledge. Do not
-judge whether anything was met. kind: '>28%' is floor, 'around 28%' approximate, '27-29%' range,
-'by March' a milestone with due '2027-03'."""
+Rules: quote verbatim exactly as printed, one or two sentences. page is the number in the nearest
+[[page N]] marker above the quote. Use only this transcript -- no outside knowledge. Do not judge
+whether anything was met. kind: '>28%' is floor, 'around 28%' approximate, '27-29%' range,
+'by March' a milestone with due '2027-03'. A typical call has 8-20 commitments."""
 
 
 def extract(url: str) -> dict:
-    body, _ = paged_text(url)
-    return llm.structured("pull_guidance", SYSTEM, [llm.Part(text=body)], SCHEMA, tier="smart")
+    """One model call per overlapping window of pages, merged in code.
+    A single pass over a whole transcript under-reads long calls (E24); windows of
+    FINN_PULL_CHUNK pages (default 6, 1-page overlap) recover the missed commitments."""
+    _, pages = paged_text(url)
+    nums = [n for n, t in pages.items() if t.strip()]
+    size = int(os.getenv("FINN_PULL_CHUNK", "6"))
+    tier = os.getenv("FINN_PULL_TIER", "fast")   # measured on the gold set before choosing (evals/eval_extraction.py)
+    if size <= 0 or len(nums) <= size:
+        windows = [nums]
+    else:
+        windows = [nums[i:i + size] for i in range(0, len(nums), size - 1) if nums[i:i + size]]
+    guidance, actuals = [], []
+    for w in windows:
+        body = "\n".join(f"[[page {n}]]\n{pages[n]}" for n in w)
+        out = llm.structured("pull_guidance", SYSTEM, [llm.Part(text=body)], SCHEMA, tier=tier)
+        guidance += out.get("guidance", [])
+        actuals += out.get("actuals", [])
+    return {"guidance": _drop_vague(_dedupe(guidance)), "actuals": _dedupe(actuals)}
+
+
+def _drop_vague(items: list[dict]) -> list[dict]:
+    """'Directional' talk with no number and no date isn't checkable -- not a promise (E24)."""
+    return [it for it in items
+            if not (it.get("kind") == "directional" and not re.search(r"\d", it.get("quote", "")) and not it.get("due"))]
+
+
+def _dedupe(items: list[dict]) -> list[dict]:
+    """Windows overlap by a page: drop repeats of the same quote."""
+    out: list[dict] = []
+    for it in items:
+        q = _norm(it.get("quote", ""))
+        if any(fuzz.partial_ratio(q, _norm(o.get("quote", ""))) >= 90 for o in out):
+            continue
+        out.append(it)
+    return out
 
 
 # ------------------------------------------------------------------ verify
