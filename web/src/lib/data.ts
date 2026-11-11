@@ -2,6 +2,7 @@ import "server-only";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { cacheLife } from "next/cache";
+import { connection } from "next/server";
 import type { Contact, Ledger, NetworkLine, Snapshot } from "./types";
 import { SUPABASE_KEY, SUPABASE_URL, supabaseEnabled } from "./supabase/config";
 import { supabaseForRequest } from "./supabase/server";
@@ -51,6 +52,7 @@ type PrivateNetwork = { lines: Record<string, NetworkLine[]>; contacts: Contact[
 /** The visitor's own network (never cached across users). Null in local mode. */
 export async function getNetwork(): Promise<PrivateNetwork | null> {
   if (!supabaseEnabled) return null;
+  await connection(); // per-visitor data: render at request time (the auth client reads the clock)
   const sb = await supabaseForRequest();
   const [lines, contacts] = await Promise.all([
     sb.from("network_lines").select("card_id, lines"),
@@ -111,6 +113,7 @@ export type CoverageRequest = { symbol: string; status: string; requested_at: st
 export async function getRequest(symbol: string): Promise<CoverageRequest | null> {
   if (!/^[A-Z0-9&-]{1,20}$/.test(symbol)) return null;
   if (supabaseEnabled) {
+    await connection();
     const sb = await supabaseForRequest();
     const { data } = await sb.from("coverage_requests").select("*").eq("symbol", symbol).maybeSingle();
     return (data as CoverageRequest) ?? null;

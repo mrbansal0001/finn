@@ -73,7 +73,12 @@ def snapshot(until: datetime | None = None) -> dict:
         network.annotate(ed["leads"] + ed["more"], today, contacts, edges)
         # people named in a filing: person-level matches first (dates overlap > same organisation)
         for c in ed["leads"] + ed["more"]:
-            person_lines = [ln for p in c["facts"].get("people", []) for ln in network.for_person(p, contacts, today)]
+            # the filing company itself isn't an insight ("also worked at Titan" on Titan's own card)
+            own = universe.normalise_name(c["company"])
+            people = [{**p, "orgs": [o for o in p.get("orgs", [])
+                                     if universe.normalise_name(o.get("org", "")) not in own and own not in universe.normalise_name(o.get("org", ""))]}
+                      for p in c["facts"].get("people", [])]
+            person_lines = [ln for p in people for ln in network.for_person(p, contacts, today)]
             if person_lines:
                 seen = {ln["contact_id"] for ln in person_lines}
                 c["network"] = (person_lines + [ln for ln in c["network"] if ln["contact_id"] not in seen])[:3]
