@@ -3,8 +3,8 @@ from types import SimpleNamespace as NS
 from finn_worker.cards import explaining_card
 
 
-def _card(sym, kind, at, headline="h"):
-    return NS(symbol=sym, kind=kind, at=at, headline=headline)
+def _card(sym, kind, at, headline="h", tier="lead"):
+    return NS(symbol=sym, kind=kind, at=at, headline=headline, tier=tier)
 
 
 def test_results_filed_after_close_explain_the_next_session():
@@ -62,3 +62,9 @@ def test_no_actual_change_is_not_people_news():
     assert people_tier([{"name": "Tarun Mehta", "change": "comments", "role": "CEO"}], "Tarun Mehta comments on strong quarter") == "routine"
     assert people_tier([], "Price Waterhouse appointed as Statutory Auditor") == "routine"
     assert people_tier([], "CFO Rao resigns, effective 30 Nov") == "lead"
+
+
+def test_a_minor_people_filing_does_not_explain_a_move():
+    days = ["2026-11-05", "2026-11-06"]
+    cco = _card("HDFCBANK", "management_change", "2026-11-06T15:21:00", tier="notable")
+    assert explaining_card({"symbol": "HDFCBANK", "day": "2026-11-06"}, [cco], days) is None

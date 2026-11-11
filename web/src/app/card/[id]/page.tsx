@@ -70,7 +70,7 @@ async function Detail({ params }: { params: PageProps<"/card/[id]">["params"] })
       {card.network.length > 0 && (
         <section className="mt-6">
           <h2 className="kicker border-b border-ink pb-2">Who can explain this</h2>
-          {card.network[0]?.best_reason && (
+          {card.network[0]?.best_reason && card.network[0].best_reason !== card.network[0].relation && (
             <p className="mt-2 text-[0.875rem] text-ink-2">
               <span className="font-medium text-ink">Best placed: {card.network[0].name}.</span> {card.network[0].best_reason}.
             </p>

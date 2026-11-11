@@ -382,8 +382,10 @@ def explaining_card(m: dict, cards: list, trading_days: list[str]):
     prev_day = prev[-1] if prev else (datetime.fromisoformat(m["day"]) - timedelta(days=1)).date().isoformat()
     start, end = f"{prev_day}T15:30:00", f"{m['day']}T15:30:00"
     # a transcript or recording filed mid-session doesn't explain a price move; filed news does
+    # only news that could plausibly move a stock: results, or a lead-tier filing (a compliance officer's
+    # appointment the same afternoon is a coincidence, not context)
     hits = [c for c in cards if c.symbol == m["symbol"] and c.kind not in ("move", "earnings_call", "unclassified")
-            and start < c.at[:19] <= end and c.headline]
+            and (c.kind == "results" or c.tier == "lead") and start < c.at[:19] <= end and c.headline]
     order = ["results", "m_and_a", "management_change", "litigation", "fund_raise", "capex", "credit_rating"]
     hits.sort(key=lambda c: (order.index(c.kind) if c.kind in order else len(order), c.at))
     return hits[0] if hits else None
