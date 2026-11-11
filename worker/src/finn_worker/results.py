@@ -445,8 +445,8 @@ def _pick(cols: list[dict], months: int, offset_months: int) -> dict | None:
 def _growth(cur, prev):
     if cur is None or prev in (None, 0):
         return None
-    if (cur < 0) != (prev < 0):
-        return None   # a swing between profit and loss isn't a percentage; the copy says it in words
+    if (cur < 0) != (prev < 0) or prev < 0:
+        return None   # a swing, or a change between two losses, isn't a meaningful percentage; the copy says it in words
     return round((cur / prev - 1) * 100 * (1 if prev > 0 else -1), 1)
 
 

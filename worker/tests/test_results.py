@@ -241,7 +241,7 @@ def test_copy_leads_with_underlying_profit_when_one_offs_dominate():
 
 def test_copy_says_loss_widened_not_profit_down():
     from finn_worker.cards import results_copy
-    n = {"current": {"pat": -154}, "prev_y": {"pat": -51}, "yoy": {"revenue": 5.0, "pat": -201.6}}
+    n = {"current": {"pat": -154}, "prev_y": {"pat": -51}, "yoy": {"revenue": 5.0, "pat": None}}
     assert results_copy(n)[0] == "Revenue up 5.0% YoY, loss widened to ₹154 cr"
 
 

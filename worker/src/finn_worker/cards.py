@@ -438,7 +438,7 @@ def results_copy(n: dict) -> tuple[str, str | None]:
         parts.append(f"{top_label} {_dir(top)} {abs(top):.1f}% YoY")
     if lead_underlying:
         parts.append(f"profit before one-offs {_dir(y['pbt_underlying'])} {abs(y['pbt_underlying']):.1f}%")
-    elif pat is not None and cur_pat is not None and cur_pat < 0 and prev_pat is not None and prev_pat < 0:
+    elif cur_pat is not None and cur_pat < 0 and prev_pat is not None and prev_pat < 0:
         parts.append(f"loss {'widened' if cur_pat < prev_pat else 'narrowed'} to ₹{abs(cur_pat):,.0f} cr")
     elif pat is not None:
         parts.append(f"profit {_dir(pat)} {abs(pat):.1f}%")
