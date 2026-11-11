@@ -494,6 +494,9 @@ def link(calls: list[tuple[str, list[dict]]]) -> list[Thread]:
                 # a shared programme name outweighs differing amounts (NGC order sized 2-3k, then 10-12k cr)
                 if not scopes_compatible(it, prev) or (not shared and not values_compatible(it, prev)):
                     continue
+                ua, ub = _unit_class(it.get("unit")), _unit_class(prev.get("unit"))
+                if not shared and ua != ub and "none" not in (ua, ub):
+                    continue                  # rupees vs a multiple or a % are different statements unless named
                 same_facet = facet is None or _facet(t.metric) in (None, facet)
                 if shared and same_facet:
                     s = 100
@@ -585,8 +588,9 @@ def statuses(thread: Thread, call_order: list[str], actuals: list[dict]) -> dict
             p_old, p_new = prev.get("period"), it.get("period")
             period_moved = bool(p_old and p_new and p_old != p_new and _period_fy(p_old) and _period_fy(p_new)
                                 and _period_fy(p_new) != _period_fy(p_old))
-            changed = (_bounds(it) != _bounds(prev) or (it.get("due") or None) != (prev.get("due") or None)
-                       or it.get("kind") != prev.get("kind") or period_moved)
+            had_value = _bounds(prev) != (None, None) or bool(prev.get("due"))
+            changed = had_value and (_bounds(it) != _bounds(prev) or (it.get("due") or None) != (prev.get("due") or None)
+                                     or it.get("kind") != prev.get("kind")) or period_moved
             if changed:
                 was = f"{_describe(prev)}{' (' + p_old + ')' if period_moved else ''}"
                 now = f"{_describe(it)}{' (' + p_new + ')' if period_moved else ''}"
@@ -596,6 +600,8 @@ def statuses(thread: Thread, call_order: list[str], actuals: list[dict]) -> dict
                 if old_due and cm and old_due < cm:
                     cell["missed_then_reset"] = True     # the old date had passed before it was replaced
                 out[call] = cell
+            elif not had_value and (_bounds(it) != (None, None) or it.get("due")):
+                out[call] = {"status": "early", "note": f"quantified: {_describe(it)}"}   # a figure later, not a revision
             else:
                 out[call] = {"status": "early", "note": f"reiterated: {_describe(it)}"}
         else:

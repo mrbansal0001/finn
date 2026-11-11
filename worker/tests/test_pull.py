@@ -295,3 +295,9 @@ def test_verified_quote_is_the_page_text():
     assert pull.verify(it, page, threshold=80) == 4
     assert it["quote"].startswith("we feel that") or it["quote"].startswith("Finally") or "the margins will be 16%-17%" in it["quote"]
     assert it["quote"] in page[4]
+
+
+def test_a_figure_given_later_is_not_a_revision():
+    ths = thread([m("revenue", "directional", unit=None, period="FY27")], [m("revenue", "approximate", 56000, unit="INR crore", period="FY27")], [], [])
+    s = pull.statuses(ths[0], ORDER, [])
+    assert s["Q4FY26"]["status"] == "early" and "quantified" in s["Q4FY26"]["note"]
