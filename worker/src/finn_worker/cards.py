@@ -21,6 +21,60 @@ KIND_WEIGHT = {
     "credit_rating": 35, "fund_raise": 30, "capex": 28, "pledging": 27, "insider_trading": 26,
     "press_release": 20, "earnings_call": 18, "dividend": 15, "bonus_split": 15, "unclassified": 10,
 }
+# Seniority decides how loud a people card is, read from the filing's own event (E29: a Chief Compliance
+# Officer appointment was the #1 lead while the new MD & CEO sat in "unclassified").
+SENIOR_ROLE = re.compile(r"managing director|\bmd\b|chief executive|\bceo\b|chief financial|\bcfo\b|chair(man|person|woman)?\b|"
+                         r"vice[- ]chair|whole[- ]?time director|executive director|deputy managing|\bpresident\b|promoter", re.I)
+ROUTINE_PEOPLE = re.compile(r"re-?appoint|continuation|auditor|scrutini[sz]er|registrar|\brta\b", re.I)
+MATERIAL_KINDS = ("management_change", "m_and_a", "litigation", "fund_raise", "capex", "credit_rating",
+                  "insider_trading", "pledging", "dividend", "bonus_split")
+WEAK_CATEGORIES = ("unclassified", "press_release", "earnings_call")
+READ_CATEGORIES = ("results", "management_change", "m_and_a", "litigation", "capex", "fund_raise", "credit_rating")
+
+
+def people_tier(people: list[dict]) -> str:
+    """lead: a senior role changes; routine: only re-appointments / auditors / registrars; else notable."""
+    real = [p for p in people if p.get("name")]
+    if not real:
+        return "notable"
+    def text(p):
+        return f"{p.get('change') or ''} {p.get('role') or ''}"
+    if any(SENIOR_ROLE.search(p.get("role") or "") and not re.search(r"re-?appoint|continu", p.get("change") or "", re.I)
+           for p in real):
+        return "lead"
+    if all(ROUTINE_PEOPLE.search(text(p)) for p in real):
+        return "routine"
+    return "notable"
+
+
+_NULLISH = re.compile(r"^\s*(null|none|n/?a|nil|-)?\s*$", re.I)
+
+
+def scrub_event(ev: dict) -> dict:
+    """Model output hygiene, applied at read time and again when cards are built (old reads too):
+    no literal 'null' text, no empty people, qualifiers kept ('not exceeding', 'floor price'; E29)."""
+    ev = dict(ev)
+    for k in ("headline", "why", "counterparty", "quote"):
+        v = ev.get(k)
+        if isinstance(v, str):
+            v = re.sub(r"[;,:]?\s*\b(null|none)\b\s*\.?\s*$", "", v.strip(), flags=re.I).strip()
+            ev[k] = None if _NULLISH.match(v) else v
+    people = []
+    for p in ev.get("people") or []:
+        p = {k: (None if isinstance(v, str) and _NULLISH.match(v) else v) for k, v in p.items()}
+        if p.get("name") and (p.get("change") or p.get("role")):
+            people.append(p)
+    ev["people"] = people
+    q, h = (ev.get("quote") or ""), (ev.get("headline") or "")
+    if h and re.search(r"not exceeding|up to|upto|up-to", q, re.I) and not re.search(r"up to|not exceeding|upto", h, re.I):
+        ev["headline"] = re.sub(r"(invests?|investment of|infuses?|to invest)\s+((?:Rs\.?|INR|₹)\s?[\d,.]+)",
+                                r"\1 up to \2", h, count=1, flags=re.I)
+    if h and re.search(r"floor price", q, re.I) and "floor" not in h.lower():
+        ev["headline"] = re.sub(r"(at|for)\s+((?:Rs\.?|INR|₹)\s?[\d,.]+(?: per share)?)", r"\1 a floor price of \2",
+                                ev["headline"], count=1, flags=re.I)
+    return ev
+
+
 LOW_SIGNAL_PEOPLE = re.compile(r"re-?appoint|tenure completion|change in auditors|company secretary|compliance officer", re.I)
 
 ROUTINE_GROUPS = [
@@ -125,16 +179,39 @@ def build(filings: list[dict], moves: list[dict], weights: dict[str, float], nam
             (h for f in fs if (h := rule_headline(f["summary"], f["subject"]))), None)
         needs_read = headline is None or any(f["needs_document"] for f in fs)
         why, facts, source = None, {}, "rule" if headline else "pending"
-        read = [e for f in fs for e in (events or {}).get(f["id"], [])]
+        read = [scrub_event(e) for f in fs for e in (events or {}).get(f["id"], [])]
         if read:
             needs_read = False
-            ok = [e for e in read if e.get("headline_ok")]
+            ok = [e for e in read if e.get("headline_ok") and e.get("headline")]
+            # a filing filed under a weak NSE subject ("General Updates") can hold a material event:
+            # the event read from the document decides the card's kind (E29: HDFC Bank's new MD & CEO)
+            if cat in WEAK_CATEGORIES:
+                material = [e for e in ok if e.get("kind") in MATERIAL_KINDS]
+                if material:
+                    cat = min(material, key=lambda e: MATERIAL_KINDS.index(e["kind"]))["kind"]
             # same filing can carry several events: a deal card shows the deal, not the results
-            best = next((e for e in ok if e.get("kind") == cat), None) or next(
+            same = [e for e in ok if e.get("kind") == cat]
+            if cat == "management_change" and same:
+                # one card per filing: the most senior change leads, everyone named is listed
+                same.sort(key=lambda e: {"lead": 0, "notable": 1, "routine": 2}[people_tier(e.get("people") or [])])
+            best = (same[0] if same else None) or next(
                 (e for e in ok if e.get("kind") != "results" or cat == "results"), None)
             if best:
                 headline, why, source = best["headline"], best.get("why"), "model"
                 facts = {k: best[k] for k in ("people", "amount_inr_cr", "counterparty", "quote", "page") if best.get(k)}
+                if cat == "management_change":
+                    everyone = [p for e in same for p in e.get("people") or []]
+                    facts["people"] = list({p["name"]: p for p in everyone}.values())
+                    tier = people_tier(facts["people"])
+                    others = [e["headline"] for e in same[1:]]
+                    if others and not why:
+                        why = "Also in this filing: " + "; ".join(others) + "."
+        if tier == "routine":
+            routine["People: re-appointments & auditors" if cat == "management_change" else "Other housekeeping"] += 1
+            continue
+        if headline is None:
+            headline, why, needs_read = _fallback_copy(cat, fs, why, needs_read)
+            source = "rule" if headline else source
         cid = hashlib.sha1(("|".join(f["id"] for f in fs)).encode()).hexdigest()[:12]
         cards.append(Card(
             id=cid, symbol=sym, company=names.get(sym, lead["company_name"]), kind=cat, tier=tier,
@@ -158,27 +235,40 @@ def build(filings: list[dict], moves: list[dict], weights: dict[str, float], nam
                 c.headline = (f"Q{_fy_quarter(r['period_end'])} revenue ₹{v['revenue']/1e7:,.0f} cr, "
                               f"profit ₹{v['pat']/1e7:,.0f} cr")
                 c.headline_source = "xbrl"
+        if c.kind == "results" and not c.headline:
+            c.headline, c.headline_source, c.needs_read = "Results filed · numbers withheld", "rule", False
+            c.why = c.why or ("FINN shows results only when the table passes its checks against the filing; "
+                              "this one did not, so open the filing for the numbers.")
 
+    # the biggest alerting move per symbol in the window (a volume-only spike on a flat day counts too)
     biggest: dict[str, dict] = {}
     for m in moves:
         d = datetime.fromisoformat(m["day"] + "T15:30:00")
-        if since <= d <= until and abs(m["change_pct"]) > abs(biggest.get(m["symbol"], {}).get("change_pct", -1)):
-            biggest[m["symbol"]] = m
-    for m in biggest.values():
-        d = datetime.fromisoformat(m["day"] + "T15:30:00")
         if not (since <= d <= until) or not (m["price_alert"] or m["volume_alert"]):
             continue
-        explained = any(c.symbol == m["symbol"] and c.at[:10] == m["day"] for c in cards)
+        cur = biggest.get(m["symbol"])
+        if cur is None or abs(m["change_pct"]) > abs(cur["change_pct"]):
+            biggest[m["symbol"]] = m
+    trading_days = sorted({m["day"] for m in moves})
+    for m in biggest.values():
+        d = datetime.fromisoformat(m["day"] + "T15:30:00")
+        why_filing = explaining_card(m, cards, trading_days)
         arrow = "▲" if m["change_pct"] >= 0 else "▼"
+        move_line = (f"The stock {'rose' if m['change_pct'] >= 0 else 'fell'} {abs(m['change_pct']):.1f}% "
+                     f"{'the same session' if why_filing and why_filing.at[:10] == m['day'] else 'the next session'} "
+                     f"on {m['volume_multiple']:.1f}× usual volume.")
+        if why_filing is not None:
+            why_filing.why = f"{why_filing.why} {move_line}".strip() if why_filing.why else move_line
         cards.append(Card(
             id=f"move-{m['symbol']}-{m['day']}", symbol=m["symbol"], company=names.get(m["symbol"], m["symbol"]),
             # default tier at the default thresholds (5%, 2x); the app re-tiers with the user's own
-            kind="move", tier="lead" if abs(m["change_pct"]) >= 5 else "notable", at=d.isoformat(), nse_subject="",
+            kind="move", tier="lead" if round(abs(m["change_pct"]), 1) >= 5 else "notable", at=d.isoformat(), nse_subject="",
             headline=f"{'Up' if m['change_pct'] >= 0 else 'Down'} {abs(m['change_pct']):.1f}% on {m['volume_multiple']:.1f}× usual volume",
             headline_source="rule",
-            # D-019: never guess a cause
+            # D-019: never guess a cause; name the filing that preceded it, if any
             why=(f"Closed ₹{m['close']:,.2f} {arrow}{abs(m['change_pct']):.1f}%; volume {m['volume_multiple']:.1f}× the 20-session average. "
-                 + ("A filing the same day is in this edition." if explained else "No filing explains this move.")),
+                 + (f"Follows “{why_filing.headline}” ({_when(why_filing.at)}), in this edition." if why_filing
+                    else "No filing explains this move.")),
             facts={k: m[k] for k in ("close", "change_pct", "volume", "volume_multiple", "price_alert", "volume_alert")},
             sources=[Source("NSE bhavcopy", None)],
         ))
@@ -221,6 +311,40 @@ def _fy_quarter(period_end: str) -> str:
     return f"{q}FY{fy % 100:02d}"
 
 
+def _fallback_copy(cat: str, fs: list[dict], why, needs_read: bool):
+    """Honest copy for filings the reader will not summarise, instead of a 'pending' that never resolves."""
+    text = " ".join(f"{f['subject']} {f.get('summary') or ''} {f.get('link') or ''}" for f in fs).lower()
+    links = [f.get("link") or "" for f in fs]
+    if cat == "earnings_call":
+        what = "transcript" if "transcript" in text else "recording" if re.search(r"recording|audio|video", text) else "update"
+        return f"Earnings-call {what} filed", why, False
+    if cat == "results":
+        return None, why, needs_read                       # filled from the results table below, or withheld
+    if links and not any(l.lower().endswith(".pdf") for l in links):
+        return f"{fs[0]['subject'].strip()} filed (attachment is not a PDF)", why, False
+    if cat not in READ_CATEGORIES and not any(f.get("needs_document") for f in fs):
+        return f"{fs[0]['subject'].strip()} filed", why, False
+    return None, why, needs_read                           # the reader will summarise it on a coming run
+
+
+def explaining_card(m: dict, cards: list, trading_days: list[str]):
+    """The filing card a move follows: published after the previous session's 15:30 close and before
+    this session's close. Results filed at 17:08 move the NEXT session's price (Kalyan, Reliance; E29).
+    Prefers results, then the most material kind."""
+    prev = [d for d in trading_days if d < m["day"]]
+    prev_day = prev[-1] if prev else (datetime.fromisoformat(m["day"]) - timedelta(days=1)).date().isoformat()
+    start, end = f"{prev_day}T15:30:00", f"{m['day']}T15:30:00"
+    hits = [c for c in cards if c.symbol == m["symbol"] and c.kind != "move" and start < c.at[:19] <= end and c.headline]
+    order = ["results", "m_and_a", "management_change", "litigation", "fund_raise", "capex", "credit_rating"]
+    hits.sort(key=lambda c: (order.index(c.kind) if c.kind in order else len(order), c.at))
+    return hits[0] if hits else None
+
+
+def _when(at: str) -> str:
+    d = datetime.fromisoformat(at[:19])
+    return f"{d:%a %d %b}, {d:%H:%M}"
+
+
 def _dir(x: float) -> str:
     return "up" if x >= 0 else "down"
 
@@ -234,10 +358,18 @@ def results_copy(n: dict) -> tuple[str, str | None]:
         top, top_label = y.get("revenue"), "Revenue"
     pat = y.get("pat")
     cur_pat, prev_pat = cur.get("pat"), (n.get("prev_y") or {}).get("pat")
+    # a one-off gain that is a large part of profit would make "profit up 114%" misleading (Titan; E29)
+    one_off = (cur.get("non_operating_extra") or 0) + (cur.get("exceptional") or 0)
+    lead_underlying = (cur_pat and one_off and abs(one_off) > 0.15 * abs(cur_pat)
+                       and y.get("pbt_underlying") is not None)
     parts = []
     if top is not None:
         parts.append(f"{top_label} {_dir(top)} {abs(top):.1f}% YoY")
-    if pat is not None:
+    if lead_underlying:
+        parts.append(f"profit before one-offs {_dir(y['pbt_underlying'])} {abs(y['pbt_underlying']):.1f}%")
+    elif pat is not None and cur_pat is not None and cur_pat < 0 and prev_pat is not None and prev_pat < 0:
+        parts.append(f"loss {'widened' if cur_pat < prev_pat else 'narrowed'} to ₹{abs(cur_pat):,.0f} cr")
+    elif pat is not None:
         parts.append(f"profit {_dir(pat)} {abs(pat):.1f}%")
     elif cur_pat is not None and prev_pat is not None and (cur_pat < 0) != (prev_pat < 0):
         parts.append(f"swung to a loss of ₹{abs(cur_pat):,.0f} cr" if cur_pat < 0
@@ -247,11 +379,15 @@ def results_copy(n: dict) -> tuple[str, str | None]:
     if cur.get("ebitda_margin_pct") is not None and y.get("ebitda_margin_bp") is not None:
         bp = y["ebitda_margin_bp"]
         why.append(f"EBITDA margin {cur['ebitda_margin_pct']:.1f}%, {'+' if bp >= 0 else '−'}{abs(bp)}bp YoY.")
-    if cur.get("exceptional") and y.get("pbt_ex_exceptional") is not None:
+    if lead_underlying and pat is not None:
+        why.append(f"Reported profit {_dir(pat)} {abs(pat):.1f}% including ₹{abs(one_off):,.0f} cr of one-off items.")
+    elif cur.get("exceptional") and y.get("pbt_ex_exceptional") is not None:
         why.append(f"PBT includes a ₹{abs(cur['exceptional']):,.0f} cr exceptional item; before it, PBT {_dir(y['pbt_ex_exceptional'])} "
                    f"{abs(y['pbt_ex_exceptional']):.1f}% YoY.")
-    if cur.get("non_operating_extra"):
+    if cur.get("non_operating_extra") and not lead_underlying:
         why.append(f"Total income includes ₹{cur['non_operating_extra']:,.0f} cr of non-operating gains, kept out of EBITDA.")
+    if n.get("net_of_excise"):
+        why.append("Revenue is net of excise duty.")
     if n.get("is_bank") and cur.get("gnpa_pct") is not None:
         why.append(f"Gross NPA {cur['gnpa_pct']:.2f}%.")
     return headline[0].upper() + headline[1:], " ".join(why) or None
