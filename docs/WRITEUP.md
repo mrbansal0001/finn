@@ -18,7 +18,7 @@ FINN has one point of view: **an investor should be briefed, not fed.** Every In
   - for a company-level, full-year revenue, profit or margin target still running, the latest filed quarter beside it, judged against the target (one quarter is not the year, so the status stays open);
   - the latest results table, the annual report's own description of the business, and the people who'd know.
   - Example, BEL: every FY26 financial target was met, but the QRSAM order date was reset three times and is now "very soon, >99%", with no date.
-  - Ledgers for the Nifty 50 are built in advance; any other company is built on request.
+  - Ledgers for Nifty 50 companies are pre-built by a batch on the worker (20 companies covered when this was written); any other company is built on request.
 - **Network, inside both, and askable.** A card carries one line, e.g. *"Lakshmi Raghavan is also an alumnus of PSG College of Technology"* on the card for HDFC Bank's new Chief Compliance Officer.
   - It answers the brief's question directly: has anyone in my network worked with this person, studied with them, or sits one connection away? Overlaps are dated from the filing's own words ("was at HDFC Bank 2009–22, while Kaizad Bharucha was there"). When there is none, it says "no one" rather than padding.
   - **Best placed, and why:** the first suggestion is the person whose role there or expertise fits the event ("as Head, Legal & Secretarial there (2013–20), the closest to this legal matter; reach them through Imran"). Relevance beats warmth.
@@ -34,7 +34,10 @@ FINN has one point of view: **an investor should be briefed, not fed.** Every In
   - SBI with rows shifted;
   - standalone shown where consolidated existed;
   - ITC's revenue gross of excise.
-  Now a table must satisfy the statement's own identities (half-year = the two quarters; bank income and provisions identities), consolidated is preferred, and the profit line is chosen once per table. Tables that still fail are withheld, never shown: 16 of 18 portfolio results are shown, 2 withheld. That audit is the clearest example of how I worked with the AI tools: treat a passing check as a claim to verify, measure, then fix the cause.
+  Now a table must satisfy the statement's own identities: half-year = the two quarters; income − expenses ± exceptional = PBT; owners' profit + minority interest = total profit; the bank income and provisions identities. The unit must be the one the document prints, consolidated is preferred, and tables that still fail are withheld, never shown.
+  - A second independent audit then checked about 660 results figures, 136 move figures and 717 quotes. Moves, people cards and quotes were clean. It still found about 55 wrong results figures (a unit misread as lakhs instead of millions; owners' profit missed in six layouts), and every one was traced to its cause and fixed.
+  - 16 of 18 portfolio results are shown and 2 withheld.
+  - That loop is the clearest example of how I worked with the AI tools: treat a passing check as a claim to verify, measure, then fix the cause, not the instance.
 - **Cite or drop, for words and numbers.** Every quote shown is the page's own text, and unverifiable statements are dropped (84/84 hand-labelled quotes found, off-by-one pages corrected). A figure in a ledger row must be printed in its quote: the model once turned "grow almost to 2x" into "200%".
 - **Wording follows evidence.** "Worked together" only when dates overlap. Many real bios give employers without years, so FINN says "also worked at X (dates not disclosed)".
 - **What I left out on purpose:**
@@ -112,7 +115,7 @@ Copy rules are enforced in code: a headline needs a verb and a fact, a "why" lin
   - overlapping 6-page windows find 80%, at 61% strict precision;
   - half of the "false positives" were genuine commitments my labels had missed, so effective precision is near 80%.
 - **Linking.** Deterministic, with pairwise precision 0.88 / recall 0.70 on BEL and 0.75 / 0.67 on Deepak Nitrite. Model-assisted linking was noisier run to run, so it stays off. BEL's ledger shows the machine-built version by default, with the hand-checked reference one tap away.
-- **Cost.** [FILL: total spend] for the entire build. A ledger on the free tier costs $0; reading a filing that names people costs about $0.005, so a day of Push for 18 holdings costs cents.
+- **Cost.** $1.18 of paid model spend for the entire build so far, across 1,041 model calls; most of that is the paid fallback when Gemini's free tier was overloaded during the Nifty 50 pre-build. A ledger on the free tier costs $0; reading a filing that names people costs about $0.005, so a day of Push for 18 holdings costs cents.
 
 ## Cloud
 
