@@ -34,10 +34,21 @@ def test_floor_softening_to_approximate_is_caught():
     assert s["Q2FY27"]["status"] == "revised" and ">28% → ~28%" in s["Q2FY27"]["note"]
 
 
-def test_silence_after_a_promise_is_recorded():
-    ths = thread([m("Export share of turnover", "point", 5, period="FY27")], [], [], [])
-    s = pull.statuses(ths[0], ORDER, [])
-    assert [s[c]["status"] for c in ORDER] == ["early", "silent", "silent", "silent"]
+def test_silence_is_a_signal_only_after_repetition():
+    once = thread([m("Export share of turnover", "point", 5, period="FY28")], [], [], [])
+    s = pull.statuses(once[0], ORDER, [])
+    assert [s[c]["status"] for c in ORDER] == ["early", "early", "early", "early"]      # open, not revisited
+    twice = thread([m("Export share of turnover", "point", 5, period="FY28")],
+                   [m("Export share of turnover", "point", 5, period="FY28")], [], [])
+    s = pull.statuses(twice[0], ORDER, [])
+    assert [s[c]["status"] for c in ORDER] == ["early", "early", "silent", "silent"]  # repeated, then dropped
+
+
+def test_full_year_promise_not_settled_mid_year():
+    ths = thread([], [m("Order inflow", "floor", 55000, unit="INR crore", period="FY27")], [], [])
+    h1 = [{"metric": "order inflow", "period": "FY27", "value": 7334, "unit": "INR crore", "quote": "q", "page": 1}]
+    s = pull.statuses(ths[0], ORDER, h1)                 # last call is Q2FY27: FY27 isn't over
+    assert s["Q2FY27"]["status"] != "missed"
 
 
 def test_stated_actual_settles_a_floor():
@@ -71,7 +82,7 @@ def test_directional_promise_is_not_settled_by_any_actual():
     ths = thread([m("Margins", "directional", period="FY26")], [], [], [])
     actual = [{"metric": "margins", "period": "FY26", "value": 1.0, "unit": "%", "quote": "q", "page": 1}]
     s = pull.statuses(ths[0], ORDER, actual)
-    assert s["Q2FY27"]["status"] == "silent"
+    assert s["Q2FY27"]["status"] is None and s["Q2FY27"]["note"] == "period ended"   # closed, not settled, not silent
 
 
 def test_beating_a_range_is_delivered_not_partly():
@@ -98,3 +109,18 @@ def test_reader_records_filings_with_nothing_material(monkeypatch, tmp_path):
     assert reader.read_pending().startswith("read 1/1")
     assert con.execute("select count(*) from events where filing_id='f1'").fetchone()[0] == 1
     assert reader.read_pending().startswith("read 0/0")
+
+
+def test_relative_periods_resolve_against_the_call():
+    assert pull.normalise_period("current financial year", "Jan 2026") == "FY26"   # Q3FY26 call
+    assert pull.normalise_period("next year", "Jan 2026") == "FY27"
+    assert pull.normalise_period("this year", "May 2026") == "FY27"                # Q4 call guides the new year
+    assert pull.normalise_period("H1 next year", "Nov 2026") == "H1FY28"
+    assert pull.normalise_period("FY27", "Nov 2026") == "FY27"
+
+
+def test_model_links_between_unlike_promises_are_refused():
+    a = {"metric": "EBITDA margin", "unit": "%"}
+    b = {"metric": "order inflow", "unit": "INR crore"}
+    assert not pull._compatible(a, b)
+    assert pull._compatible({"metric": "EBITDA margin", "unit": "%"}, {"metric": "EBITDA margin", "unit": "% of revenue"})

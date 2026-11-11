@@ -61,3 +61,9 @@ E25 Results-table reading with the light model (18 portfolio results PDFs, 11 No
 - the model varies run to run; up to three attempts per page (text, image, image), keeping the first that passes every check: 16/18 pass (14 reconcile arithmetically, 2 also equal the Integrated Filing XBRL: Kalyan, Cochin). The 2 failures (tangled layouts) stay hidden.
 - E25 addendum: checked Titan against its PDF page by eye: revenue had been derived as total income - other income (21,285), but total income also held a 671 cr fair-value gain on a put-option liability; true revenue 20,337 + 277 = 20,614. Fixed: revenue from its printed sub-lines; any other income line is non-operating (kept out of EBITDA, named in the copy). Profit swings across zero are described in words, not percentages (Tata Chemicals "swung to a loss of 50 cr", not "-132.5%"). 17/18 tables now pass.
 
+E26 Promise linking, model vs code (gold statements as input; pairwise precision / recall):
+- deterministic (names + facets + FY): BEL 0.88 / 0.70, Deepak 0.75 / 0.67 -- identical every run.
+- model-assisted (light model assigns each new statement to a thread or 'new', with a code guard refusing unlike units/facets): BEL 0.67-0.79 / 0.58-0.60, Deepak 0.93-1.00 / 0.78 over two runs.
+- hybrid (deterministic for shared programme names, model for the rest): BEL 0.78-0.83 / 0.42-0.70, Deepak 0.65-0.76 / 0.67-0.72 over three runs -- noisy.
+-> deterministic linking kept as the default (as accurate on average, stable, free, explainable); model linking behind FINN_LINK=model. Also fixed: relative periods resolved against the call ("current financial year" on a Jan call = FY26; "this year" on a May call = the new FY); promises whose period has ended show as closed, not "went silent".
+

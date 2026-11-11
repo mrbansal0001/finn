@@ -180,6 +180,55 @@ def verify(item: dict, pages: dict[int, str], threshold: int = 90) -> int | None
     return None
 
 
+# ------------------------------------------------------------------ periods
+
+def call_fy(call_label: str) -> int | None:
+    """'Q3FY26' -> 26; 'Nov 2026' (screener date label) -> FY of that month."""
+    m = re.search(r"FY\s?(\d{2})", call_label or "")
+    if m:
+        return int(m.group(1))
+    m = re.search(r"([A-Za-z]{3})\w*\s+(\d{4})", call_label or "")
+    if m:
+        months = "jan feb mar apr may jun jul aug sep oct nov dec".split()
+        mon, y = months.index(m.group(1).lower()[:3]) + 1, int(m.group(2))
+        # a results call reviews the quarter just ended:
+        # Jan-Mar -> Dec quarter (prev calendar year), Apr-Jun -> Mar, Jul-Sep -> Jun, Oct-Dec -> Sep
+        qe_month, qe_year = {1: (12, y - 1), 2: (12, y - 1), 3: (12, y - 1), 4: (3, y), 5: (3, y), 6: (3, y),
+                             7: (6, y), 8: (6, y), 9: (6, y), 10: (9, y), 11: (9, y), 12: (9, y)}[mon]
+        fy = qe_year + 1 if qe_month >= 4 else qe_year        # Indian FY ends in March
+        return fy % 100
+    return None
+
+
+def normalise_period(period: str | None, call_label: str) -> str | None:
+    """'current financial year' on a Q3FY26 call -> 'FY26'; 'next year' -> 'FY27'; 'H1 next year' -> 'H1FY27'."""
+    if not period:
+        return None
+    p = period.strip()
+    if re.search(r"FY\s?\d{2}", p):
+        return re.sub(r"FY\s?(\d{2})", r"FY\1", re.sub(r"\s+", "", p.upper()) if len(p) <= 8 else p)
+    fy = call_fy(call_label)
+    if fy is None:
+        return p
+    # on an Apr-Jun call (reviewing Q4), "this year" is the fiscal year just begun, the one being guided
+    if re.search(r"\b(apr|may|jun)\w*\s+\d{4}", call_label or "", re.I) or re.search(r"Q4\s?FY", call_label or ""):
+        fy += 1
+    low = p.lower()
+    half = "H1" if re.search(r"\bh1\b|first half", low) else "H2" if re.search(r"\bh2\b|second half", low) else ""
+    if re.search(r"next (financial )?year|next fy|coming year", low):
+        return f"{half}FY{fy + 1}"
+    if re.search(r"(this|current) (financial )?year|this fy|current fy|full year|year end", low):
+        return f"{half}FY{fy}"
+    if half:
+        return f"{half}FY{fy}"
+    return p
+
+
+def _period_fy(period: str | None) -> int | None:
+    m = re.search(r"FY(\d{2})", period or "")
+    return int(m.group(1)) if m else None
+
+
 # ------------------------------------------------------------------ link + status
 
 @dataclass
@@ -306,7 +355,14 @@ def statuses(thread: Thread, call_order: list[str], actuals: list[dict]) -> dict
             else:
                 out[call] = {"status": "early", "note": f"reiterated: {_describe(it)}"}
         else:
-            out[call] = {"status": "silent", "note": "not mentioned"}
+            due_fy = _period_fy(thread.period)
+            mentions_so_far = len({m.call for m in thread.mentions if call_order.index(m.call) < call_order.index(call)})
+            if due_fy is not None and call_fy(call) is not None and call_fy(call) > due_fy:
+                out[call] = {"status": None, "note": "period ended"}      # closed, not silent
+            elif mentions_so_far >= 2:
+                out[call] = {"status": "silent", "note": "repeated before, not mentioned now"}   # dropped: the signal
+            else:
+                out[call] = {"status": "early", "note": "open; not revisited"}
         prev = it or prev
     # settle against stated actuals for the target period, when any
     last = prev
@@ -314,6 +370,13 @@ def statuses(thread: Thread, call_order: list[str], actuals: list[dict]) -> dict
         hit = next((a for a in actuals if a.get("period") == thread.period
                     and fuzz.token_set_ratio(_metric_key(a["metric"]), _metric_key(thread.metric)) >= 80), None)
         lo, hi = _bounds(last)
+        due = _period_fy(thread.period)
+        # a full-year promise can't be settled mid-year: only from the call that reviews that year
+        over = due is not None and any(
+            (call_fy(c) or 0) > due or ((call_fy(c) or 0) == due and re.search(r"Q4|\b(apr|may|jun)", c, re.I))
+            for c in call_order)
+        if not over or (thread.period and re.match(r"(H[12]|Q[1-4])", thread.period)):
+            hit = hit if over else None
         if hit and (lo is not None or hi is not None):   # directional/milestone items have no bound to test
             v = hit["value"]
             if lo is not None and v < lo * 0.995:
@@ -328,20 +391,37 @@ def statuses(thread: Thread, call_order: list[str], actuals: list[dict]) -> dict
     return out
 
 
+def _fmt_unit(u: str) -> tuple[str, str]:
+    """('₹', ' cr') style prefix/suffix for a unit string."""
+    low = (u or "").lower()
+    if re.search(r"inr|rs\.?|₹", low) and "cr" in low:
+        return "₹", " cr"
+    if re.search(r"usd|\$", low) and re.search(r"mn|million", low):
+        return "$", " mn"
+    if "%" in low:
+        return "", "%"
+    return "", f" {u}" if u else ""
+
+
+def _g(x: float) -> str:
+    return f"{x:,.0f}" if abs(x) >= 1000 else f"{x:g}"
+
+
 def _describe(it: dict) -> str:
-    lo, hi, u = it.get("value_low"), it.get("value_high"), it.get("unit") or ""
+    lo, hi = it.get("value_low"), it.get("value_high")
+    pre, suf = _fmt_unit(it.get("unit") or "")
     k = it.get("kind")
     if k == "milestone":
         return f"by {it.get('due') or 'unspecified date'}"
     if k == "range" and lo is not None and hi is not None:
-        return f"{lo:g}–{hi:g}{u}"
+        return f"{pre}{_g(lo)}–{_g(hi)}{suf}"
     if k == "floor" and (lo is not None or hi is not None):
-        return f">{(lo if lo is not None else hi):g}{u}"
+        return f">{pre}{_g(lo if lo is not None else hi)}{suf}"
     if k == "ceiling" and (hi is not None or lo is not None):
-        return f"<{(hi if hi is not None else lo):g}{u}"
+        return f"<{pre}{_g(hi if hi is not None else lo)}{suf}"
     if k in ("approximate", "point") and lo is not None:
-        return f"{'~' if k == 'approximate' else ''}{lo:g}{u}"
-    return k or "statement"
+        return f"{'~' if k == 'approximate' else ''}{pre}{_g(lo)}{suf}"
+    return "direction only" if k == "directional" else "no figure"
 
 
 # ------------------------------------------------------------------ build
@@ -355,6 +435,7 @@ def build(symbol: str) -> dict:
         out = extract(t.url)
         items = []
         for it in out.get("guidance", []):
+            it["period"] = normalise_period(it.get("period"), t.label)
             p = verify(it, pages)
             if p is None:
                 dropped += 1                      # cite-or-drop (D-016)
@@ -364,15 +445,20 @@ def build(symbol: str) -> dict:
             items.append(it)
             verified += 1
         for a in out.get("actuals", []):
+            a["period"] = normalise_period(a.get("period"), t.label)
             if verify(a, pages) is not None:
                 actuals.append(a)
         calls.append((t.label, items))
         meta.append({"label": t.label, "date": t.label, "url": t.url})
     order = [c for c, _ in calls]
-    try:
-        threads = link_with_model(calls)
-    except llm.LLMUnavailable:
-        threads = link(calls)                     # deterministic fallback
+    # deterministic linking by default: as accurate as model-assisted linking on the gold set and
+    # stable run to run (E26); FINN_LINK=model switches the model-assisted variant on
+    threads = link(calls)
+    if os.getenv("FINN_LINK") == "model":
+        try:
+            threads = link_with_model(calls)
+        except llm.LLMUnavailable:
+            pass
     rows = []
     for th in threads:
         cells = statuses(th, order, actuals)
@@ -417,6 +503,20 @@ LINK_SYSTEM = ("You maintain a ledger of management promises across earnings cal
                "Do not judge whether anything was met.")
 
 
+def _unit_class(u: str | None) -> str:
+    u = (u or "").lower()
+    return "pct" if "%" in u or "percent" in u else "money" if re.search(r"inr|rs|₹|crore|cr\b|lakh|million|mn|bn|usd|\$", u) \
+        else "days" if "day" in u else "other" if u else "none"
+
+
+def _compatible(a: dict, b: dict) -> bool:
+    fa, fb = _facet(a.get("metric", "")), _facet(b.get("metric", ""))
+    if fa and fb and fa != fb:
+        return False
+    ua, ub = _unit_class(a.get("unit")), _unit_class(b.get("unit"))
+    return ua == ub or "none" in (ua, ub) or "other" in (ua, ub)
+
+
 def link_with_model(calls: list[tuple[str, list[dict]]]) -> list[Thread]:
     """Semantic linking by the model; statuses are still computed in code (E19)."""
     threads: list[Thread] = []
@@ -427,6 +527,20 @@ def link_with_model(calls: list[tuple[str, list[dict]]]) -> list[Thread]:
         if not threads:
             for it in mgmt:
                 threads.append(Thread(f"P{len(threads) + 1}", it["metric"], it.get("period") or it.get("due"), [Mention(call, it)]))
+            continue
+        # hybrid (E26): a shared programme name + same promise type links deterministically;
+        # only the remaining statements go to the model
+        rest = []
+        for it in mgmt:
+            names, facet = _names(it["metric"] + " " + (it.get("scope") or "")), _facet(it["metric"])
+            sure = next((t for t in threads if names & _names(t.metric) and (facet is None or _facet(t.metric) in (None, facet))
+                         and _compatible(it, t.mentions[-1].item)), None)
+            if sure:
+                sure.mentions.append(Mention(call, it))
+            else:
+                rest.append(it)
+        mgmt = rest
+        if not mgmt:
             continue
         listing = "\n".join(f"{t.id}: {t.metric} ({t.period or 'no period'}) latest: \"{t.mentions[-1].item['quote'][:160]}\""
                             for t in threads)
@@ -439,6 +553,8 @@ def link_with_model(calls: list[tuple[str, list[dict]]]) -> list[Thread]:
         chosen = {a["item"]: a["thread"] for a in out.get("assign", [])}
         for i, it in enumerate(mgmt):
             t = by_id.get(chosen.get(i, "new"))
+            if t and not _compatible(it, t.mentions[-1].item):
+                t = None          # the model linked unlike things (a margin with an order value): keep apart
             if t:
                 t.mentions.append(Mention(call, it))
             else:
