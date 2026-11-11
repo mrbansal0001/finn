@@ -49,7 +49,7 @@ Why a residential worker: NSE and BSE refuse or time out datacenter requests (me
 | Promise linking without a model | pairwise precision 0.88 / recall 0.70 (BEL), 0.75 / 0.67 (Deepak Nitrite); model-assisted linking was noisier, so it is off | `worker/evals/eval_linking.py`, E26 |
 | Row-level security, live against Supabase | two visitors can't see each other's network; public data read-only; no contact name in the public payload; visitors can't write private rows and can't see who requested coverage (migration 003) | `uv run python -m evals.rls_check` |
 | Model spend for the whole build | see the writeup; Gemini free tier $0, OpenAI ~$0.005 per filing that names people | `llm_calls` table |
-| Tests | 104 worker tests | `uv run pytest` |
+| Tests | 114 worker tests | `uv run pytest` |
 
 ## Run it
 
