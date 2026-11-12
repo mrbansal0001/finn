@@ -18,6 +18,7 @@ export function BriefButton({ edition, alerts = 0 }: { edition: Edition; alerts?
     if (speaking) {
       window.speechSynthesis.cancel();
       setSpeaking(false);
+      setFailed(false);
       return;
     }
     const n = edition.leads.length;
@@ -32,9 +33,10 @@ export function BriefButton({ edition, alerts = 0 }: { edition: Edition; alerts?
     u.lang = "en-IN";
     u.rate = 1.05;
     u.onend = () => setSpeaking(false);
-    u.onerror = () => {
+    u.onerror = (e) => {
       setSpeaking(false);
-      setFailed(true);
+      // stopping it ourselves reports "interrupted"/"canceled": that's not a failure
+      if (e.error !== "interrupted" && e.error !== "canceled") setFailed(true);
     };
     utter.current = u;
     window.speechSynthesis.speak(u);
@@ -50,7 +52,7 @@ export function BriefButton({ edition, alerts = 0 }: { edition: Edition; alerts?
       className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full px-2 text-small text-ink-2 hover:text-ink"
     >
       <span aria-hidden className="text-caption">{speaking ? "■" : "▶"}</span>
-      {failed ? "Couldn't play" : speaking ? "Stop" : "Listen"}
+      {speaking ? "Stop" : failed ? "Try again" : "Listen"}
     </button>
   );
 }

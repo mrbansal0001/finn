@@ -9,6 +9,7 @@ import { EditionCard } from "@/components/EditionCard";
 import { Dock } from "@/components/Dock";
 import { BriefButton } from "@/components/BriefButton";
 import { HoldingsSheet } from "@/components/HoldingsSheet";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { SinceLastVisit } from "@/components/SinceLastVisit";
 
 const WINDOWS: { key: WindowKey; label: string; short: string }[] = [
@@ -61,7 +62,10 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
       {/* masthead (plan §8.1) */}
       <header className="flex items-center justify-between">
         <h1 className="font-serif text-display font-semibold tracking-[-0.02em]">FINN</h1>
-        <BriefButton edition={ed} alerts={alerts.length} />
+        <div className="-mr-2 flex items-center">
+          <BriefButton edition={ed} alerts={alerts.length} />
+          <ThemeToggle />
+        </div>
       </header>
       {/* a div, not a p: the holdings sheet (a dialog) sits inside this line */}
       <div className="text-small text-ink-2">
@@ -258,21 +262,23 @@ function Routine({ ed, refTime }: { ed: Edition; refTime: string }) {
                               <p className="mt-0.5 text-caption text-ink-3">
                                 {x.facts
                                   .filter(([k]) => !/^Purpose|^Stage/.test(k))
-                                  .slice(0, 5)
+                                  .slice(0, 6)
                                   .map(([k, v]) => `${k}: ${v}`)
                                   .join(" · ")}
                               </p>
                             )}
-                            {x.link && (
-                              <a
-                                href={x.link}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="tap mt-1 inline-flex text-caption text-accent"
-                              >
-                                {xml ? "XBRL data (XML) ↗" : "PDF ↗"}
-                              </a>
-                            )}
+                            {/* a PDF is the document; an XBRL-only filing's facts are shown above, so its raw data
+                                file is a quiet secondary link, not a "filing" that opens code */}
+                            {x.link &&
+                              (xml ? (
+                                <a href={x.link} target="_blank" rel="noopener noreferrer" className="tap mt-1 inline-flex text-caption text-ink-3 underline decoration-rule underline-offset-2">
+                                  raw source (XBRL)
+                                </a>
+                              ) : (
+                                <a href={x.link} target="_blank" rel="noopener noreferrer" className="tap mt-1 inline-flex text-caption text-accent">
+                                  PDF ↗
+                                </a>
+                              ))}
                           </li>
                         );
                       })

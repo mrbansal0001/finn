@@ -28,10 +28,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en-IN" className={`${geist.variable} ${fraunces.variable}`} suppressHydrationWarning>
       <head>
-        {/* the colour-blind palette is a per-device choice (Settings → Display), applied before first paint */}
+        {/* per-device display choices (theme, colour-blind palette), applied before first paint */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{if(localStorage.getItem("finn_cb")==="1")document.documentElement.dataset.cb="1"}catch(e){}`,
+            __html: `try{var d=document.documentElement,t=localStorage.getItem("finn_theme");if(localStorage.getItem("finn_cb")==="1")d.dataset.cb="1";if(t==="light"||t==="dark")d.dataset.theme=t}catch(e){}`,
           }}
         />
       </head>

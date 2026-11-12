@@ -25,8 +25,9 @@
   --sheet-shadow: 0 -8px 32px rgb(22 21 15 / 0.12);
 }
 
+/* Dark: follows the phone's setting unless the visitor chose a theme (header toggle, saved per device) */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --paper: #111110;
     --paper-raised: #191917;
     --ink: #eceae3;
@@ -44,7 +45,33 @@
     --s-revised: #8aa6f0;
     --s-early: #8f8b82;
     --sheet-shadow: 0 -8px 32px rgb(0 0 0 / 0.5);
+  
+    color-scheme: dark;
   }
+}
+:root[data-theme="dark"] {
+    --paper: #111110;
+    --paper-raised: #191917;
+    --ink: #eceae3;
+    --ink-2: #a8a49a;
+    --ink-3: #8f8b82;
+    --rule: #2a2926;
+    --accent: #8aa6f0;
+    --tint: #1d1c19;
+    --up: #45c07f;
+    --down: #f0716a;
+    --s-delivered: #45c07f;
+    --s-partly: #e3a03a;
+    --s-missed: #f0716a;
+    --s-silent: #8f8b82;
+    --s-revised: #8aa6f0;
+    --s-early: #8f8b82;
+    --sheet-shadow: 0 -8px 32px rgb(0 0 0 / 0.5);
+  
+  color-scheme: dark;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
 }
 
 /* Colour-blind-friendly directions (Settings → Display): blue up, orange down. The sign stays either way. */
@@ -55,7 +82,7 @@
   --s-missed: #b45309;
 }
 @media (prefers-color-scheme: dark) {
-  :root[data-cb="1"] {
+  :root[data-cb="1"]:not([data-theme="light"]) {
     --up: #8aa6f0;
     --down: #f59e4b;
     --s-delivered: #8aa6f0;
@@ -206,6 +233,14 @@ details::details-content {
 }
 details[open]::details-content {
   block-size: auto;
+}
+
+/* explicit dark + colour-blind */
+:root[data-theme="dark"][data-cb="1"] {
+  --up: #8aa6f0;
+  --down: #f59e4b;
+  --s-delivered: #8aa6f0;
+  --s-missed: #f59e4b;
 }
 
 /* the holdings sheet (native <dialog>) slides up from the bottom */

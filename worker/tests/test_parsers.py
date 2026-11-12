@@ -113,6 +113,6 @@ def test_xbrl_only_filing_becomes_plain_facts_without_contact_details():
            "<in-capmkt:NameOfContactPersonForIntimation>Mr Kaitav Shah</in-capmkt:NameOfContactPersonForIntimation>"
            "<in-capmkt:EmailIDOfContactPersonForIntimation>svp.inv@sbi.co.in</in-capmkt:EmailIDOfContactPersonForIntimation></x>")
     got = facts(xml)
-    assert ["Type of meeting", "Institutional Investor Meet"] in got
-    assert ["Date of meeting", "17 Nov 2026"] in got and ["Place of meeting", "Singapore"] in got
+    assert ["Meeting", "Institutional Investor Meet"] in got
+    assert ["Date", "17 Nov 2026"] in got and ["Place", "Singapore"] in got
     assert not any("Shah" in v or "@" in v for _, v in got)

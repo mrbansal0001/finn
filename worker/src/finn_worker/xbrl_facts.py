@@ -16,6 +16,16 @@ _SKIP = re.compile(r"^(instant|startDate|endDate|identifier|measure|explicitMemb
 _EMPTY = {"na", "n.a.", "nil", "none", "-", "not applicable", "notlisted", "false", "true"}
 
 
+_SHORT = {
+    "type of meeting": "Meeting", "date of meeting": "Date", "start time of meeting": "Time", "end time of meeting": "Ends",
+    "place of meeting": "Place", "name of meeting": "Event", "mode of meeting": "Mode", "agenda for meeting": "Agenda",
+    "name of fund of analyst investor": "Investor", "name of analyst investor": "Analyst", "name of host of meeting": "Host",
+    "details of other type of meeting": "Format", "type of audio recording": "Recording", "date of call for audio recording": "Call date",
+    "end time of call for audio recording": "Call ended", "date of audio recording posted online": "Posted",
+    "time of audio recording posted online": "Posted at",
+}
+
+
 def _label(tag: str) -> str:
     t = re.sub(r"(Or[A-Z][a-z]+)+", "", tag)                       # MeetingOrCallOrConference -> Meeting
     t = re.sub(r"(For(Which)?Intimation(IsGiven)?|IsScheduled.*|WithWhom.*)$", "", t)
@@ -25,6 +35,10 @@ def _label(tag: str) -> str:
     for long, short in (("time of commencement of", "start time of"), ("time of conclusion of", "end time of"),
                         ("date of disclosure of prior intimation of", "notice date for"), ("uploaded on website of company", "posted online")):
         out = out.replace(long, short)
+    # the forms' long field names, as a person would say them
+    out = _SHORT.get(out, out)
+    if out.startswith("notice date for"):
+        out = "Notice given"
     if len(out) > 44:                                   # cut at a word, never mid-word
         out = out[:44].rsplit(" ", 1)[0] + "…"
     return out[:1].upper() + out[1:] if out else tag
