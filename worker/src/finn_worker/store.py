@@ -93,8 +93,11 @@ def _migrate(con: sqlite3.Connection) -> None:
 
 def connect() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    con = sqlite3.connect(DB_PATH)
+    con = sqlite3.connect(DB_PATH, timeout=30)
     con.row_factory = sqlite3.Row
+    # the worker and a manual script may overlap: readers don't block the writer, a writer waits its turn
+    con.execute("pragma journal_mode=wal")
+    con.execute("pragma busy_timeout=30000")
     _migrate(con)
     con.executescript(SCHEMA)
     return con

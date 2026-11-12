@@ -63,9 +63,13 @@ def main() -> int:
         check("A cannot write rows owned by B", steal.status_code in (401, 403), f"HTTP {steal.status_code}")
         snap = http.get(f"{URL}/rest/v1/snapshot?select=id", headers=as_user(ta))
         check("public snapshot is readable", snap.status_code == 200 and len(snap.json()) == 1)
-        vandal = http.patch(f"{URL}/rest/v1/snapshot?id=eq.current", headers=as_user(ta), json={"payload": {}})
-        still = http.get(f"{URL}/rest/v1/snapshot?select=payload->>generated_at", headers={"apikey": SVC, "Authorization": f"Bearer {SVC}"}).json()
-        check("visitors cannot modify public data", bool(still and still[0].get("generated_at")), f"PATCH HTTP {vandal.status_code}")
+        # a no-op write (id set to itself): if a policy ever regressed, nothing on the live demo changes,
+        # and the returned rows still show whether the write was allowed (audit F12)
+        vandal = http.patch(f"{URL}/rest/v1/snapshot?id=eq.current", headers={**as_user(ta), "Prefer": "return=representation"},
+                            json={"id": "current"})
+        changed = vandal.json() if vandal.status_code == 200 else []
+        check("visitors cannot modify public data", vandal.status_code != 200 or changed == [],
+              f"PATCH HTTP {vandal.status_code}, {len(changed) if isinstance(changed, list) else '?'} rows")
         bad = http.post(f"{URL}/rest/v1/coverage_requests", headers=as_user(ta), json={"symbol": "../../ETC", "status": "queued"})
         check("coverage requests reject non-NSE symbols", bad.status_code in (401, 403), f"HTTP {bad.status_code}")
         good = http.post(f"{URL}/rest/v1/coverage_requests", headers={**as_user(ta), "Prefer": "return=minimal"},
