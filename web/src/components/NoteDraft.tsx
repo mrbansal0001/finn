@@ -7,25 +7,29 @@ export function NoteDraft({ name, company, topic, kind, role }: { name: string; 
   const first = name.replace(/^(Col\.|Dr\.|Mr\.|Ms\.)\s*(\(retd\.\)\s*)?/, "").split(" ")[0];
   const co = company.replace(/ Limited$/, "").replace(/ Ltd\.?$/, "");
   const fact = topic.charAt(0).toLowerCase() + topic.slice(1);
+  // one natural sentence per kind of event; the visitor edits it before sending (nothing is sent from here)
   const what =
     kind === "results" ? `I saw ${co}'s results: ${fact}.`
       : kind === "management_change" ? `I saw the news from ${co}: ${topic}.`
-        : kind === "m_and_a" ? `${co} just announced that ${fact}.`
-          : `${co} filed something I'm trying to read properly: ${topic}.`;
-  const why = role ? `You'd know the context better than most, from your time as ${role}.` : "I'd value your read on it.";
+        : kind === "m_and_a" ? `${co} has announced a deal: ${topic}.`
+          : kind === "move" ? `${co}'s stock moved sharply (${fact}).`
+            : kind === "litigation" ? `I saw ${co}'s legal update: ${topic}.`
+              : kind === "fund_raise" ? `${co} is raising capital: ${topic}.`
+                : `I saw ${co}'s update: ${topic}.`;
+  const why = role ? `You'd know the context better than most, from your time as ${role}.` : "I'd value your read on what it means.";
   const [text, setText] = useState(`Hi ${first}, ${what} ${why} Could we speak for 15 minutes this week?`);
   const [copied, setCopied] = useState<"" | "ok" | "failed">("");
   return (
     <div className="mt-4">
-      <label htmlFor="note" className="text-[0.75rem] text-ink-3">
-        Draft a note
+      <label htmlFor="note" className="text-meta text-ink-3">
+        Draft a note (edit it, then copy; nothing is sent from FINN)
       </label>
       <textarea
         id="note"
         value={text}
         onChange={(e) => setText(e.target.value)}
-        rows={4}
-        className="mt-1 w-full rounded-md border border-ink-3 bg-paper-raised p-2 text-[1rem] leading-relaxed focus:border-accent focus:outline-none"
+        rows={5}
+        className="mt-1 w-full rounded-md border border-ink-3 bg-paper-raised p-3 text-body focus:border-accent focus:outline-none"
       />
       <button
         type="button"
@@ -39,11 +43,11 @@ export function NoteDraft({ name, company, topic, kind, role }: { name: string; 
           }
           setTimeout(() => setCopied(""), 2500);
         }}
-        className="mt-1 min-h-[40px] rounded-md bg-ink px-4 text-[0.875rem] text-paper"
+        className="mt-2 min-h-[44px] rounded-md bg-ink px-5 text-small text-paper"
       >
         {copied === "ok" ? "Copied" : "Copy"}
       </button>
-      <span role="status" className="ml-2 text-[0.75rem] text-ink-3">
+      <span role="status" className="ml-3 text-meta text-ink-3">
         {copied === "failed" ? "Couldn't copy here; select the text instead." : ""}
       </span>
     </div>

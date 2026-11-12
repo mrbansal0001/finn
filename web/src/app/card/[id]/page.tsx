@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BackLink } from "@/components/BackLink";
 import { Dock } from "@/components/Dock";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -18,7 +19,7 @@ const KIND_WEIGHT: Record<string, number> = {
 
 export default function CardPage({ params }: PageProps<"/card/[id]">) {
   return (
-    <Suspense fallback={<main aria-busy="true" className="pt-12 text-[0.8125rem] text-ink-3">Opening…</main>}>
+    <Suspense fallback={<main aria-busy="true" className="pt-12 text-small text-ink-3">Opening…</main>}>
       <Detail params={params} />
     </Suspense>
   );
@@ -35,66 +36,70 @@ async function Detail({ params }: { params: PageProps<"/card/[id]">["params"] })
 
   return (
     <main>
-      <nav className="text-[0.875rem]">
-        <Link href="/" className="inline-flex min-h-[44px] items-center text-ink-2 hover:text-ink">‹ Edition</Link>
-      </nav>
-      <p className="kicker text-ink-3">
-        {KIND_LABEL[card.kind] ?? "Filing"} · <Link href={`/c/${card.symbol}`} className="text-ink-2">{card.symbol}</Link> ·{" "}
-        <span className="num normal-case tracking-normal">{when(card.at)}</span>
+      <BackLink fallback="/" label="Edition" />
+      <p className="kicker flex flex-wrap items-baseline gap-x-1.5 text-ink-3">
+        <span>{KIND_LABEL[card.kind] ?? "Filing"}</span>
+        <span aria-hidden>·</span>
+        <Link href={`/c/${card.symbol}`} className="tap text-ink-2 hover:text-ink">{card.symbol}</Link>
+        <span aria-hidden>·</span>
+        <span className="num font-normal normal-case tracking-normal">{when(card.at)}</span>
       </p>
-      <h1 className="mt-1.5 font-serif text-[1.625rem] leading-snug">{card.headline ?? `${card.company}: ${card.nse_subject}`}</h1>
-      {card.why && <p className="mt-2 text-[1rem] leading-relaxed text-ink-2">{card.why}</p>}
+      <h1 className="mt-1.5 font-serif text-title">{card.headline ?? `${card.company}: ${card.nse_subject}`}</h1>
+      <p className="mt-0.5 text-small text-ink-3">{card.company.replace(/ Limited$/, "")}</p>
+      {card.why && <p className="mt-3 text-body text-ink-2">{card.why}</p>}
       {card.facts.results && <ResultsTable r={card.facts.results} />}
 
       {people.length > 0 && (
-        <section className="mt-6">
-          <h2 className="kicker border-b border-ink pb-2">From the filing</h2>
+        <section className="mt-8">
+          <h2 className="section-h">From the filing</h2>
           {people.map((p) => (
-            <div key={p.name} className="py-2 text-[0.9375rem]">
+            <div key={p.name} className="py-2.5 text-body">
               <p>
                 <span className="font-medium">{p.name}</span> <span className="text-ink-2">· {p.change} · {p.role}</span>
               </p>
               {p.orgs.length > 0 && (
-                <p className="text-[0.875rem] text-ink-2">
+                <p className="text-small text-ink-2">
                   {p.orgs.map((o) => `${o.org}${o.start ? ` ${o.start}–${o.end ?? ""}` : ""}`).join(" · ")}
                 </p>
               )}
-              {p.schools.length > 0 && <p className="text-[0.8125rem] text-ink-3">{p.schools.join(" · ")}</p>}
+              {p.schools.length > 0 && <p className="text-small text-ink-3">{p.schools.join(" · ")}</p>}
             </div>
           ))}
-          <p className="mt-1 text-[0.875rem] text-ink-2">{overlapLine(card.network, people, snap.contacts.length, snap.network_status)}</p>
+          <p className="mt-2 rounded-md bg-paper-raised px-3 py-2 text-small text-ink-2">{overlapLine(card.network, people, snap.contacts.length, snap.network_status)}</p>
         </section>
       )}
 
       {card.network.length > 0 && (
-        <section className="mt-6">
-          <h2 className="kicker border-b border-ink pb-2">Who can explain this</h2>
-          {card.network[0]?.best_reason && card.network[0].best_reason !== card.network[0].relation && (
-            <p className="mt-2 text-[0.875rem] text-ink-2">
-              <span className="font-medium text-ink">Best placed: {card.network[0].name}.</span> {card.network[0].best_reason}.
-            </p>
-          )}
-          {card.network.map((l) => (
-            <NetworkLine key={l.contact_id} line={l} asOf={snap.data_until} from={card.id} />
+        <section className="mt-8">
+          <h2 className="section-h">Who can explain this</h2>
+          {/* the first person carries the "best placed" reason under their own line (no repeat above it) */}
+          {card.network.map((l, i) => (
+            <NetworkLine
+              key={l.contact_id}
+              line={l}
+              asOf={snap.data_until}
+              from={card.id}
+              reason={i === 0 && l.best_reason && l.best_reason !== l.relation ? l.best_reason : undefined}
+            />
           ))}
         </section>
       )}
 
       {card.sources.length > 0 && (
-        <section className="mt-6">
-          <h2 className="kicker border-b border-ink pb-2">Sources</h2>
+        <section className="mt-8">
+          <h2 className="section-h">Sources</h2>
           <SourceChips sources={card.sources} />
         </section>
       )}
 
       <section className="mt-8">
-        <h2 className="kicker border-b border-ink pb-2">Why this is here</h2>
-        <ul className="mt-2 list-disc pl-5 text-[0.875rem] text-ink-2">
+        <h2 className="section-h">Why this is here</h2>
+        <ul className="mt-2 list-disc space-y-0.5 pl-5 text-small text-ink-2">
           {reasons(card, weight, ageH).map((r) => (
             <li key={r}>{r}</li>
           ))}
         </ul>
-        <details className="mt-2 text-[0.75rem] text-ink-3">
+        <details className="mt-1 text-meta text-ink-3">
           <summary className="inline-flex min-h-[44px] items-center">How the order is computed</summary>
           <dl className="grid grid-cols-[1fr_auto] gap-y-1">
             <dt>Tier: {card.tier}</dt><dd className="num text-right">+{TIER_WEIGHT[card.tier]}</dd>

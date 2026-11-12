@@ -93,9 +93,11 @@ export function applyPrefs(ed: Edition, prefs: Prefs, moveCards: Card[] = []): E
   const legacy = moveCards.length ? [] : [...ed.leads, ...ed.more].filter((c) => c.kind === "move");
   let folded = 0;
   const kept: Card[] = [];
+  const mutedCards: Card[] = [];
   for (const c of [...ed.leads, ...ed.more].filter((c) => c.kind !== "move").concat(moves, legacy)) {
     if (muted.has(c.kind)) {
       folded++;
+      mutedCards.push(c);
       continue;
     }
     kept.push(c);
@@ -104,7 +106,7 @@ export function applyPrefs(ed: Edition, prefs: Prefs, moveCards: Card[] = []): E
   const leads = kept.filter((c) => c.tier === "lead").slice(0, prefs.leads);
   const more = kept.filter((c) => !leads.includes(c));
   const routine: [string, number][] = folded ? [...ed.routine, ["Muted by you", folded]] : ed.routine;
-  return { ...ed, leads, more, routine, routine_total: ed.routine_total + folded };
+  return { ...ed, leads, more, routine, routine_total: ed.routine_total + folded, muted: mutedCards };
 }
 
 /** Export timestamps carry no offset and are IST. */

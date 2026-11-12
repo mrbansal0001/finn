@@ -1,50 +1,79 @@
 import Link from "next/link";
-import type { Card } from "@/lib/types";
-import { KIND_LABEL, when } from "@/lib/format";
-import { ResultsTable } from "./ResultsTable";
+import type { Card, ResultsFacts } from "@/lib/types";
+import { KIND_LABEL, arrow, dirClass, pct, when } from "@/lib/format";
 import { NetworkLine } from "./NetworkLine";
-import { SourceChips } from "./SourceChips";
 
 /**
- * One Edition card. Copy schema: kicker · headline (verb + fact) · why (must hold a number)
- * · results table (if any) · network line · sources. No box, no shadow: the list draws
- * hairlines between cards.
+ * One Edition card, as a summary: kicker · headline · one short "why" · (results) one line of key figures ·
+ * one network line. The whole card opens the detail, where the full table, every source and the people
+ * sit. No box, no shadow: the list draws hairlines between cards.
  */
-export function EditionCard({ card, refTime, compact = false }: { card: Card; refTime: string; compact?: boolean }) {
+export function EditionCard({
+  card,
+  refTime,
+  compact = false,
+  showNetwork = true,
+}: {
+  card: Card;
+  refTime: string;
+  compact?: boolean;
+  showNetwork?: boolean;
+}) {
   const results = card.facts?.results;
   return (
-    <article className={compact ? "py-3" : "py-5"} aria-labelledby={`h-${card.id}`}>
-      <p className="kicker flex flex-wrap items-baseline gap-x-2 text-ink-3">
+    <article className={`relative ${compact ? "py-3.5" : "py-5"}`} aria-labelledby={`h-${card.id}`}>
+      <p className="kicker flex flex-wrap items-baseline gap-x-1.5 text-ink-3">
         <span className={card.tier === "lead" ? "text-ink" : ""}>{KIND_LABEL[card.kind] ?? "Filing"}</span>
         <span aria-hidden>·</span>
-        <Link href={`/c/${card.symbol}`} className="text-ink-2 underline-offset-2 hover:underline">
+        <Link href={`/c/${card.symbol}`} className="above-card tap text-ink-2 hover:text-ink">
           {card.symbol}
         </Link>
         <span aria-hidden>·</span>
-        <time dateTime={card.at} className="num normal-case tracking-normal">{when(card.at, refTime)}</time>
+        <time dateTime={card.at} className="num font-normal normal-case tracking-normal">
+          {when(card.at, refTime)}
+        </time>
       </p>
 
-      <h2
-        id={`h-${card.id}`}
-        className={`mt-1.5 font-serif leading-snug text-ink ${compact ? "text-[1.0625rem]" : "text-[1.3125rem]"}`}
-      >
-        <Link href={`/card/${card.id}`} className="hover:underline decoration-rule underline-offset-4">
+      <h2 id={`h-${card.id}`} className={`mt-1 font-serif text-ink ${compact ? "text-subhead" : "text-headline"}`}>
+        <Link href={`/card/${card.id}`} className="card-link decoration-rule underline-offset-4 hover:underline">
           {card.headline ?? <PendingHeadline card={card} />}
         </Link>
       </h2>
 
-      {!compact && card.why && <p className="mt-1.5 text-[0.9375rem] leading-relaxed text-ink-2">{card.why}</p>}
+      {!compact && card.why && <p className="mt-1.5 line-clamp-3 text-small text-ink-2">{card.why}</p>}
 
-      {!compact && results && <ResultsTable r={results} />}
+      {results?.comparatives && <Figures r={results} />}
 
-      {!compact && card.needs_read && card.headline && (
-        <p className="mt-1.5 text-[0.8125rem] italic text-ink-3">FINN reads the full filing on its next run.</p>
+      {showNetwork && card.network?.length > 0 && (
+        <div className="above-card">
+          <NetworkLine line={card.network[0]} compact asOf={refTime} from={card.id} oneLine />
+        </div>
       )}
-
-      {card.network?.length > 0 && <NetworkLine line={card.network[0]} compact={compact} asOf={refTime} from={card.id} />}
-
-      {!compact && card.sources.length > 0 && <SourceChips sources={card.sources} />}
     </article>
+  );
+}
+
+/** The results headline numbers on one line: YoY, coloured with an arrow (never colour alone). */
+function Figures({ r }: { r: ResultsFacts }) {
+  const c = r.comparatives!;
+  const items: [string, number | null | undefined][] = c.is_bank
+    ? [["NII", c.yoy?.nii], ["Op. profit", c.yoy?.ppop], ["PAT", c.yoy?.pat]]
+    : [["Revenue", c.yoy?.revenue], ...(c.is_lender ? [] : [["EBITDA", c.yoy?.ebitda] as [string, number | null | undefined]]), ["PAT", c.yoy?.pat]];
+  const shown = items.filter(([, v]) => v != null);
+  if (!shown.length) return null;
+  return (
+    <p className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-small" aria-label="Year on year">
+      <span className="text-meta uppercase tracking-wide text-ink-3">YoY</span>
+      {shown.map(([label, v]) => (
+        <span key={label} className="whitespace-nowrap">
+          <span className="text-ink-3">{label}</span>{" "}
+          <span className={`num ${dirClass(v)}`}>
+            {pct(v)}
+            <span aria-hidden className="ml-0.5 text-[0.7em]">{arrow(v)}</span>
+          </span>
+        </span>
+      ))}
+    </p>
   );
 }
 
@@ -53,9 +82,7 @@ function PendingHeadline({ card }: { card: Card }) {
   return (
     <span>
       {card.company.replace(/ Limited$/, "")} filed: {card.nse_subject.toLowerCase()}
-      <span className="mt-1 block font-sans text-[0.8125rem] italic text-ink-3">
-        FINN reads this filing on its next run; open it below meanwhile.
-      </span>
+      <span className="mt-1 block font-sans text-small italic text-ink-3">FINN reads this filing on its next run.</span>
     </span>
   );
 }

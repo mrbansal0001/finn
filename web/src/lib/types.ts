@@ -78,6 +78,9 @@ export type Edition = {
   more: Card[];
   routine: [string, number][];
   routine_total: number;
+  // each folded filing, so the fold can be opened (worker cards.build)
+  routine_items?: { label: string; symbol: string; subject: string; at: string; link: string | null }[];
+  muted?: Card[];           // cards the visitor's settings folded away (app-side, lib/prefs.ts)
   counts: { filings: number; cards: number };
 };
 

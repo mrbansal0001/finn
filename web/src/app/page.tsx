@@ -3,19 +3,24 @@ import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { alertsFor, applyPrefs, parsePrefs, PREFS_COOKIE, type Alert, type Prefs } from "@/lib/prefs";
 import { getView } from "@/lib/data";
-import type { WindowKey } from "@/lib/types";
+import type { Edition, WindowKey } from "@/lib/types";
 import { longDate, when } from "@/lib/format";
 import { EditionCard } from "@/components/EditionCard";
 import { Dock } from "@/components/Dock";
+import { BriefButton } from "@/components/BriefButton";
 import { SinceLastVisit } from "@/components/SinceLastVisit";
-import type { Edition } from "@/lib/types";
 
-const WINDOWS: { key: WindowKey; label: string }[] = [
-  { key: "24h", label: "24 hours" },
-  { key: "3d", label: "3 days" },
-  { key: "7d", label: "7 days" },
-  { key: "30d", label: "30 days" },
+const WINDOWS: { key: WindowKey; label: string; short: string }[] = [
+  { key: "24h", label: "24 hours", short: "24h" },
+  { key: "3d", label: "3 days", short: "3d" },
+  { key: "7d", label: "7 days", short: "7d" },
+  { key: "30d", label: "30 days", short: "30d" },
 ];
+const WIDER: Record<string, { key: string; label: string } | undefined> = {
+  "24h": { key: "3d", label: "3 days" },
+  "3d": { key: "7d", label: "7 days" },
+  "7d": { key: "30d", label: "30 days" },
+};
 
 const LEAD_COUNT_WORDS = ["No lead story", "One thing matters", "Two things matter", "Three things matter", "Four things matter", "Five things matter"];
 
@@ -30,8 +35,8 @@ export default function EditionPage({ searchParams }: PageProps<"/">) {
 function Loading() {
   return (
     <main aria-busy="true">
-      <h1 className="font-serif text-[1.75rem] font-semibold tracking-tight">FINN</h1>
-      <p className="mt-1 text-[0.8125rem] text-ink-3">Preparing your edition…</p>
+      <h1 className="font-serif text-display font-semibold tracking-tight">FINN</h1>
+      <p className="mt-1 text-small text-ink-3">Preparing your edition…</p>
     </main>
   );
 }
@@ -47,20 +52,19 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
   const ed = applyPrefs(structuredClone(base), prefs, moveCards);
   const until = snap.data_until;
   const alerts = moveCards.length ? alertsFor(moveCards, ed.since, ed.until, prefs) : legacyAlerts(ed, prefs);
+  const wider = sinceVisit ? undefined : WIDER[w];
 
   return (
     <main>
-      <header className="flex items-baseline justify-between">
-        <h1 className="font-serif text-[1.75rem] font-semibold tracking-tight">FINN</h1>
-        <p className="num text-[0.8125rem] text-ink-2">{longDate(until)}</p>
+      <header className="flex items-center justify-between">
+        <h1 className="font-serif text-display font-semibold tracking-tight">FINN</h1>
+        <BriefButton edition={ed} alerts={alerts.length} />
       </header>
-
-      <p className="mt-1 text-[0.8125rem] text-ink-2">
-        Your edition since <span className="num">{when(ed.since)}</span> · {snap.portfolio.length} holdings
+      <p className="text-small text-ink-2">
+        <span className="num">{longDate(until)}</span> · {snap.portfolio.length} holdings · since{" "}
+        <span className="num">{when(ed.since)}</span>
       </p>
-      <p className="mt-1 text-[0.75rem] leading-snug text-ink-3">
-        A demo investor&apos;s NSE portfolio. Filings, prices and results are real; the people in your network are synthetic.
-      </p>
+      <p className="mt-0.5 text-meta text-ink-3">Demo portfolio · real NSE filings and prices · synthetic network</p>
 
       <nav aria-label="Edition window" className="-mx-1 mt-3 flex gap-1 overflow-x-auto">
         <SinceLastVisit active={!!sinceVisit} seen={until} />
@@ -69,39 +73,41 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
             key={x.key}
             href={x.key === "24h" ? "/" : `/?w=${x.key}`}
             aria-current={x.key === w && !sinceVisit ? "page" : undefined}
-            className={`inline-flex min-h-[44px] items-center whitespace-nowrap rounded-full px-3 text-[0.8125rem] ${
+            aria-label={x.label}
+            className={`inline-flex min-h-[44px] min-w-[44px] items-center justify-center whitespace-nowrap rounded-full px-3.5 text-small transition-colors max-[359px]:px-3 ${
               x.key === w && !sinceVisit ? "bg-ink text-paper" : "text-ink-2 hover:text-ink"
             }`}
           >
-            {x.label}
+            {/* very narrow phones get the short form so all four fit */}
+            <span className="max-[359px]:hidden">{x.label}</span>
+            <span className="hidden max-[359px]:inline">{x.short}</span>
           </Link>
         ))}
       </nav>
 
       {snap.network_status === "unavailable" && (
-        <p className="mt-4 rounded-md border border-rule px-3 py-2 text-[0.8125rem] text-ink-2">
-          Your private demo network didn&apos;t load just now (too many new visitors at once, or cookies blocked). Reload in a
-          minute; filings and numbers are unaffected.
+        <p className="mt-4 rounded-md border border-rule px-3 py-2 text-small text-ink-2">
+          Your private demo network didn&apos;t load just now. Reload in a minute; filings and numbers are unaffected.
         </p>
       )}
 
       <Alerts hits={alerts} prefs={prefs} />
 
-      <section aria-labelledby="leads" className="mt-6">
-        <h2 id="leads" className="kicker border-b border-ink pb-2 text-ink">
+      <section aria-labelledby="leads" className="mt-7">
+        <h2 id="leads" className="section-h text-ink">
           {LEAD_COUNT_WORDS[ed.leads.length]}
         </h2>
         {ed.leads.length === 0 ? (
-          <p className="py-6 font-serif text-[1.25rem] leading-snug">
-            {ed.more.length > 0
-              ? `No single item leads this window. ${ed.more.length} update${ed.more.length === 1 ? "" : "s"} worth reviewing below${alerts.length ? `, and ${alerts.length} rule match${alerts.length === 1 ? "" : "es"} above` : ""}.`
-              : alerts.length
-                ? `No filing stands out; ${alerts.length} price/volume rule match${alerts.length === 1 ? "" : "es"} above.`
-                : `Quiet window. ${ed.routine_total} routine filing${ed.routine_total === 1 ? "" : "s"}, nothing else.`}
-            {w !== "30d" && (
-              <Link href={`/?w=${w === "24h" ? "3d" : w === "3d" ? "7d" : "30d"}`} className="mt-2 block font-sans text-[0.875rem] text-accent">
-                Widen the window ›
-              </Link>
+          <p className="py-4 text-body text-ink-2">
+            No single item leads this window
+            {ed.more.length ? `; ${ed.more.length} worth a look below.` : alerts.length ? "; see the alerts above." : "."}
+            {wider && (
+              <>
+                {" "}
+                <Link href={`/?w=${wider.key}`} className="tap whitespace-nowrap text-accent">
+                  See {wider.label} ›
+                </Link>
+              </>
             )}
           </p>
         ) : (
@@ -115,11 +121,11 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
 
       {ed.more.length > 0 && (
         <details className="group mt-2 border-t border-rule" open={ed.leads.length === 0}>
-          <summary className="flex min-h-[48px] items-center justify-between text-[0.9375rem]">
+          <summary className="flex min-h-[52px] items-center justify-between text-body">
             <span>
-              <span className="num">{ed.more.length}</span> {ed.leads.length ? "more " : ""}worth a look
+              Worth a look <span className="num text-ink-3">· {ed.more.length}</span>
             </span>
-            <span aria-hidden className="text-ink-3 transition-transform group-open:rotate-90">›</span>
+            <Chevron />
           </summary>
           <div className="hair pb-2">
             {ed.more.map((c) => (
@@ -129,74 +135,135 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
         </details>
       )}
 
-      {ed.routine_total > 0 && (
-        <details className="group border-t border-rule">
-          <summary className="flex min-h-[48px] items-center justify-between text-[0.9375rem] text-ink-2">
-            <span>
-              <span className="num">{ed.routine_total}</span> routine filings, folded
-            </span>
-            <span aria-hidden className="text-ink-3 transition-transform group-open:rotate-90">›</span>
-          </summary>
-          <ul className="pb-3 text-[0.875rem] text-ink-2">
-            {ed.routine.map(([label, n]) => (
-              <li key={label} className="flex justify-between py-1">
-                <span>{label}</span>
-                <span className="num text-ink-3">{n}</span>
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
+      {ed.routine_total > 0 && <Routine ed={ed} refTime={until} />}
 
-      <p className="mt-10 text-center font-serif text-[0.9375rem] italic text-ink-3">· end of edition ·</p>
-      <p className="mt-2 text-center text-[0.75rem] text-ink-3">
-        Filings to <span className="num">{when(snap.freshness?.filings_until ?? until)}</span> IST
-        {snap.freshness?.price_session && (
-          <>
-            {" "}· prices to the <span className="num">{shortDay(snap.freshness.price_session)}</span> close
-          </>
-        )}
-        {" "}· NSE filings and bhavcopy
-      </p>
+      <footer className="mt-12 text-center">
+        <p className="font-serif text-body italic text-ink-3">· end of edition ·</p>
+        <p className="mt-2 text-meta text-ink-3">
+          Filings to <span className="num">{when(snap.freshness?.filings_until ?? until)}</span> IST
+          {snap.freshness?.price_session && (
+            <>
+              {" "}· prices to the <span className="num">{shortDay(snap.freshness.price_session)}</span> close
+            </>
+          )}
+          <br />
+          NSE filings and bhavcopy
+        </p>
+      </footer>
 
-      <Dock edition={ed} alerts={alerts.length} />
+      <Dock />
     </main>
   );
 }
 
-/** Threshold crossings in this window, by the investor's own rules: every matching session, each opening its
- *  own card. In-app only; nothing is sent to a phone or inbox. */
+function Chevron() {
+  return (
+    <span aria-hidden className="text-ink-3 transition-transform duration-200 group-open:rotate-90">
+      ›
+    </span>
+  );
+}
+
+/** Price/volume rule matches in this window, by the investor's own rules: every matching session, each
+ *  opening its own card. In-app only; nothing is sent to a phone or inbox. */
 function Alerts({ hits, prefs }: { hits: Alert[]; prefs: Prefs }) {
   if (!hits.length) return null;
-  const row = ({ card, rules }: Alert) => (
-    <li key={card.id} className="flex min-h-[44px] items-center justify-between gap-2 border-t border-rule first:border-t-0">
-      <Link href={`/card/${card.id}`} className="inline-flex min-h-[44px] items-center gap-2 text-ink">
-        {card.symbol}
-        <span className="num text-[0.75rem] text-ink-3">{shortDay(card.at)}</span>
-      </Link>
-      <span className="num text-ink-2">{rules.join(" · ")}</span>
-    </li>
-  );
-  return (
-    <section aria-labelledby="alerts" className="mt-5 rounded-md border border-rule px-3 py-2">
-      <h2 id="alerts" className="flex items-baseline justify-between text-[0.75rem] uppercase tracking-wider text-ink-3">
-        <span>
-          {hits.length} rule match{hits.length === 1 ? "" : "es"} · at the close
-        </span>
-        <Link href="/settings" className="normal-case tracking-normal text-accent">
-          your rules: ±{prefs.price_pct}% · {prefs.volume_x}× volume ›
+  const row = ({ card, rules }: Alert) => {
+    const pct = (card.facts as { change_pct?: number }).change_pct ?? 0;
+    const price = rules.find((r) => r.endsWith("%"));
+    const vol = rules.find((r) => r.includes("volume"));
+    return (
+      <li key={card.id} className="border-t border-rule first:border-t-0">
+        <Link href={`/card/${card.id}`} className="flex min-h-[48px] items-center justify-between gap-3 px-3 hover:bg-paper">
+          <span className="min-w-0 truncate">
+            <span className="text-small font-medium text-ink">{card.symbol}</span>{" "}
+            <span className="num text-meta text-ink-3">{shortDay(card.at)}</span>
+          </span>
+          <span className="num flex shrink-0 items-baseline gap-3 text-small">
+            {price && <span className={pct >= 0 ? "text-up" : "text-down"}>{price}</span>}
+            {vol && <span className="text-ink-2">{vol.replace(" volume", " vol")}</span>}
+          </span>
         </Link>
-      </h2>
-      <ul className="mt-1 text-[0.875rem]">{hits.slice(0, 5).map(row)}</ul>
+      </li>
+    );
+  };
+  return (
+    <section aria-labelledby="alerts" className="mt-5 rounded-md border border-rule bg-paper-raised/50">
+      <div className="flex items-baseline justify-between gap-3 px-3 pt-2.5">
+        <h2 id="alerts" className="kicker text-ink-2">
+          Alerts · <span className="num">{hits.length}</span> <span className="font-normal normal-case tracking-normal text-ink-3">at the close</span>
+        </h2>
+        <Link href="/settings" className="tap shrink-0 text-meta text-accent">
+          ±{prefs.price_pct}% · {prefs.volume_x}× ›
+        </Link>
+      </div>
+      <ul className="mt-1">{hits.slice(0, 5).map(row)}</ul>
       {hits.length > 5 && (
-        <details className="group">
-          <summary className="flex min-h-[44px] items-center text-[0.8125rem] text-accent">
+        <details className="group border-t border-rule">
+          <summary className="flex min-h-[44px] items-center justify-between px-3 text-small text-accent">
             View all {hits.length}
+            <Chevron />
           </summary>
-          <ul className="text-[0.875rem]">{hits.slice(5).map(row)}</ul>
+          <ul>{hits.slice(5).map(row)}</ul>
         </details>
       )}
     </section>
+  );
+}
+
+/** The fold, openable: each group lists its filings with time and link. */
+function Routine({ ed, refTime }: { ed: Edition; refTime: string }) {
+  const items = ed.routine_items ?? [];
+  return (
+    <details className="group border-t border-rule">
+      <summary className="flex min-h-[52px] items-center justify-between text-body text-ink-2">
+        <span>
+          Routine filings, folded <span className="num text-ink-3">· {ed.routine_total}</span>
+        </span>
+        <Chevron />
+      </summary>
+      <ul className="pb-3">
+        {ed.routine.map(([label, n]) => {
+          const mine = label === "Muted by you" ? null : items.filter((x) => x.label === label);
+          return (
+            <li key={label}>
+              <details className="group/inner">
+                <summary className="flex min-h-[44px] items-center justify-between text-small text-ink-2">
+                  <span>{label}</span>
+                  <span className="num flex items-center gap-2 text-ink-3">
+                    {n}
+                    <span aria-hidden className="transition-transform duration-200 group-open/inner:rotate-90">›</span>
+                  </span>
+                </summary>
+                <ul className="mb-2 border-l border-rule pl-3">
+                  {mine
+                    ? mine.map((x, i) => (
+                        <li key={i} className="py-1.5 text-small">
+                          <span className="font-medium text-ink-2">{x.symbol}</span>{" "}
+                          <span className="text-ink-2">{x.subject}</span>{" "}
+                          <span className="num text-meta text-ink-3">{when(x.at, refTime)}</span>
+                          {x.link && (
+                            <a href={x.link} target="_blank" rel="noopener noreferrer" className="tap ml-1.5 text-meta text-accent">
+                              filing ↗
+                            </a>
+                          )}
+                        </li>
+                      ))
+                    : (ed.muted ?? []).map((c) => (
+                        <li key={c.id} className="py-1.5 text-small">
+                          <Link href={`/card/${c.id}`} className="text-ink-2 hover:text-ink">
+                            <span className="font-medium">{c.symbol}</span> {c.headline ?? c.nse_subject}
+                          </Link>
+                        </li>
+                      ))}
+                  {mine && mine.length === 0 && <li className="py-1.5 text-small text-ink-3">Counted; the individual filings arrive with the next update.</li>}
+                </ul>
+              </details>
+            </li>
+          );
+        })}
+      </ul>
+    </details>
   );
 }
 
@@ -210,12 +277,22 @@ function shortDay(s: string): string {
 }
 
 /** Cards newer than the data the visitor last saw (from the 30-day edition). `since` is the data_until of
- *  that visit, not the wall clock, so filings that arrived late with earlier timestamps are not lost.
- *  Routine counts are not time-split in the export, so the fold row is omitted rather than guessed. */
+ *  that visit, not the wall clock, so filings that arrived late with earlier timestamps are not lost. */
 function sinceEdition(ed30: Edition, since: string): Edition {
   const ist = (s: string) => Date.parse(/[+Z]/.test(s.slice(10)) ? s : `${s}+05:30`);
   const t = ist(since);
   const fresh = (c: Edition["leads"][number]) => ist(c.at) > t;
   const all = [...ed30.leads, ...ed30.more].filter(fresh);
-  return { ...ed30, since, leads: all.filter((c) => c.tier === "lead"), more: all.filter((c) => c.tier !== "lead"), routine: [], routine_total: 0 };
+  const items = (ed30.routine_items ?? []).filter((x) => ist(x.at) > t);
+  const counts = new Map<string, number>();
+  for (const x of items) counts.set(x.label, (counts.get(x.label) ?? 0) + 1);
+  return {
+    ...ed30,
+    since,
+    leads: all.filter((c) => c.tier === "lead"),
+    more: all.filter((c) => c.tier !== "lead"),
+    routine: [...counts.entries()].sort((a, b) => b[1] - a[1]),
+    routine_total: items.length,
+    routine_items: items,
+  };
 }

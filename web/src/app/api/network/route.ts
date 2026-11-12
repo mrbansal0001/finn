@@ -18,11 +18,11 @@ export async function GET(request: Request) {
     .filter((m): m is Hit => m !== null)
     .sort((a, b) => b.score - a.score)
     .slice(0, 6)
-    .map(({ id, name, why }) => ({ id, name, why }));
+    .map(({ id, name, why, match }) => ({ id, name, why, match }));
   return Response.json(out);
 }
 
-type Hit = { id: string; name: string; why: string; score: number };
+type Hit = { id: string; name: string; why: string; score: number; match: "name" | "theme" | "employer" | "school" | "near" };
 
 function span(start?: string | null, end?: string | null) {
   const y = (s?: string | null) => (s ? s.slice(0, 4) : "");
@@ -31,24 +31,27 @@ function span(start?: string | null, end?: string | null) {
 
 function match(c: Contact, q: string): Hit | null {
   const words = q.split(/\s+/).filter((w) => w.length > 1);
-  const has = (s: string | null | undefined) => !!s && (s.toLowerCase().includes(q) || words.every((w) => s.toLowerCase().includes(w)));
+  // a word must start the way the query does: "chem" finds "chemicals", not "schemes"
+  const starts = (s: string, w: string) => new RegExp(`(^|[^a-z0-9])${w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i").test(s);
+  const has = (s: string | null | undefined) => !!s && (starts(s, q) || words.every((w) => starts(s, w)));
   if (c.name.toLowerCase().split(/\s+/).some((t) => t.startsWith(q)) || c.name.toLowerCase().startsWith(q))
-    return { id: c.id, name: c.name, score: 100, why: `${c.current?.role ?? ""}, ${c.current?.org ?? ""}`.replace(/^, |, $/g, "") };
-  const dom = (c.domains ?? []).find((d) => has(d) || (q.length >= 4 && q.includes(d.toLowerCase())));
-  if (dom) return { id: c.id, name: c.name, score: 85, why: `knows ${dom} · ${c.current?.role ?? ""}, ${c.current?.org ?? ""}` };
+    return { id: c.id, name: c.name, score: 100, match: "name", why: `${c.current?.role ?? ""}, ${c.current?.org ?? ""}`.replace(/^, |, $/g, "") };
+  const dom = (c.domains ?? []).find((d) => has(d) || (q.length >= 4 && starts(q, d.toLowerCase())));
+  if (dom) return { id: c.id, name: c.name, score: 85, match: "theme", why: `knows ${dom} · ${c.current?.role ?? ""}, ${c.current?.org ?? ""}` };
   const job = (c.history ?? []).find((h) => has(h.org) || (h.symbol && h.symbol.toLowerCase() === q));
   if (job)
     return {
       id: c.id,
       name: c.name,
       score: job.end ? 80 : 75,
+      match: "employer",
       why: job.end ? `was ${job.role} at ${job.org}, ${span(job.start, job.end)}` : `works at ${job.org} now (${job.role}) · insider`,
     };
-  if (has(c.current?.org)) return { id: c.id, name: c.name, score: 75, why: `works at ${c.current.org} now (${c.current.role}) · insider` };
+  if (has(c.current?.org)) return { id: c.id, name: c.name, score: 75, match: "employer", why: `works at ${c.current.org} now (${c.current.role}) · insider` };
   const school = (c.education ?? []).find((e) => has(e.school));
-  if (school) return { id: c.id, name: c.name, score: 60, why: `studied at ${school.school} (${school.year})` };
+  if (school) return { id: c.id, name: c.name, score: 60, match: "school", why: `studied at ${school.school} (${school.year})` };
   // nearest theme: a distinctive word in common ("rural lending" -> "consumer lending"), said as such
-  const near = (c.domains ?? []).find((d) => words.some((w) => w.length >= 5 && d.toLowerCase().includes(w)));
-  if (near) return { id: c.id, name: c.name, score: 40, why: `closest match: knows ${near} · ${c.current?.role ?? ""}` };
+  const near = (c.domains ?? []).find((d) => words.some((w) => w.length >= 5 && starts(d, w)));
+  if (near) return { id: c.id, name: c.name, score: 40, match: "near", why: `closest match: knows ${near} · ${c.current?.role ?? ""}` };
   return null;
 }

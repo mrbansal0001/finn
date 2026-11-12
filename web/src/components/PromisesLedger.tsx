@@ -50,11 +50,11 @@ export function PromisesLedger({ ledger: built, verifiers = {} }: { ledger: Ledg
 
   return (
     <section aria-labelledby="promises">
-      <h2 id="promises" className="kicker border-b border-ink pb-2">
+      <h2 id="promises" className="section-h">
         Promised vs delivered · last 4 calls
       </h2>
       {source === "reference" && (
-        <p className="mt-2 rounded-sm border border-rule px-2 py-1 text-[0.75rem] text-ink-2">
+        <p className="mt-2 rounded-sm border border-rule px-2 py-1 text-meta text-ink-2">
           Showing the hand-checked reference, not FINN&apos;s own ledger.{" "}
           <button onClick={() => setSource("built")} className="min-h-[32px] text-accent">
             Back to FINN&apos;s
@@ -62,21 +62,21 @@ export function PromisesLedger({ ledger: built, verifiers = {} }: { ledger: Ledg
         </p>
       )}
 
-      <p className="mt-3 text-[0.875rem] text-ink-2">
+      {/* legend: one item per status, wrapping cleanly (no separator left dangling at a line start) */}
+      <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-small text-ink-2" aria-label="Status counts">
         {(["delivered", "partly", "revised", "silent", "missed", "closed", "early"] as PromiseStatus[])
           .filter((s) => counts[s])
-          .map((s, i) => (
-            <span key={s}>
-              {i > 0 && <span className="text-ink-3"> · </span>}
-              <span style={{ color: GLYPH[s].color }} aria-hidden>
+          .map((s) => (
+            <li key={s} className="whitespace-nowrap">
+              <span style={{ color: GLYPH[s].color }} aria-hidden className="mr-1 text-body">
                 {GLYPH[s].g}
-              </span>{" "}
-              {GLYPH[s].label} <span className="num">{counts[s]}</span>
-            </span>
+              </span>
+              {GLYPH[s].label} <span className="num text-ink">{counts[s]}</span>
+            </li>
           ))}
-      </p>
+      </ul>
 
-      <div className="mt-3 flex gap-1 text-[0.8125rem]" role="group" aria-label="Which promises">
+      <div className="mt-3 flex gap-1 text-small" role="group" aria-label="Which promises">
         {(
           [
             ["slipped", `Needs attention (${slipped.length})`],
@@ -94,15 +94,15 @@ export function PromisesLedger({ ledger: built, verifiers = {} }: { ledger: Ledg
         ))}
       </div>
 
-      <table className="mt-3 w-full table-fixed text-[0.875rem]">
+      <table className="mt-3 w-full table-fixed text-small">
         <colgroup>
           <col />
           {ledger.calls.map((c) => (
-            <col key={c.label} className="w-[2.6rem]" />
+            <col key={c.label} className="w-[2.75rem]" />
           ))}
         </colgroup>
         <thead>
-          <tr className="text-[0.625rem] uppercase tracking-wider text-ink-3">
+          <tr className="text-meta uppercase tracking-wide text-ink-3">
             <th className="pb-1 text-left font-medium">Promise</th>
             {ledger.calls.map((c) => (
               <th key={c.label} className="pb-1 text-center font-medium leading-tight">
@@ -120,17 +120,17 @@ export function PromisesLedger({ ledger: built, verifiers = {} }: { ledger: Ledg
         </tbody>
       </table>
       {ordered.length > rows.length && (
-        <button onClick={() => setShowAll(true)} className="mt-2 min-h-[44px] w-full border-t border-rule text-[0.875rem] text-accent">
+        <button onClick={() => setShowAll(true)} className="mt-2 min-h-[44px] w-full border-t border-rule text-small text-accent">
           Show all {ordered.length} promises
         </button>
       )}
 
       {built.reference && (
         <details className="mt-4 border-t border-rule pt-1">
-          <summary className="inline-flex min-h-[44px] items-center text-[0.8125rem] text-ink-2">
+          <summary className="inline-flex min-h-[44px] items-center text-small text-ink-2">
             Methodology: compare with the hand-checked reference
           </summary>
-          <div className="flex gap-1 text-[0.8125rem]" role="group" aria-label="Which ledger">
+          <div className="flex gap-1 text-small" role="group" aria-label="Which ledger">
             {(
               [
                 ["built", "Built by FINN"],
@@ -150,13 +150,13 @@ export function PromisesLedger({ ledger: built, verifiers = {} }: { ledger: Ledg
               </button>
             ))}
           </div>
-          <p className="mt-1.5 text-[0.75rem] leading-snug text-ink-3">
+          <p className="mt-1.5 text-meta leading-snug text-ink-3">
             The reference was labelled by hand from the same transcripts and is what the pipeline is graded on. The
             ledger above is what FINN builds on its own; switching shows the reference in its place.
           </p>
         </details>
       )}
-      <p className="mt-3 text-[0.75rem] leading-snug text-ink-3">{ledger.provenance}</p>
+      <p className="mt-3 text-meta leading-snug text-ink-3">{ledger.provenance}</p>
     </section>
   );
 }
@@ -165,12 +165,12 @@ function Row({ row, ledger, verifier, open, onToggle }: { row: PromiseRow; ledge
   return (
     <>
       <tr className="border-t border-rule align-top">
-        <td className="py-2 pr-2">
-          <button onClick={onToggle} aria-expanded={open} className="text-left leading-snug text-ink">
+        <td className="py-1 pr-2">
+          <button onClick={onToggle} aria-expanded={open} className="flex min-h-[44px] w-full items-center text-left leading-snug text-ink">
             {row.title}
           </button>
           {row.tracking && (
-            <span className={`mt-0.5 block text-[0.75rem] ${row.tracking.verdict === "below" ? "text-[color:var(--s-missed)]" : "text-ink-3"}`}>
+            <span className={`-mt-1 mb-1 block text-meta ${row.tracking.verdict === "below" ? "text-[color:var(--s-missed)]" : "text-ink-3"}`}>
               {row.tracking.label}: <span className="num">{row.tracking.value}%</span>
               {row.tracking.verdict ? ` · ${row.tracking.verdict}` : ""}
             </span>
@@ -184,7 +184,7 @@ function Row({ row, ledger, verifier, open, onToggle }: { row: PromiseRow; ledge
               {s ? (
                 <button
                   onClick={onToggle}
-                  className="min-h-[36px] min-w-[36px] text-[1rem] leading-none"
+                  className="min-h-[44px] min-w-[40px] text-[1.125rem] leading-none"
                   style={{ color: GLYPH[s].color }}
                   title={GLYPH[s].label}
                   aria-label={`${row.title}, ${c.label}: ${cell.missed_then_reset ? "missed, then " : ""}${GLYPH[s].label}`}
@@ -220,7 +220,7 @@ function Row({ row, ledger, verifier, open, onToggle }: { row: PromiseRow; ledge
 
 function Detail({ row, ledger, verifier }: { row: PromiseRow; ledger: Ledger; verifier?: Line }) {
   return (
-    <div className="border-l-2 border-rule pl-3 text-[0.875rem] leading-relaxed">
+    <div className="border-l-2 border-rule pl-3 text-small leading-relaxed">
       {row.first_quote && (
         <Quote label={`Promised · ${row.first_quote.call}${row.first_quote.speaker ? `, ${row.first_quote.speaker}` : ""}`} q={row.first_quote} />
       )}
@@ -230,7 +230,7 @@ function Detail({ row, ledger, verifier }: { row: PromiseRow; ledger: Ledger; ve
           if (!cell?.status) return null;
           return (
             <li key={c.label} className="flex gap-2">
-              <span className="num w-14 shrink-0 text-[0.75rem] text-ink-3">{c.label}</span>
+              <span className="num w-14 shrink-0 text-meta text-ink-3">{c.label}</span>
               <span style={{ color: GLYPH[cell.status].color }} aria-hidden>
                 {cell.missed_then_reset ? "○→" : ""}
                 {GLYPH[cell.status].g}
@@ -254,7 +254,7 @@ function Detail({ row, ledger, verifier }: { row: PromiseRow; ledger: Ledger; ve
               label={`Outcome stated · ${ev.call ?? c.label}${ev.speaker ? `, ${ev.speaker}` : ""}${ev.period ? ` · for ${ev.period}` : ""}`}
               q={{ text: ev.quote, page: ev.page, url: ev.url ?? undefined }}
             />
-            <p className="mt-1 text-[0.75rem] text-ink-3">
+            <p className="mt-1 text-meta text-ink-3">
               Compared only because both sides match: same metric and period, comparable units, a company speaker, and a
               later call than the promise. This is what management said, not a filed figure.
             </p>
@@ -268,16 +268,16 @@ function Detail({ row, ledger, verifier }: { row: PromiseRow; ledger: Ledger; ve
           {row.tracking.verdict ? `, ${row.tracking.verdict === "on track" ? "on track for" : `${row.tracking.verdict}`} the target` : ""}. One quarter is
           not the year, so the status stays open.
           {row.tracking.source && (
-            <a href={row.tracking.source} target="_blank" rel="noopener noreferrer" className="ml-1 text-[0.75rem] text-accent">
+            <a href={row.tracking.source} target="_blank" rel="noopener noreferrer" className="tap ml-1 text-meta text-accent">
               results table ↗
             </a>
           )}
         </p>
       )}
-      <p className="mt-2 text-[0.75rem] text-ink-3">Evidence: {EVIDENCE_LABEL[row.evidence_source]}.</p>
+      <p className="mt-2 text-meta text-ink-3">Evidence: {EVIDENCE_LABEL[row.evidence_source]}.</p>
       {verifier && (
         <div className="mt-1">
-          <p className="text-[0.75rem] text-ink-3">Who can verify</p>
+          <p className="text-meta text-ink-3">Who can verify</p>
           <NetworkLine line={verifier} compact />
         </div>
       )}
@@ -288,10 +288,10 @@ function Detail({ row, ledger, verifier }: { row: PromiseRow; ledger: Ledger; ve
 function Quote({ label, q }: { label: string; q: { text: string; page: number; url?: string } }) {
   return (
     <figure className="mt-1">
-      <figcaption className="text-[0.75rem] text-ink-3">{label}</figcaption>
-      <blockquote className="font-serif text-[0.9375rem] italic text-ink">&ldquo;{q.text}&rdquo;</blockquote>
+      <figcaption className="text-meta text-ink-3">{label}</figcaption>
+      <blockquote className="font-serif text-body italic text-ink">&ldquo;{q.text}&rdquo;</blockquote>
       {q.url && (
-        <a href={`${q.url}#page=${q.page}`} target="_blank" rel="noopener noreferrer" className="text-[0.75rem] text-accent">
+        <a href={`${q.url}#page=${q.page}`} target="_blank" rel="noopener noreferrer" className="tap text-meta text-accent">
           transcript p.{q.page} ↗
         </a>
       )}
