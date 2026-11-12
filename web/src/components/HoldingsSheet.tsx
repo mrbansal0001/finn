@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRef, useState, useSyncExternalStore } from "react";
 import { CHANGED, readQuestions } from "./followed";
+import { DOOR_CLASS, DoorTile } from "./DoorTile";
 
 type Row = {
   symbol: string; name: string; sector: string; weight: number;
@@ -65,8 +66,8 @@ export function HoldingsSheet({
   return (
     <>
       {/* the Portfolio door (three-pillars plan §2, S7): the sheet keeps its title */}
-      <button type="button" onClick={() => ref.current?.showModal()} className="door" aria-haspopup="dialog" aria-label={`Portfolio: ${holdings.length} holdings`}>
-        Portfolio <span className="num">{holdings.length}</span>
+      <button type="button" onClick={() => ref.current?.showModal()} className={DOOR_CLASS} aria-haspopup="dialog" aria-label={`Portfolio: ${holdings.length} holdings`}>
+        <DoorTile icon="portfolio" label="Portfolio" sub={`${holdings.length} holdings`} />
       </button>
       <dialog
         ref={ref}

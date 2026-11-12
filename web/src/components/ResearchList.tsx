@@ -157,7 +157,7 @@ function Row({ r }: { r: ResearchRow }) {
       <Link href={`/c/${sym}${r.ledger ? "#promises" : ""}`} className="group flex items-start justify-between gap-3">
         <span className="min-w-0">
           <span className="flex flex-wrap items-center gap-1.5">
-            <span className="text-small font-medium text-ink group-hover:underline">{r.symbol}</span>
+            <span className="text-small font-medium text-accent group-hover:underline">{r.symbol}</span>
             {r.sector && <span className="tag">{r.sector}</span>}
             {r.weight != null && <span className="tag num">{r.weight}%</span>}
             {r.research && <span className="tag">Research list</span>}

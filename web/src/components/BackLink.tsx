@@ -37,7 +37,7 @@ export function BackLink({ fallback = "/", label = "Back" }: { fallback?: string
             router.back();
           }
         }}
-        className="-ml-1 inline-flex min-h-[44px] items-center gap-1 px-1 text-ink-2 hover:text-ink"
+        className="-ml-1 inline-flex min-h-[44px] items-center gap-1 px-1 text-accent hover:underline"
       >
         <span aria-hidden>‹</span> {label}
       </Link>

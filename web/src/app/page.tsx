@@ -14,6 +14,7 @@ import { SYNTHETIC } from "@/components/About";
 import { JumpLink } from "@/components/JumpLink";
 import { FirstVisit } from "@/components/FirstVisit";
 import { StaleNote } from "@/components/StaleNote";
+import { DOOR_CLASS, DoorTile } from "@/components/DoorTile";
 import { HoldingsSheet } from "@/components/HoldingsSheet";
 import { WindowLink, WindowSwitcher } from "@/components/WindowSwitcher";
 
@@ -96,13 +97,17 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
             <FirstVisit />
             <p className="mt-1 text-small font-medium text-ink">{fullDate(until)}</p>
             {/* the three doors: the app's three parts, named and counted (three-pillars plan §2) */}
-            <nav aria-label="FINN's three parts" className="mt-3 flex gap-1.5">
+            <nav aria-label="FINN's three parts" className="mt-3 flex gap-2">
               <HoldingsSheet agenda={agenda} today={today} networkReady={snap.network_status !== "unavailable"} holdings={snap.portfolio.map((h) => row(h.symbol, h.weight))} research={snap.research_set.map((s) => row(s))} />
-              <Link href="/research" className="door" aria-label={`Research: ${Object.keys(snap.ledger_index ?? ledgers).length} companies read`}>
-                Research <span className="num">{Object.keys(snap.ledger_index ?? ledgers).length}</span>
+              <Link href="/research" className={DOOR_CLASS} aria-label={`Research: ${Object.keys(snap.ledger_index ?? ledgers).length} companies read`}>
+                <DoorTile icon="research" label="Research" sub={`${Object.keys(snap.ledger_index ?? ledgers).length} read`} />
               </Link>
-              <Link href="/people" className="door" aria-label={snap.network_status === "unavailable" ? "People" : `People: ${snap.contacts.length} in your network`}>
-                People {snap.network_status !== "unavailable" && snap.contacts.length > 0 && <span className="num">{snap.contacts.length}</span>}
+              <Link href="/people" className={DOOR_CLASS} aria-label={snap.network_status === "unavailable" ? "People" : `People: ${snap.contacts.length} in your network`}>
+                <DoorTile
+                  icon="people"
+                  label="People"
+                  sub={snap.network_status !== "unavailable" && snap.contacts.length > 0 ? `${snap.contacts.length} people` : "Your network"}
+                />
               </Link>
             </nav>
           </>

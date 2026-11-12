@@ -179,7 +179,9 @@ export function PriceVolumeChart({ rows, alertDay, markers, symbol }: { rows: Se
       )}
 
       <details className="mt-1">
-        <summary className="inline-flex min-h-[44px] items-center text-small text-ink-2">Every session as a table, and how it&apos;s measured</summary>
+        <summary className="inline-flex min-h-[44px] cursor-pointer list-none items-center gap-1.5 text-small text-ink-2">
+          Every session as a table, and how it&apos;s measured <span aria-hidden className="fold">›</span>
+        </summary>
         <div className="mb-2 space-y-1 text-caption text-ink-3">
           <p>
             {n} trading sessions; weekends and holidays aren&apos;t on the axis. Change is the close against the exchange&apos;s previous close. The

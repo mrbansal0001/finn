@@ -63,7 +63,7 @@ export function BriefButton({ script }: { script: string }) {
       type="button"
       onClick={toggle}
       aria-pressed={speaking}
-      className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full px-2 text-small text-ink-2 hover:text-ink"
+      className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full px-2 text-small text-accent hover:underline"
     >
       {/* drawn, not ▶/■ characters: iPhones can render ▶ as a coloured emoji (13 Nov) */}
       <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden className="shrink-0">
