@@ -109,7 +109,7 @@ function MoveLine({ card }: { card: Card }) {
       Closed at <span className="num font-medium text-ink">{price(f.close)}</span>,{" "}
       <span className={`num font-medium ${dirClass(f.change_pct)}`}>{pct(f.change_pct)}</span>, on{" "}
       <span className="num">{times(f.volume_multiple)}</span> usual volume.{" "}
-      {f.explained_by ? "A filing came before it." : "No filing came before it."}
+      {f.explained_by ? "A material filing came before it." : "No material filing since the previous close."}
     </p>
   );
 }

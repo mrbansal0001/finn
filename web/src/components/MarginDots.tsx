@@ -29,7 +29,7 @@ export function MarginDots({ m }: { m: MarginPlot }) {
                   style={{ left: `${(100 * p.value) / top}%` }}
                 />
               </span>
-              <span className={`num text-right ${now ? "font-medium text-ink" : "text-ink-2"}`}>{p.value.toFixed(1)}%</span>
+              <span className={`num text-right ${now ? "font-medium text-ink" : "text-ink-2"}`}>{p.value.toFixed(2)}%</span>
             </li>
           );
         })}

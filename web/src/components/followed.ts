@@ -1,18 +1,22 @@
-// Questions the investor follows, kept in this browser only (creative review §5, "keep following").
-// Honest scope: FINN checks them when the edition is opened; there is no background job or notification.
+// Questions the investor follows, kept in this browser only (creative review §5; visual review §10).
+// Honest scope: FINN checks them when a page opens; there is no background job or notification.
 
 export type Revisit = "results" | "call" | "filing" | "date";
+export type Mark = "supports" | "challenges" | "unclear";
 
 export type Followed = {
   id: string;
   symbol: string;
   company: string;
   title: string;          // the event or promise it started from
-  question: string;
+  question: string;       // the investor's wording, kept as edited
   revisit: Revisit;
   date?: string;          // YYYY-MM-DD, for revisit "date"
   href: string;           // the investigation to reopen
-  savedAt: string;        // ISO, when it was saved
+  savedAt: string;        // ISO, when it was first saved
+  resolve?: string;       // "What evidence would resolve this?" (the investor's own test)
+  marks?: Record<string, Mark>;   // the investor's reading of each later document, by card id
+  status?: "open" | "answered";
 };
 
 const KEY = "finn_questions";
@@ -27,18 +31,35 @@ export function readQuestions(): Followed[] {
   }
 }
 
-function write(list: Followed[]) {
+/** False when the browser refused to store it (private mode, storage full): the caller says so. */
+function write(list: Followed[]): boolean {
   try {
     localStorage.setItem(KEY, JSON.stringify(list.slice(0, 30)));
-  } catch {}
-  window.dispatchEvent(new Event(CHANGED));
+    const ok = localStorage.getItem(KEY) !== null;
+    window.dispatchEvent(new Event(CHANGED));
+    return ok;
+  } catch {
+    return false;
+  }
 }
 
-export function saveQuestion(q: Omit<Followed, "id" | "savedAt">): void {
-  const list = readQuestions().filter((x) => !(x.symbol === q.symbol && x.question === q.question));
-  write([{ ...q, id: `${q.symbol}-${Date.now().toString(36)}`, savedAt: new Date().toISOString() }, ...list]);
+export function findByHref(href: string): Followed | undefined {
+  return readQuestions().find((q) => q.href === href);
 }
 
-export function dropQuestion(id: string): void {
-  write(readQuestions().filter((x) => x.id !== id));
+/** One saved question per investigation: saving again updates it (wording, revisit, test), never duplicates. */
+export function saveQuestion(q: Omit<Followed, "id" | "savedAt">): boolean {
+  const list = readQuestions();
+  const prev = list.find((x) => x.href === q.href || (x.symbol === q.symbol && x.question === q.question));
+  const rest = list.filter((x) => x !== prev);
+  const item: Followed = { ...prev, ...q, id: prev?.id ?? `${q.symbol}-${Date.now().toString(36)}`, savedAt: prev?.savedAt ?? new Date().toISOString() };
+  return write([item, ...rest]);
+}
+
+export function updateQuestion(id: string, patch: Partial<Followed>): boolean {
+  return write(readQuestions().map((x) => (x.id === id ? { ...x, ...patch } : x)));
+}
+
+export function dropQuestion(id: string): boolean {
+  return write(readQuestions().filter((x) => x.id !== id));
 }

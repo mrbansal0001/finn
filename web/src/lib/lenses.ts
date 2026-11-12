@@ -80,7 +80,7 @@ export function strengthParts(c: Contact, today: Date) {
 
 export const tieLabel = (s: number) => (s >= 0.6 ? "strong" : s >= 0.4 ? "medium" : "weak");
 
-export type Topic = "numbers" | "target" | "move" | "event";
+export type Topic = "numbers" | "target" | "amount" | "move" | "event";
 
 export function topicOf(kind: string): Topic {
   return kind === "results" ? "numbers" : kind === "promise" || kind === "capex" ? "target" : kind === "move" ? "move" : "event";
@@ -96,6 +96,14 @@ export function questionsFor(lens: LensKey, company: string, insider: boolean, t
       money: [`Which cost lines usually move ${co}'s margin the most?`, "How should one read the one-off items in these numbers?", "Does anything here change how you think about its cash or funding?"],
       rules: ["Is any provision or regulatory item in these numbers likely to recur?", "Are there disputes that could change the reported profit later?", "What disclosure would you read first in the notes?"],
     },
+    // a figure (capex, revenue, an order size): what drives revisions and what would substantiate it
+    amount: {
+      execution: ["What has to be built, bought or won for this figure to hold?", "What usually makes a plan like this get revised: scope, prices or timing?", "What disclosed progress would show it is on track?"],
+      demand: ["Is the demand behind this figure already visible in orders or bookings?", "What would make customers commit more slowly than planned?", "How have similar figures in this industry played out?"],
+      money: ["What drives revisions to a figure like this: scope, prices or timing?", "What disclosed progress would substantiate it?", "How does it fit the company's cash and funding?"],
+      rules: ["Do any approvals or rules limit how fast this can happen?", "Is anything in this figure contingent on a government or regulator decision?", "What would delay it outside the company's control?"],
+    },
+    // a date: what decides whether it holds
     target: {
       execution: [`When ${co} sets a date like this, what usually decides whether it holds?`, "Where does a ramp-up like this tend to slip: approvals, equipment, people or customers?", "What would you look for next quarter to know it's on track?"],
       demand: [`Who is the customer for this, and what makes them commit or delay?`, "Is the order or demand behind this target already visible?", "How have similar targets in this industry played out?"],

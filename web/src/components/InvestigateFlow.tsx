@@ -1,18 +1,44 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, useSyncExternalStore, type ReactNode } from "react";
+import Link from "next/link";
 import type { LensKey } from "@/lib/lenses";
 import type { NetworkLine } from "@/lib/types";
 import { RelationPath, type Path } from "./RelationPath";
-import { saveQuestion, type Revisit } from "./followed";
+import { CHANGED, dropQuestion, findByHref, saveQuestion, type Followed, type Revisit } from "./followed";
 
 export type FlowPerson = { line: NetworkLine; basis: string; lenses: LensKey[]; path: Path; questions: Partial<Record<LensKey, string[]>> };
 export type FlowLens = { key: LensKey; label: string; ask: string; roles: string };
 
+// the saved record for this investigation, read from the browser without a hydration mismatch (server: none)
+const subscribe = (cb: () => void) => {
+  window.addEventListener(CHANGED, cb);
+  window.addEventListener("storage", cb);
+  return () => {
+    window.removeEventListener(CHANGED, cb);
+    window.removeEventListener("storage", cb);
+  };
+};
+function useSaved(): Followed | null {
+  const raw = useSyncExternalStore(
+    subscribe,
+    () => JSON.stringify(findByHref(location.pathname + location.search) ?? null),
+    () => "null",
+  );
+  return JSON.parse(raw) as Followed | null;
+}
+
+const SECTIONS: [string, string][] = [
+  ["s-change", "Change"],
+  ["s-evidence", "Evidence"],
+  ["s-people", "People"],
+  ["s-follow", "Follow"],
+];
+
 /**
- * The investigation's moving parts (creative review, signature concept). The question is the investor's:
- * it starts from the rule-written one and can be edited; the people, the note and the saved question all
- * follow the edit, so nothing has to be re-typed on another page.
+ * The investigation's moving parts (creative review; visual review §3.4, §10). The question is the
+ * investor's: it starts from the rule-written one, can be edited, and a saved edit comes back on reload.
+ * People, note and saved question all follow it. A small section navigator shortens the path down the page.
  */
 export function InvestigateFlow({
   initialQuestion,
@@ -27,6 +53,7 @@ export function InvestigateFlow({
   lensOrder,
   revisit,
   networkDown,
+  peopleNote,
 }: {
   initialQuestion: string;
   symbol: string;
@@ -40,9 +67,20 @@ export function InvestigateFlow({
   lensOrder: LensKey[];
   revisit: Revisit;
   networkDown: boolean;
+  peopleNote?: string;
 }) {
-  const [question, setQuestion] = useState(initialQuestion);
+  const saved = useSaved();
+  const [edited, setEdited] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
+  const question = edited ?? saved?.question ?? initialQuestion;
+
+  const go = (id: string) => {
+    // the evidence lives in a side pane on wide screens: jump to whichever copy is visible
+    const el = [...document.querySelectorAll<HTMLElement>(`[data-section="${id}"]`)].find((x) => x.offsetParent !== null);
+    if (!el) return;
+    el.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+    el.focus({ preventScroll: true });
+  };
 
   return (
     <>
@@ -56,7 +94,7 @@ export function InvestigateFlow({
               id="q"
               autoFocus
               value={question}
-              onChange={(e) => setQuestion(e.target.value)}
+              onChange={(e) => setEdited(e.target.value)}
               rows={4}
               className="w-full rounded-lg border border-ink-3 bg-paper-raised px-3.5 py-3 font-serif text-headline focus:border-accent focus:outline-none"
             />
@@ -66,7 +104,7 @@ export function InvestigateFlow({
               </button>
               <button
                 onClick={() => {
-                  setQuestion(initialQuestion);
+                  setEdited(initialQuestion);
                   setEditing(false);
                 }}
                 className="min-h-[44px] px-2 text-small text-ink-2"
@@ -76,34 +114,45 @@ export function InvestigateFlow({
             </div>
           </div>
         ) : (
-          <h1 className="font-serif text-title text-ink">
+          <h1 className="font-serif text-headline text-ink min-[400px]:text-title">
             {question}{" "}
             <button onClick={() => setEditing(true)} className="tap align-middle font-sans text-small font-normal text-accent">
               Edit
             </button>
           </h1>
         )}
-        <p className="mt-2 text-caption text-ink-3">
+        <p className="mt-1.5 text-caption text-ink-3">
           {question === initialQuestion ? "Written by FINN from the figures below, by fixed rules. A question, not a finding." : "Your wording."}
+          {saved && question !== saved.question ? " Not saved yet: follow it again to keep this wording." : ""}
         </p>
       </div>
 
-      <Step n={1} title="What changed">
+      {/* jump links, not another fixed bar over the search dock (visual review §3.4) */}
+      <nav aria-label="Sections" className="-mx-1 mt-3 flex gap-1 overflow-x-auto">
+        {SECTIONS.map(([id, label]) => (
+          <button key={id} onClick={() => go(id)} className="min-h-[44px] shrink-0 rounded-full border border-rule px-3.5 text-small text-ink-2 hover:text-ink">
+            {label}
+          </button>
+        ))}
+      </nav>
+
+      <Step n={1} title="What changed" section="s-change">
         {observed}
       </Step>
       <Step n={2} title="What remains unclear">
         <p className="mt-2 text-body text-ink-2">{unclear}</p>
       </Step>
-      {check}
-      <People lenses={lenses} people={people} lensOrder={lensOrder} question={question} company={company} networkDown={networkDown} />
-      <Follow symbol={symbol} company={company} title={title} question={question} initial={revisit} />
+      {/* on wide screens the evidence sits in the side pane instead */}
+      <div className="min-[1100px]:hidden">{check}</div>
+      <People lenses={lenses} people={people} lensOrder={lensOrder} question={question} company={company} networkDown={networkDown} note={peopleNote} />
+      <Follow symbol={symbol} company={company} title={title} question={question} initial={revisit} saved={saved} />
     </>
   );
 }
 
-export function Step({ n, title, children, aside }: { n: number; title: string; children: ReactNode; aside?: ReactNode }) {
+export function Step({ n, title, children, aside, section }: { n: number; title: string; children: ReactNode; aside?: ReactNode; section?: string }) {
   return (
-    <section className="mt-10">
+    <section className="mt-10 scroll-mt-4 focus:outline-none" data-section={section} tabIndex={section ? -1 : undefined}>
       <h2 className="section-h">
         <span className="flex items-baseline gap-2">
           <span className="num text-ink-3">{n}</span>
@@ -123,6 +172,7 @@ function People({
   question,
   company,
   networkDown,
+  note,
 }: {
   lenses: FlowLens[];
   people: FlowPerson[];
@@ -130,51 +180,68 @@ function People({
   question: string;
   company: string;
   networkDown: boolean;
+  note?: string;
 }) {
   const count = (k: LensKey) => people.filter((p) => p.lenses.includes(k)).length;
+  const anyFit = people.some((p) => p.lenses.length > 0);
   const first = lensOrder.find((k) => count(k) > 0) ?? lenses.find((l) => count(l.key) > 0)?.key ?? lensOrder[0];
   const [lens, setLens] = useState<LensKey>(first);
-  const fits = people.filter((p) => p.lenses.includes(lens));
+  const fits = anyFit ? people.filter((p) => p.lenses.includes(lens)) : people;
   const [pick, setPick] = useState(0);
   const person = fits[Math.min(pick, fits.length - 1)];
   const L = lenses.find((l) => l.key === lens)!;
+  const co = company.replace(/ Limited$/, "");
 
   return (
-    <Step n={4} title="Who could help">
+    <Step n={4} title="Who could help" section="s-people">
       {networkDown ? (
         <p className="mt-2 text-small text-ink-2">Your network didn&apos;t load, so FINN can&apos;t suggest anyone. Reload to try again.</p>
       ) : people.length === 0 ? (
-        <p className="mt-2 text-small text-ink-2">No one in your network has a recorded link to {company.replace(/ Limited$/, "")}.</p>
+        <p className="mt-2 rounded-lg bg-tint px-4 py-3 text-small text-ink-2">
+          {note ?? `No one in your network has a recorded link to ${co}.`}
+        </p>
       ) : (
         <>
-          <p className="mt-2 text-small text-ink-2">What are you trying to understand?</p>
-          <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label="What you want to understand">
-            {lenses.map((l) => {
-              const n = count(l.key);
-              return (
-                <button
-                  key={l.key}
-                  aria-pressed={lens === l.key}
-                  onClick={() => {
-                    setLens(l.key);
-                    setPick(0);
-                  }}
-                  className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-full px-4 text-small transition-colors ${
-                    lens === l.key ? "bg-ink font-medium text-paper" : n ? "border border-rule text-ink-2 hover:text-ink" : "border border-dashed border-rule text-ink-3"
-                  }`}
-                >
-                  {l.label}
-                  <span className={`num text-caption ${lens === l.key ? "text-paper/70" : "text-ink-3"}`}>{n}</span>
-                </button>
-              );
-            })}
-          </div>
-          <p className="mt-2 text-caption text-ink-3">{L.label}: {L.ask}. Matched on each person&apos;s recorded role.</p>
+          {note && <p className="mt-2 text-caption text-ink-3">{note}</p>}
+          {anyFit ? (
+            <>
+              <p className="mt-2 text-small text-ink-2">What are you trying to understand?</p>
+              <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label="What you want to understand">
+                {lenses.map((l) => {
+                  const n = count(l.key);
+                  return (
+                    <button
+                      key={l.key}
+                      aria-pressed={lens === l.key}
+                      onClick={() => {
+                        setLens(l.key);
+                        setPick(0);
+                      }}
+                      className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-full px-4 text-small transition-colors ${
+                        lens === l.key ? "bg-ink font-medium text-paper" : n ? "border border-rule text-ink-2 hover:text-ink" : "border border-dashed border-rule text-ink-3"
+                      }`}
+                    >
+                      {l.label}
+                      <span className={`num text-caption ${lens === l.key ? "text-paper/70" : "text-ink-3"}`}>{n}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-2 text-caption text-ink-3">
+                {L.label}: {L.ask}. Matched on each person&apos;s recorded role.
+              </p>
+            </>
+          ) : (
+            // a company connection exists, but nobody's recorded role fits a lens: say exactly that (§3.1)
+            <p className="mt-2 text-small text-ink-2">
+              {people.length} company connection{people.length === 1 ? "" : "s"}. No contact&apos;s recorded role specifically matches this question.
+            </p>
+          )}
 
           {!person ? (
             <p className="mt-4 rounded-lg bg-tint px-4 py-3 text-small text-ink-2">
-              No one linked to this company in your network has a recorded {L.roles} role. FINN won&apos;t stretch a weaker match to
-              fill the gap; try another lens.
+              {people.length} company connection{people.length === 1 ? "" : "s"}, but none with a recorded {L.roles} role. FINN won&apos;t stretch a
+              weaker match to fill the gap; try another lens.
             </p>
           ) : (
             <>
@@ -196,12 +263,10 @@ function People({
                 <RelationPath path={person.path} />
                 <p className="mt-1 text-small text-ink-2">
                   <span className="text-ink-3">Why them for this: </span>
-                  {person.basis}.
-                  {person.line.insider ? " Works there now, so public information only." : ""}
+                  {person.basis}.{person.line.insider ? " Works there now, so public information only." : ""}
                 </p>
               </div>
-              {/* a new person, lens or question starts a fresh draft */}
-              <Note key={`${person.line.contact_id}|${lens}|${question}`} person={person} lens={lens} question={question} company={company} />
+              <Note key={`${person.line.contact_id}|${lens}|${question}`} person={person} lens={anyFit ? lens : null} question={question} company={company} />
             </>
           )}
         </>
@@ -210,15 +275,15 @@ function People({
   );
 }
 
-function Note({ person, lens, question, company }: { person: FlowPerson; lens: LensKey; question: string; company: string }) {
-  const qs = person.questions[lens] ?? [];
+function Note({ person, lens, question, company }: { person: FlowPerson; lens: LensKey | null; question: string; company: string }) {
+  const qs = (lens && person.questions[lens]) || Object.values(person.questions)[0] || [];
   const first = person.line.name.replace(/^(Col\.|Dr\.|Mr\.|Ms\.)\s*(\(retd\.\)\s*)?/, "").split(" ")[0];
   const co = company.replace(/ Limited$/, "").replace(/ Ltd\.?$/, "");
   const via = person.line.via ? person.line.via.split(" ")[0] : null;
-  const draft =
-      via
-        ? `Hi ${via}, I'm looking into ${co} and would value an introduction to ${first}, given ${person.basis.split(",")[0].toLowerCase()} experience. The question I'm working on: ${question}\n\nWould you be comfortable connecting us?`
-        : `Hi ${first}, I'm looking into ${co}. The question I'm working on: ${question}\n\nFrom your time as ${person.basis}, I'd value your read on:\n${qs.map((q, i) => `${i + 1}. ${q}`).join("\n")}\n\nCould we speak for 15 minutes this week?`;
+  const draft = via
+    ? `Hi ${via}, I'm looking into ${co} and would value an introduction to ${first}, given ${person.basis.split(",")[0].toLowerCase()} experience. The question I'm working on: ${question}\n\nWould you be comfortable connecting us?`
+    : `Hi ${first}, I'm looking into ${co}. The question I'm working on: ${question}\n\nFrom your time as ${person.basis}, I'd value your read on:\n${qs.map((q, i) => `${i + 1}. ${q}`).join("\n")}\n\nCould we speak for 15 minutes this week?`;
+  const [open, setOpen] = useState(false);
   const [text, setText] = useState(draft);
   const [copied, setCopied] = useState<"" | "ok" | "failed">("");
 
@@ -234,35 +299,45 @@ function Note({ person, lens, question, company }: { person: FlowPerson; lens: L
           </ol>
         </>
       )}
-      <label htmlFor="inv-note" className="mt-4 block text-caption text-ink-3">
-        {via ? `Ask ${via} for an introduction` : `A note to ${first}`} (edit, then copy; nothing is sent from FINN)
-      </label>
-      <textarea
-        id="inv-note"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        rows={via ? 5 : 9}
-        className="mt-1.5 w-full rounded-lg border border-ink-3 bg-paper-raised px-3.5 py-3 text-small focus:border-accent focus:outline-none"
-      />
-      <button
-        type="button"
-        onClick={async () => {
-          try {
-            if (!navigator.clipboard) throw new Error("no clipboard");
-            await navigator.clipboard.writeText(text);
-            setCopied("ok");
-          } catch {
-            setCopied("failed");
-          }
-          setTimeout(() => setCopied(""), 2500);
-        }}
-        className="mt-2 min-h-12 rounded-lg bg-ink px-5 text-small font-medium text-paper"
-      >
-        {copied === "ok" ? "Copied" : "Copy note"}
-      </button>
-      <span role="status" className="ml-3 text-caption text-ink-3">
-        {copied === "failed" ? "Couldn't copy here; select the text instead." : ""}
-      </span>
+      {/* the draft stays folded until asked for: the page is long enough (visual review §3.4) */}
+      {!open ? (
+        <button onClick={() => setOpen(true)} className="mt-3 inline-flex min-h-[44px] items-center gap-1 text-small font-medium text-accent">
+          {via ? `Draft an introduction request to ${via}` : `Draft a note to ${first}`} <span aria-hidden>›</span>
+        </button>
+      ) : (
+        <>
+          <label htmlFor="inv-note" className="mt-4 block text-caption text-ink-3">
+            {via ? `Ask ${via} for an introduction` : `A note to ${first}`} (edit, then copy; nothing is sent from FINN)
+          </label>
+          <textarea
+            id="inv-note"
+            autoFocus
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={via ? 5 : 9}
+            className="mt-1.5 w-full rounded-lg border border-ink-3 bg-paper-raised px-3.5 py-3 text-small focus:border-accent focus:outline-none"
+          />
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                if (!navigator.clipboard) throw new Error("no clipboard");
+                await navigator.clipboard.writeText(text);
+                setCopied("ok");
+              } catch {
+                setCopied("failed");
+              }
+              setTimeout(() => setCopied(""), 2500);
+            }}
+            className="mt-2 min-h-12 rounded-lg bg-ink px-5 text-small font-medium text-paper"
+          >
+            {copied === "ok" ? "Copied" : "Copy note"}
+          </button>
+          <span role="status" className="ml-3 text-caption text-ink-3">
+            {copied === "failed" ? "Couldn't copy here; select the text instead." : ""}
+          </span>
+        </>
+      )}
     </div>
   );
 }
@@ -274,13 +349,34 @@ const REVISIT: { key: Revisit; label: string; hint: string }[] = [
   { key: "date", label: "On a date", hint: "on the day you choose" },
 ];
 
-function Follow({ symbol, company, title, question, initial }: { symbol: string; company: string; title: string; question: string; initial: Revisit }) {
-  const [revisit, setRevisit] = useState<Revisit>(initial);
-  const [date, setDate] = useState("");
-  const [saved, setSaved] = useState(false);
+function Follow({
+  symbol,
+  company,
+  title,
+  question,
+  initial,
+  saved,
+}: {
+  symbol: string;
+  company: string;
+  title: string;
+  question: string;
+  initial: Revisit;
+  saved: Followed | null;
+}) {
+  // choices start from the saved record (so a reload shows what was chosen), else FINN's default
+  const [choice, setChoice] = useState<Revisit | null>(null);
+  const [dateIn, setDateIn] = useState<string | null>(null);
+  const [resolveIn, setResolveIn] = useState<string | null>(null);
+  const [error, setError] = useState(false);
+  const revisit = choice ?? saved?.revisit ?? initial;
+  const date = dateIn ?? saved?.date ?? "";
+  const resolve = resolveIn ?? saved?.resolve ?? "";
+  const dirty = !!saved && (revisit !== saved.revisit || date !== (saved.date ?? "") || resolve !== (saved.resolve ?? "") || question !== saved.question);
   const r = REVISIT.find((x) => x.key === revisit)!;
+
   return (
-    <Step n={5} title="Keep following">
+    <Step n={5} title="Keep following" section="s-follow">
       <p className="mt-2 text-small text-ink-2">Bring this question back</p>
       <div className="mt-2 flex flex-wrap gap-1.5" role="radiogroup" aria-label="When to bring it back">
         {REVISIT.map((x) => (
@@ -288,10 +384,7 @@ function Follow({ symbol, company, title, question, initial }: { symbol: string;
             key={x.key}
             role="radio"
             aria-checked={revisit === x.key}
-            onClick={() => {
-              setRevisit(x.key);
-              setSaved(false);
-            }}
+            onClick={() => setChoice(x.key)}
             className={`min-h-[44px] rounded-full px-4 text-small ${revisit === x.key ? "bg-ink font-medium text-paper" : "border border-rule text-ink-2"}`}
           >
             {x.label}
@@ -302,32 +395,60 @@ function Follow({ symbol, company, title, question, initial }: { symbol: string;
         <input
           type="date"
           value={date}
-          onChange={(e) => {
-            setDate(e.target.value);
-            setSaved(false);
-          }}
+          onChange={(e) => setDateIn(e.target.value)}
           aria-label="Revisit on"
           className="mt-3 min-h-[44px] rounded-lg border border-ink-3 bg-paper-raised px-3 text-body"
         />
       )}
-      <div className="mt-4 flex items-center gap-3">
+      <label htmlFor="resolve" className="mt-4 block text-caption text-ink-3">
+        What evidence would resolve this? (optional, your own test)
+      </label>
+      <input
+        id="resolve"
+        value={resolve}
+        onChange={(e) => setResolveIn(e.target.value)}
+        placeholder="e.g. the notes name the exceptional item and say it won't recur"
+        className="mt-1 min-h-[44px] w-full rounded-lg border border-rule bg-paper-raised px-3 text-small placeholder:text-ink-3 focus:border-accent focus:outline-none"
+      />
+      <div className="mt-4 flex flex-wrap items-center gap-3">
         <button
-          disabled={saved || (revisit === "date" && !date)}
+          disabled={(!!saved && !dirty) || (revisit === "date" && !date)}
           onClick={() => {
-            saveQuestion({ symbol, company, title, question, revisit, date: revisit === "date" ? date : undefined, href: location.pathname + location.search });
-            setSaved(true);
+            const ok = saveQuestion({
+              symbol, company, title, question, revisit, date: revisit === "date" ? date : undefined,
+              resolve: resolve.trim() || undefined, href: location.pathname + location.search,
+            });
+            setError(!ok);
+            if (ok) {
+              setChoice(null);
+              setDateIn(null);
+              setResolveIn(null);
+            }
           }}
           className="min-h-12 rounded-lg bg-ink px-5 text-small font-medium text-paper disabled:opacity-60"
         >
-          {saved ? "Following" : "Follow this question"}
+          {!saved ? "Follow this question" : dirty ? "Save changes" : "Following"}
         </button>
-        <span role="status" className="text-caption text-ink-3">
-          {saved ? "Saved. It appears at the top of your edition." : ""}
-        </span>
+        {saved && (
+          <>
+            <Link href="/questions" className="min-h-[44px] content-center text-small text-accent">
+              All questions ›
+            </Link>
+            <button onClick={() => dropQuestion(saved.id)} className="min-h-[44px] px-1 text-small text-ink-3 hover:text-ink">
+              Stop following
+            </button>
+          </>
+        )}
       </div>
-      <p className="mt-3 text-caption text-ink-3">
-        FINN brings it back {r.hint}, checking each time you open the edition. Saved on this device only; it doesn&apos;t send
-        notifications.
+      <p role="status" className="mt-2 text-caption text-ink-3">
+        {error
+          ? "This browser didn't let FINN save it (private browsing or storage full). Nothing was kept."
+          : saved && !dirty
+            ? `Saved on ${new Date(saved.savedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}. It appears at the top of your edition.`
+            : ""}
+      </p>
+      <p className="mt-1 text-caption text-ink-3">
+        FINN brings it back {r.hint}, checking each time you open the edition. Saved on this device only; it doesn&apos;t send notifications.
       </p>
     </Step>
   );

@@ -1,6 +1,6 @@
 import type { Card, Ledger, PromiseRow, ResultsFacts, Snapshot, Source } from "./types";
 import { croreFromCr, fyQuarter, pct, price, times, KIND_LABEL } from "./format";
-import type { LensKey } from "./lenses";
+import type { LensKey, Topic } from "./lenses";
 
 /**
  * Investigate (creative review, signature concept): one surface that carries an event, the question it
@@ -41,7 +41,18 @@ export type Investigation = {
   lens: LensKey[];        // lenses to try first, in order
   sources: Source[];
   revisit: "results" | "call" | "filing";
+  topic: Topic;           // which prepared questions fit (a date target is not an amount target)
 };
+
+/** A promise about a date (commissioning, an order "by June") or about a figure (capex ₹1,200 cr). */
+export function promiseTopic(row: PromiseRow): Topic {
+  const t = (row as PromiseRow & { target?: { kind?: string | null } }).target;
+  if (t?.kind === "milestone") return "target";
+  if (/\bdate\b|deadline|commission|launch|start|timeline/i.test(`${row.metric} ${row.title}`)) return "target";
+  const notes = Object.values(row.calls).map((c) => c.note ?? "").join(" ");
+  if (/₹|%|\bcr\b|crore|\d+\s*(?:bn|mn|x)\b/i.test(`${row.title} ${notes}`)) return "amount";
+  return /\bby\b|date|deadline|commission|launch|start|order/i.test(`${row.metric} ${row.title}`) ? "target" : "amount";
+}
 
 const short = (s: string) => s.replace(/ Limited$/, "").replace(/ Ltd\.?$/, "");
 const abs = (v: number) => Math.abs(v).toFixed(1);
@@ -49,7 +60,7 @@ const abs = (v: number) => Math.abs(v).toFixed(1);
 // ---------------------------------------------------------------- results
 
 /** The question a results table raises, from its own figures. Order: the most specific signal first. */
-export function resultsQuestion(r: ResultsFacts): { q: string; unclear: string } | null {
+export function resultsQuestion(r: ResultsFacts): { q: string; unclear: string; focus?: RegExp } | null {
   const c = r.comparatives;
   if (!c) return null;
   const y = c.yoy, cur = c.current;
@@ -57,35 +68,40 @@ export function resultsQuestion(r: ResultsFacts): { q: string; unclear: string }
   if (c.is_bank) {
     const prov = y.provisions, pat = y.pat, nii = y.nii;
     if (prov != null && prov >= 20) return { q: `Provisions rose ${abs(prov)}% from a year ago. Is this one book of loans, or a wider rise in stress?`, unclear };
-    if (nii != null && pat != null && nii < 5 && pat > 10) return { q: `Profit rose ${abs(pat)}% while net interest income grew ${pct(nii)}. What carried the profit: lower provisions, fees or treasury gains?`, unclear };
+    if (nii != null && pat != null && nii < 5 && pat > 10) return { q: `PAT rose ${abs(pat)}% while net interest income grew ${pct(nii)}. What carried the profit: lower provisions, fees or treasury gains?`, unclear };
     if (nii != null) return { q: `Net interest income ${nii >= 0 ? "grew" : "fell"} ${abs(nii)}% from a year ago. Is the margin on loans holding as rates move?`, unclear };
     return null;
   }
   const rev = y.revenue, pat = y.pat, mbp = y.ebitda_margin_bp;
   const exc = cur.exceptional, pbt = cur.pbt, ex = y.pbt_ex_exceptional;
-  if (exc && pbt && Math.abs(exc) / Math.abs(pbt) >= 0.1 && pat != null && ex != null) {
+  const pbtY0 = y.pbt;
+  if (exc && pbt && Math.abs(exc) / Math.abs(pbt) >= 0.1 && pbtY0 != null && ex != null) {
+    // like with like: reported PBT against PBT before the item. PAT is never "normalised" with a pre-tax
+    // item: its tax effect isn't disclosed (visual review §3.3)
     return {
-      q: `Profit after tax ${pat >= 0 ? "rose" : "fell"} ${abs(pat)}%, but it includes a ${croreFromCr(exc)} exceptional item. Without it, profit before tax ${ex >= 0 ? "rose" : "fell"} ${abs(ex)}%. Which is the real run-rate, and will the item recur?`,
-      unclear: "The exceptional item is in the filed table; what it was, and whether it repeats, is in the notes to the results.",
+      q: `PBT ${pbtY0 >= 0 ? "rose" : "fell"} ${abs(pbtY0)}%, but it includes a ${croreFromCr(exc)} exceptional item. Before that item, PBT ${ex >= 0 ? "rose" : "fell"} ${abs(ex)}%. Which is the run-rate, and will the item recur?`,
+      unclear: "The exceptional item is in the filed table, before tax. What it was, and whether it repeats, is in the notes to the results; its effect on PAT isn't stated, so PAT isn't adjusted here.",
+      focus: /exceptional|one.?off|pbt|profit before/i,
     };
   }
   // operating profit held up but pre-tax profit didn't: the gap is below EBITDA, and the table shows it
   const ebitdaY = y.ebitda, pbtY = y.pbt;
   if (!c.is_lender && ebitdaY != null && pbtY != null && ebitdaY >= 0 && pbtY <= -20) {
     return {
-      q: `EBITDA rose ${abs(ebitdaY)}% but profit before tax fell ${abs(pbtY)}%. The drop is below the operating line: higher depreciation, interest, or lower other income?`,
+      q: `EBITDA rose ${abs(ebitdaY)}% but PBT fell ${abs(pbtY)}%. The drop is below the operating line: higher depreciation, interest, or lower other income?`,
+      focus: /depreciation|interest|finance cost|other income|capex|debt|borrow/i,
       unclear: "The filed table shows the gap between operating and pre-tax profit; which line caused it, and whether it lasts, is in the results' detail and the next call.",
     };
   }
   if (rev != null && mbp != null && !c.is_lender) {
-    if (rev > 0 && mbp <= -50) return { q: `Revenue grew ${abs(rev)}% but the EBITDA margin fell ${Math.abs(Math.round(mbp))}bp. Which costs grew faster than sales, and is that temporary?`, unclear };
-    if (mbp >= 50) return { q: `The EBITDA margin widened ${Math.round(mbp)}bp from a year ago. Is it mix, pricing or cheaper inputs, and can it last?`, unclear };
+    if (rev > 0 && mbp <= -50) return { q: `Revenue grew ${abs(rev)}% but the EBITDA margin fell ${Math.abs(Math.round(mbp))}bp. Which costs grew faster than sales, and is that temporary?`, unclear, focus: /margin|ebitda|cost/i };
+    if (mbp >= 50) return { q: `The EBITDA margin widened ${Math.round(mbp)}bp from a year ago. Is it mix, pricing or cheaper inputs, and can it last?`, unclear, focus: /margin|ebitda|cost|mix|pric/i };
   }
   if (rev != null && pat != null) {
-    if (rev < 0 && pat > 0) return { q: `Revenue fell ${abs(rev)}% while profit rose ${abs(pat)}%. Lower costs, other income or a one-off?`, unclear };
-    if (rev > 0 && pat < 0) return { q: `Revenue grew ${abs(rev)}% but profit fell ${abs(pat)}%. Where did the profit go?`, unclear };
-    if (rev < 0 && pat < 0) return { q: `Revenue fell ${abs(rev)}% and profit ${abs(pat)}%. Is this the industry's cycle or something specific to the company?`, unclear };
-    return { q: `Revenue grew ${abs(rev)}% and profit ${abs(pat)}%. What does management expect from here, and what did it promise before?`, unclear };
+    if (rev < 0 && pat > 0) return { q: `Revenue fell ${abs(rev)}% while PAT rose ${abs(pat)}%. Lower costs, other income or a one-off?`, unclear, focus: /cost|margin|profit|pat/i };
+    if (rev > 0 && pat < 0) return { q: `Revenue grew ${abs(rev)}% but PAT fell ${abs(pat)}%. Where did the profit go?`, unclear, focus: /margin|cost|profit|pat|ebitda/i };
+    if (rev < 0 && pat < 0) return { q: `Revenue fell ${abs(rev)}% and PAT ${abs(pat)}%. Is this the industry's cycle or something specific to the company?`, unclear, focus: /revenue|growth|volume|demand/i };
+    return { q: `Revenue grew ${abs(rev)}% and PAT ${abs(pat)}%. What does management expect from here, and what did it promise before?`, unclear, focus: /revenue|growth|margin|ebitda|guidance/i };
   }
   return null;
 }
@@ -95,12 +111,13 @@ export function marginPlot(r: ResultsFacts): MarginPlot | undefined {
   const c = r.comparatives as (ResultsFacts["comparatives"] & { prev_y?: Record<string, number | null>; prev_q?: Record<string, number | null> }) | null;
   if (!c || c.is_bank || c.is_lender) return undefined;
   const m = (x?: Record<string, number | null>) => (x?.ebitda != null && x?.revenue ? (100 * x.ebitda) / x.revenue : null);
-  const now = c.current.ebitda_margin_pct ?? m(c.current);
+  // every margin and the change from unrounded filed figures (a 6.3% vs 6.2% label pair can be a 9bp change)
+  const now = m(c.current) ?? c.current.ebitda_margin_pct;
   const py = m(c.prev_y), pq = m(c.prev_q);
   if (now == null || py == null) return undefined;
   const q = fyQuarter(r.period_end);
   const points = [{ label: "A year ago", value: py }, ...(pq != null && r.reporting !== "Half Yearly" ? [{ label: "Last quarter", value: pq }] : []), { label: q, value: now }];
-  return { points, change: c.yoy.ebitda_margin_bp ?? (now - py) * 100, basis: `${r.nature}, EBITDA ÷ revenue` };
+  return { points, change: (now - py) * 100, basis: `${r.nature}, EBITDA ÷ revenue; bp from unrounded figures` };
 }
 
 function resultsObs(r: ResultsFacts): Obs[] {
@@ -166,16 +183,27 @@ export function promiseQuestion(row: PromiseRow, calls: Ledger["calls"], title: 
 const ATTENTION = new Set(["revised", "silent", "missed", "partly", "closed", "delivered"]);
 
 /** Promises worth reading next to an event: those on the same metric first, then the ones that changed. */
-function relatedPromises(ledger: Ledger | null, symbol: string, metric: RegExp | null, n: number): Passage[] {
+function relatedPromises(ledger: Ledger | null, symbol: string, metric: RegExp | null, n: number, only?: string[]): Passage[] {
   if (!ledger) return [];
+  const direct = (r: PromiseRow) => !!metric && metric.test(`${r.metric} ${r.title}`);
   const score = (r: PromiseRow) =>
     (metric && metric.test(`${r.metric} ${r.title}`) ? 100 : 0) + (r.tracking ? 50 : 0) + (ATTENTION.has(r.latest) ? 20 : 0) + (r.mentions ?? 1) * 3
     - (/: (no figure|direction only)$/.test(r.title) ? 15 : 0) - (r.latest === "closed" ? 120 : 0);   // an ended period is history, not a lead
   return [...ledger.rows]
-    .filter((r) => (metric ? metric.test(`${r.metric} ${r.title}`) || ATTENTION.has(r.latest) : ATTENTION.has(r.latest)))
+    .filter((r) => (only ? only.includes(r.latest) : metric ? direct(r) || ATTENTION.has(r.latest) : ATTENTION.has(r.latest)))
     .sort((a, b) => score(b) - score(a))
     .slice(0, n)
-    .map((r) => promisePassage(r, symbol));
+    // matching passages first; anything else is labelled as context, not evidence (visual review §3.2)
+    .map((r) => {
+      const p = promisePassage(r, symbol);
+      return metric && !direct(r) ? { ...p, label: `Context, not about this directly: ${p.label.charAt(0).toLowerCase()}${p.label.slice(1)}` } : p;
+    });
+}
+
+/** A promise's investigation. Row ids are positional and can change when a ledger is rebuilt, so the
+ *  title rides along and the page falls back to it (a saved question must not reopen a different promise). */
+export function promiseHref(symbol: string, r: PromiseRow): string {
+  return `/investigate?c=${encodeURIComponent(symbol)}&p=${encodeURIComponent(r.id)}&t=${encodeURIComponent(r.title)}`;
 }
 
 export function promisePassage(r: PromiseRow, symbol: string): Passage {
@@ -185,7 +213,7 @@ export function promisePassage(r: PromiseRow, symbol: string): Passage {
     title: promiseTitle(r.title),
     quote: q?.text,
     cite: q?.url ? { href: `${q.url}#page=${q.page}`, text: `transcript p.${q.page}` } : undefined,
-    open: `/investigate?c=${encodeURIComponent(symbol)}&p=${encodeURIComponent(r.id)}`,
+    open: promiseHref(symbol, r),
   };
 }
 
@@ -222,10 +250,11 @@ export function fromCard(card: Card, snap: Snapshot, ledger: Ledger | null): Inv
       margin: marginPlot(r),
       unclear: rq?.unclear ?? "The table shows what changed, not why.",
       passagesTitle: "What management said it would deliver",
-      passages: relatedPromises(ledger, card.symbol, /revenue|margin|ebitda|profit|pat|growth|volume|sales/i, 3),
+      passages: relatedPromises(ledger, card.symbol, rq?.focus ?? /revenue|margin|ebitda|profit|pat|growth|volume|sales/i, 3),
       passagesEmpty: ledger ? "No promise on revenue, margins or profit in the last four calls." : "No promises ledger for this company yet.",
       lens: r.comparatives?.is_bank ? ["money", "rules"] : ["money", "demand", "execution"],
       revisit: "call",
+      topic: "numbers",
     };
   }
   if (card.kind === "move") {
@@ -242,7 +271,7 @@ export function fromCard(card: Card, snap: Snapshot, ledger: Ledger | null): Inv
       title: `${co} ${up ? "rose" : "fell"} ${abs(f.change_pct ?? 0)}%`,
       question: f.explained_by
         ? `${co} ${up ? "rose" : "fell"} ${abs(f.change_pct ?? 0)}% after a filing. Does the size of the move match what the filing says?`
-        : `${co} ${up ? "rose" : "fell"} ${abs(f.change_pct ?? 0)}% on ${times(f.volume_multiple)} its usual volume, with no company filing before it. What does the market know that the filings don't say yet?`,
+        : `${co} ${up ? "rose" : "fell"} ${abs(f.change_pct ?? 0)}% on ${times(f.volume_multiple)} its usual volume, with no material filing since the previous close. Which public disclosures help put it in context?`,
       observed: [
         { label: "Close", value: price(f.close) },
         { label: "Change", value: pct(f.change_pct), dir: f.change_pct },
@@ -255,6 +284,7 @@ export function fromCard(card: Card, snap: Snapshot, ledger: Ledger | null): Inv
       passagesEmpty: "No filing in the 30 days before, and no promise that changed recently.",
       lens: ["money", "demand"],
       revisit: "filing",
+      topic: "move",
     };
   }
   if (card.kind === "management_change") {
@@ -273,11 +303,14 @@ export function fromCard(card: Card, snap: Snapshot, ledger: Ledger | null): Inv
         : `What does this change in leadership mean for what management has promised?`,
       observed: p ? [{ label: "Who", value: p.name }, { label: "Role", value: role }] : [],
       unclear: "A filing states who and when. Why, and who takes over the work, is rarely in it.",
-      passagesTitle: theirs.length ? `What ${p!.name.split(/\s+/)[0]} promised on calls` : "Open promises at risk of changing hands",
-      passages: theirs.length ? theirs : relatedPromises(ledger, card.symbol, null, 2),
+      passagesTitle: theirs.length
+        ? `What ${p!.name.split(/\s+/)[0]} promised on calls`
+        : `None of the last four calls quotes ${p?.name ?? "them"} making a promise. The company's open commitments, which a change at the top could affect`,
+      passages: theirs.length ? theirs : relatedPromises(ledger, card.symbol, null, 2, ["early", "revised"]),
       passagesEmpty: ledger ? "No open promises to check against." : "No promises ledger for this company yet.",
       lens: ["rules", "execution", "money"],
       revisit: "call",
+      topic: "event",
     };
   }
   const kindQ: Record<string, string> = {
@@ -299,6 +332,7 @@ export function fromCard(card: Card, snap: Snapshot, ledger: Ledger | null): Inv
     passagesEmpty: ledger ? "No promise in the last four calls bears on it." : "No promises ledger for this company yet.",
     lens: card.kind === "litigation" || card.kind === "credit_rating" ? ["rules", "money"] : card.kind === "capex" ? ["execution", "demand"] : ["money", "demand"],
     revisit: "filing",
+    topic: card.kind === "capex" ? "amount" : "event",
   };
 }
 
@@ -332,5 +366,6 @@ export function fromPromise(row: PromiseRow, ledger: Ledger, snap: Snapshot): In
     lens: promiseLens(row.metric),
     sources: [],
     revisit: "call",
+    topic: promiseTopic(row),
   };
 }

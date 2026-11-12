@@ -99,6 +99,9 @@ export type Snapshot = {
   network_status?: "ready" | "unavailable" | "local";
   results: Record<string, ResultsFacts>;
   prices: Record<string, { close: number; change_pct: number; volume_multiple: number; day: string }>;
+  // last 30 sessions per holding (worker prices.series): close, exchange previous close, volume, the alert's
+  // own baseline (previous 20 sessions, excluding the day) and how many sessions it rests on
+  price_history?: Record<string, { d: string; c: number; pc: number; v: number; avg: number | null; n: number; gap?: boolean }[]>;
   people: Record<string, NetworkLine[]>;
   verifiers: Record<string, NetworkLine>;
   contacts: Contact[];

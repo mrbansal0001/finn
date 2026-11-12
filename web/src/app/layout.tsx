@@ -40,7 +40,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <Suspense fallback={null}>
           <NavTracker />
         </Suspense>
-        <div className="mx-auto min-h-dvh max-w-[480px] px-4 pb-[calc(env(safe-area-inset-bottom)+5.5rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)] min-[400px]:px-5 md:max-w-[560px]">
+        <div className="mx-auto min-h-dvh max-w-[480px] px-4 pb-[calc(env(safe-area-inset-bottom)+5.5rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)] min-[400px]:px-5 md:max-w-[560px] min-[1100px]:has-[main.wide-page]:max-w-[1080px]">
           {/* pages crossfade on navigation (160 ms; off under reduced motion) */}
           <ViewTransition>{children}</ViewTransition>
         </div>

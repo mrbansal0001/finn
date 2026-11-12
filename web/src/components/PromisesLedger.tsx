@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { Ledger, LedgerCell, NetworkLine as Line, PromiseRow, PromiseStatus } from "@/lib/types";
 import { NetworkLine } from "./NetworkLine";
 import { PromiseReplay } from "./PromiseReplay";
+import { promiseHref } from "@/lib/investigate";
 import Link from "next/link";
 
 /**
@@ -330,7 +331,7 @@ function Detail({ row, ledger, verifier }: { row: PromiseRow; ledger: Ledger; ve
         </div>
       )}
       <Link
-        href={`/investigate?c=${encodeURIComponent(ledger.symbol)}&p=${encodeURIComponent(row.id)}`}
+        href={promiseHref(ledger.symbol, row)}
         className="mt-3 inline-flex min-h-[44px] items-center gap-1 text-small font-medium text-accent"
       >
         Investigate this promise <span aria-hidden>›</span>

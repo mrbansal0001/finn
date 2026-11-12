@@ -10,9 +10,10 @@ import { SectionNav } from "@/components/SectionNav";
 import { EditionCard } from "@/components/EditionCard";
 import { PromisesLedger } from "@/components/PromisesLedger";
 import { ResultsTable } from "@/components/ResultsTable";
+import { ResultsVisual } from "@/components/ResultsVisual";
 import { NetworkLine } from "@/components/NetworkLine";
 import { FollowedQuestions } from "@/components/FollowedQuestions";
-import { fromCard, fromPromise, resultsQuestion } from "@/lib/investigate";
+import { fromPromise, promiseHref, resultsQuestion } from "@/lib/investigate";
 import type { Ledger, Snapshot } from "@/lib/types";
 
 export default function CompanyPage({ params }: PageProps<"/c/[symbol]">) {
@@ -159,6 +160,8 @@ async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] 
       {results && (
         <section id="results" className="mt-10 scroll-mt-4">
           <h2 className="section-h">Latest results</h2>
+          {/* the picture first, the exact table under it (visual review §8) */}
+          <ResultsVisual r={results} question={resultsLink(symbol, snap)} />
           <ResultsTable r={results} />
         </section>
       )}
@@ -233,25 +236,17 @@ function Coverage({ symbol, req, dataUntil }: { symbol: string; req: Awaited<Ret
  *  (creative review, company hierarchy step 3). Each opens its investigation. None when nothing supports one. */
 function Questions({ symbol, snap, ledger }: { symbol: string; snap: Snapshot; ledger: Ledger | null }) {
   const out: { tag: string; q: string; href: string }[] = [];
-  const res = [...snap.editions["30d"].leads, ...snap.editions["30d"].more]
-    .filter((c) => c.symbol === symbol && c.kind === "results" && c.facts.results?.comparatives)
-    .sort((a, b) => b.at.localeCompare(a.at))[0];
-  if (res) out.push({ tag: "Latest results", q: fromCard(res, snap, ledger).question, href: `/investigate?card=${res.id}` });
-  else if (snap.results[symbol]?.comparatives) {
-    const r = snap.results[symbol];
-    const q = resultsQuestion(r);
-    if (q) out.push({ tag: "Latest results", q: q.q, href: `/investigate?c=${encodeURIComponent(symbol)}&r=1` });
-  }
+  // the results question sits under the results chart, beside its evidence; these are the promise questions
   if (ledger) {
     const pick = (st: string[]) =>
       ledger.rows
         .filter((r) => st.includes(r.latest) && !/: (no figure|direction only)$/.test(r.title))
         .sort((a, b) => (b.mentions ?? 1) - (a.mentions ?? 1))[0];
     for (const [r, tag] of [[pick(["revised"]), "Promise revised"], [pick(["silent", "missed", "partly"]), "Promise went quiet"]] as const) {
-      if (r && out.length < 3) out.push({ tag: r.latest === "silent" ? "Promise went quiet" : r.latest === "revised" ? tag : "Promise settled", q: fromPromise(r, ledger, snap).question, href: `/investigate?c=${encodeURIComponent(symbol)}&p=${encodeURIComponent(r.id)}` });
+      if (r && out.length < 3) out.push({ tag: r.latest === "silent" ? "Promise went quiet" : r.latest === "revised" ? tag : "Promise settled", q: fromPromise(r, ledger, snap).question, href: promiseHref(symbol, r) });
     }
     const tracked = ledger.rows.find((r) => r.tracking);
-    if (tracked && out.length < 3) out.push({ tag: "Promise on course?", q: fromPromise(tracked, ledger, snap).question, href: `/investigate?c=${encodeURIComponent(symbol)}&p=${encodeURIComponent(tracked.id)}` });
+    if (tracked && out.length < 3) out.push({ tag: "Promise on course?", q: fromPromise(tracked, ledger, snap).question, href: promiseHref(symbol, tracked) });
   }
   if (!out.length) return null;
   return (
@@ -273,4 +268,15 @@ function Questions({ symbol, snap, ledger }: { symbol: string; snap: Snapshot; l
       <p className="mt-1 text-caption text-ink-3">Written from the filed figures and the call-by-call record, by fixed rules.</p>
     </section>
   );
+}
+
+/** The one question the results raise, and where to investigate it (the edition card if there is one). */
+function resultsLink(symbol: string, snap: Snapshot): { text: string; href: string } | undefined {
+  const r = snap.results[symbol];
+  const q = r && resultsQuestion(r);
+  if (!q) return undefined;
+  const card = [...snap.editions["30d"].leads, ...snap.editions["30d"].more]
+    .filter((c) => c.symbol === symbol && c.kind === "results" && c.facts.results?.period_end === r.period_end)
+    .sort((a, b) => b.at.localeCompare(a.at))[0];
+  return { text: q.q, href: card ? `/investigate?card=${card.id}` : `/investigate?c=${encodeURIComponent(symbol)}&r=1` };
 }
