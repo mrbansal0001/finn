@@ -235,7 +235,7 @@ def test_copy_leads_with_underlying_profit_when_one_offs_dominate():
     n = {"current": {"pat": 2393, "non_operating_extra": 671, "exceptional": None, "ebitda_margin_pct": 14.5},
          "prev_y": {"pat": 1120}, "yoy": {"revenue": 10.1, "pat": 113.7, "pbt_underlying": 52.1, "ebitda_margin_bp": 445}}
     head, why = results_copy(n)
-    assert head == "Revenue up 10.1% YoY, profit before one-offs up 52.1%"
+    assert head == "Revenue up 10.1% YoY, PBT before one-offs up 52.1%"
     assert "113.7%" in why and "671" in why
 
 

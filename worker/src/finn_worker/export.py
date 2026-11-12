@@ -147,6 +147,8 @@ def snapshot(until: datetime | None = None) -> dict:
         # private to the owner; in production this lives behind Supabase row-level security
         "contacts": json.loads((ROOT / "config" / "network.json").read_text())["contacts"],
         "prices": {m["symbol"]: m for m in latest},
+        # the last 30 sessions per company, for the price/volume chart (computed as the alert is)
+        "price_history": prices.series(sessions, syms),
     }
 
 

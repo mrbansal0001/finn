@@ -501,11 +501,11 @@ def results_copy(n: dict) -> tuple[str, str | None]:
     if top is not None:
         parts.append(f"{top_label} {_dir(top)} {abs(top):.1f}% YoY")
     if lead_underlying:
-        parts.append(f"profit before one-offs {_dir(y['pbt_underlying'])} {abs(y['pbt_underlying']):.1f}%")
+        parts.append(f"PBT before one-offs {_dir(y['pbt_underlying'])} {abs(y['pbt_underlying']):.1f}%")   # PBT, said as PBT
     elif cur_pat is not None and cur_pat < 0 and prev_pat is not None and prev_pat < 0:
         parts.append(f"loss {'widened' if cur_pat < prev_pat else 'narrowed'} to ₹{inr(abs(cur_pat))} cr")
     elif pat is not None:
-        parts.append(f"profit {_dir(pat)} {abs(pat):.1f}%")
+        parts.append(f"PAT {_dir(pat)} {abs(pat):.1f}%")
     elif cur_pat is not None and prev_pat is not None and (cur_pat < 0) != (prev_pat < 0):
         parts.append(f"swung to a loss of ₹{inr(abs(cur_pat))} cr" if cur_pat < 0
                      else f"back to a ₹{inr(cur_pat)} cr profit from a loss")
@@ -513,9 +513,13 @@ def results_copy(n: dict) -> tuple[str, str | None]:
     why = []
     if cur.get("ebitda_margin_pct") is not None and y.get("ebitda_margin_bp") is not None:
         bp = y["ebitda_margin_bp"]
-        why.append(f"EBITDA margin {cur['ebitda_margin_pct']:.1f}%, {'+' if bp >= 0 else '−'}{abs(bp)}bp YoY.")
+        why.append(f"EBITDA margin {cur['ebitda_margin_pct']:.2f}%, {'+' if bp >= 0 else '−'}{abs(bp)}bp YoY.")   # 2dp: the bp is from unrounded figures
     if lead_underlying and pat is not None:
-        why.append(f"Reported profit {_dir(pat)} {abs(pat):.1f}% including ₹{inr(abs(one_off))} cr of one-off items.")
+        # like with like: reported PBT against PBT before the pre-tax one-offs; PAT said separately (its tax
+        # effect isn't disclosed, so PAT is never "normalised" with a pre-tax item)
+        pbt = y.get("pbt")
+        why.append((f"Reported PBT {_dir(pbt)} {abs(pbt):.1f}% including ₹{inr(abs(one_off))} cr of pre-tax one-off items" if pbt is not None
+                    else f"PBT includes ₹{inr(abs(one_off))} cr of pre-tax one-off items") + f"; PAT {_dir(pat)} {abs(pat):.1f}%.")
     elif cur.get("exceptional") and y.get("pbt_ex_exceptional") is not None:
         why.append(f"PBT includes a ₹{inr(abs(cur['exceptional']))} cr exceptional item; before it, PBT {_dir(y['pbt_ex_exceptional'])} "
                    f"{abs(y['pbt_ex_exceptional']):.1f}% YoY.")

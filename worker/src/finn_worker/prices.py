@@ -138,3 +138,28 @@ def moves_series(sessions: list[dict[str, Bar]], symbols: list[str], *, days: in
 def calendar(sessions: list[dict[str, Bar]]) -> list[str]:
     """Every session the exchange traded, quiet ones included (ISO dates, oldest first)."""
     return [next(iter(day.values())).day.isoformat() for day in sessions if day]
+
+
+def series(sessions: list[dict[str, Bar]], symbols: list[str], *, days: int = 30) -> dict[str, list[dict]]:
+    """Each company's last `days` sessions for the price/volume chart, judged exactly as the alert is:
+    the return is close vs the exchange's previous close, and the volume baseline is the average of the
+    previous (up to) 20 sessions, excluding the session itself. `n` says how many sessions the baseline
+    rests on. Closes are as traded (not split-adjusted): a day whose exchange previous close differs from
+    the prior session's close is flagged `gap`: a session not loaded here (NSE's Sunday Muhurat session is
+    skipped, Sun Pharma 9 Nov 2026) or a corporate action. A chart breaks its line there and says so."""
+    out: dict[str, list[dict]] = {}
+    start = max(0, len(sessions) - days)
+    for s in symbols:
+        rows = []
+        for i in range(start, len(sessions)):
+            bar = sessions[i].get(s)
+            if not bar:
+                continue
+            past = [d[s].volume for d in sessions[max(0, i - 20): i] if s in d]
+            prior = next((sessions[j][s] for j in range(i - 1, -1, -1) if s in sessions[j]), None)
+            gap = bool(prior and bar.prev_close and abs(bar.prev_close - prior.close) / prior.close > 0.02)
+            rows.append({"d": bar.day.isoformat(), "c": bar.close, "pc": bar.prev_close, "v": bar.volume,
+                         "avg": round(sum(past) / len(past)) if past else None, "n": len(past), **({"gap": True} if gap else {})})
+        if rows:
+            out[s] = rows
+    return out
