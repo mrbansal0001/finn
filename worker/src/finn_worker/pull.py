@@ -608,6 +608,15 @@ def _printed(v: float, quote: str, unit: str | None) -> bool:
                for n, w in nums)
 
 
+# an "actual" that is really a forecast ("we can guide a top line growth of 14%"; Cochin Shipyard)
+_FORWARD = re.compile(r"\b(guid(e|ing|ance)|expect\w*|target\w*|aim(ing)?|plan(ning|s)?|hop(e|ing)|going to|outlook|"
+                      r"will be|would be|should be|we will|we would|estimate[ds]?)\b", re.I)
+# a narrower slice than the promise: a region, market or segment the promise didn't name (Kalyan: 13 stores
+# "in South India" vs an 84-store plan for the company)
+_QUALIFIER = re.compile(r"\b((south|north|east|west)(ern)? india|international|overseas|domestic(ally)?|exports?|"
+                        r"middle east|gcc|america[sn]?|europe(an)?|africa|standalone|subsidiar(y|ies)|segment|division)\b", re.I)
+
+
 def _identity_words(thread: Thread, last: dict) -> tuple[set[str], set[str]]:
     """What a matching actual must name: the programme/product names, else the specific scope words."""
     names = {n.lower() for n in _names(f"{thread.metric} {last.get('metric', '')} {last.get('scope') or ''}")}
@@ -637,6 +646,11 @@ def _matching_actual(thread: Thread, last: dict, actuals: list[dict], period: st
         v = a.get("value")
         if not isinstance(v, (int, float)) or not _printed(v, a.get("quote", ""), a.get("unit")):
             continue
+        if _FORWARD.search(a.get("quote", "")):
+            continue                              # a new forecast is not an outcome
+        promised = f"{thread.metric} {last.get('metric', '')} {last.get('scope') or ''} {last.get('quote', '')}".lower()
+        if any(q.group(0).lower() not in promised for q in _QUALIFIER.finditer(a.get("quote", ""))):
+            continue                              # one region or segment is not the promise's whole
         conv = convert(v, a.get("unit"), last.get("unit"), a.get("scale"), last.get("scale"))
         if conv is None:
             continue

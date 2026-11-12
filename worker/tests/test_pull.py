@@ -407,3 +407,17 @@ def test_capex_above_plan_is_observed_not_judged():
     s = pull.statuses(th, ORDER, [act("capex", "FY26", 3157, "INR crore", quote="capex is INR3,157 crores.")])
     assert s["Q2FY27"]["status"] not in ("delivered", "partly", "missed") and "not judged" in s["Q2FY27"]["note"]
     assert s["Q2FY27"]["evidence"]["quote"] == "capex is INR3,157 crores."
+
+
+def test_a_new_forecast_is_not_an_outcome():
+    """Cochin Shipyard: 'we can guide a top line growth of 14% to 15%' is guidance, not FY25's result."""
+    th = _target(metric="revenue growth", lo=20, unit="%", period="FY26")
+    a = act("revenue growth", "FY26", 14, "%", quote="we can guide a top line growth of 14% to 15%.")
+    assert pull.statuses(th, ORDER, [a])["Q2FY27"]["status"] not in ("delivered", "partly", "missed")
+
+
+def test_one_region_does_not_settle_a_company_target():
+    """Kalyan: 13 stores opened 'in South India' vs a plan of 84 for the company."""
+    th = _target(metric="store openings", lo=84, unit="stores", period="FY26")
+    a = act("store openings", "FY26", 13, "stores", quote="overall, we opened 13 stores in South India in the last financial year.")
+    assert pull.statuses(th, ORDER, [a])["Q2FY27"]["status"] not in ("delivered", "partly", "missed")
