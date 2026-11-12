@@ -1,26 +1,27 @@
 @import "tailwindcss";
 
 /*
-  FINN design tokens (docs/research/03-product-design.md §4.4, §6.2).
-  Paper and ink, one accent. Red/green only ever mean direction; status glyphs
-  carry their own colour but are always paired with a shape (● ◐ ○ — ↻).
+  FINN design tokens (docs/UI-DESIGN-PLAN-2026-11-12.md §4–§7).
+  A private morning paper: paper and ink, one accent, a serif for what matters, a plain sans for the rest.
+  Red/green appear only on a direction figure; status colours only on a status glyph or word.
 */
 :root {
   --paper: #f7f5f0;
   --paper-raised: #fffdf8;
-  --ink: #16150f;
-  --ink-2: #57544b;      /* secondary ink: metadata, inferred text */
-  --ink-3: #736f64;      /* tertiary: timestamps, folds (4.6:1 on paper, WCAG AA) */
-  --rule: #e2ddd1;       /* hairlines */
-  --accent: #2448a5;     /* the one accent: links, network line, focus */
-  --up: #0f7b3f;
-  --down: #b42318;
+  --ink: #16150f;            /* 16.8:1 */
+  --ink-2: #57544b;          /* 7.0:1  secondary: prose under a headline, labels */
+  --ink-3: #6b675c;          /* 5.2:1  tertiary: captions, times (13px clears 4.5:1 with room) */
+  --rule: #e2ddd1;           /* hairlines */
+  --accent: #2448a5;         /* links, the selected control, the one tinted surface */
+  --tint: #efebe2;           /* one warm, slightly deeper paper (a blue mix read as cold grey here) */
+  --up: #0f7b3f;             /* 4.9:1 */
+  --down: #b42318;           /* 6.0:1 */
   --s-delivered: #0f7b3f;
-  --s-partly: #a86200;
+  --s-partly: #8f5400;       /* 5.6:1, so it can be a word too */
   --s-missed: #b42318;
-  --s-silent: #7d796f;    /* glyphs >= 3:1 (WCAG non-text contrast) */
+  --s-silent: #6b675c;
   --s-revised: #2448a5;
-  --s-early: #8b877c;
+  --s-early: #6b675c;
   --sheet-shadow: 0 -8px 32px rgb(22 21 15 / 0.12);
 }
 
@@ -33,6 +34,7 @@
     --ink-3: #8f8b82;
     --rule: #2a2926;
     --accent: #8aa6f0;
+    --tint: #1d1c19;
     --up: #45c07f;
     --down: #f0716a;
     --s-delivered: #45c07f;
@@ -40,8 +42,24 @@
     --s-missed: #f0716a;
     --s-silent: #8f8b82;
     --s-revised: #8aa6f0;
-    --s-early: #75726a;
+    --s-early: #8f8b82;
     --sheet-shadow: 0 -8px 32px rgb(0 0 0 / 0.5);
+  }
+}
+
+/* Colour-blind-friendly directions (Settings → Display): blue up, orange down. The sign stays either way. */
+:root[data-cb="1"] {
+  --up: #2448a5;
+  --down: #b45309;
+  --s-delivered: #2448a5;
+  --s-missed: #b45309;
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-cb="1"] {
+    --up: #8aa6f0;
+    --down: #f59e4b;
+    --s-delivered: #8aa6f0;
+    --s-missed: #f59e4b;
   }
 }
 
@@ -53,28 +71,33 @@
   --color-ink-3: var(--ink-3);
   --color-rule: var(--rule);
   --color-accent: var(--accent);
+  --color-tint: var(--tint);
   --color-up: var(--up);
   --color-down: var(--down);
   --font-sans: var(--font-geist);
-  --font-serif: var(--font-newsreader);
+  --font-serif: var(--font-fraunces);
 
-  /* The type scale: seven steps, nothing under 12px on a phone (docs/UI-PLAN-2026-11-12.md).
-     display 28 serif (page titles) · title 22 serif (detail headline) · headline 19 serif (lead story)
-     · subhead 17 serif (other stories) · body 16 · small 14 · meta 12 */
-  --text-display: 1.75rem;
-  --text-display--line-height: 1.15;
-  --text-title: 1.375rem;
-  --text-title--line-height: 1.3;
-  --text-headline: 1.1875rem;
-  --text-headline--line-height: 1.35;
-  --text-subhead: 1.0625rem;
-  --text-subhead--line-height: 1.4;
-  --text-body: 1rem;
-  --text-body--line-height: 1.55;
-  --text-small: 0.875rem;
-  --text-small--line-height: 1.45;
-  --text-meta: 0.75rem;
-  --text-meta--line-height: 1.4;
+  /* The scale: eight steps (plan §4.3). Nothing under 12px; the 12px step is for labels only.
+     display 30 · title 24 · headline 20 · subhead 18 (Fraunces) · body 17 · small 15 · caption 13 · label 12 */
+  --text-display: 1.875rem;
+  --text-display--line-height: 2.125rem;
+  --text-display--letter-spacing: -0.01em;
+  --text-title: 1.5rem;
+  --text-title--line-height: 1.875rem;
+  --text-title--letter-spacing: -0.005em;
+  --text-headline: 1.25rem;
+  --text-headline--line-height: 1.625rem;
+  --text-subhead: 1.125rem;
+  --text-subhead--line-height: 1.5rem;
+  --text-body: 1.0625rem;
+  --text-body--line-height: 1.625rem;
+  --text-small: 0.9375rem;
+  --text-small--line-height: 1.375rem;
+  --text-caption: 0.8125rem;
+  --text-caption--line-height: 1.125rem;
+  --text-label: 0.75rem;
+  --text-label--line-height: 1rem;
+  --text-label--letter-spacing: 0.08em;
 }
 
 html {
@@ -85,29 +108,46 @@ html {
 
 body {
   font-family: var(--font-geist), system-ui, sans-serif;
+  font-size: var(--text-body);
+  line-height: 1.53;
   -webkit-font-smoothing: antialiased;
   min-height: 100dvh;
 }
 
-/* Numbers in the text face with tabular figures: columns align, and a date inside a sentence no longer
-   reads like a typewriter (the monospace face was used everywhere before). */
+/* Custom classes live in the components layer, so a utility on the same element (font-semibold,
+   items-center, font-normal) still wins. */
+@layer components {
+/* Fraunces: medium weight, softened, optical size following the font size (plan §4.2) */
+.font-serif {
+  font-weight: 440;      /* the variable font between regular and medium: 500 reads heavy at 18–20px on a phone */
+  font-optical-sizing: auto;
+  font-variation-settings: "SOFT" 50, "WONK" 0;
+}
+
+/* Numbers in the text face with tabular figures, so they line up in any column */
 .num {
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1;
 }
 
+/* The label step: kickers and section headings only */
 .kicker {
-  font-size: var(--text-meta);
-  line-height: 1.3;
-  letter-spacing: 0.06em;
+  font-size: var(--text-label);
+  line-height: 1rem;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   font-weight: 600;
 }
 
-/* Section heading: kicker over a full rule */
+/* Section heading: label over a full ink rule, an optional count at the right */
 .section-h {
-  font-size: var(--text-meta);
-  letter-spacing: 0.06em;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: var(--text-label);
+  line-height: 1rem;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   font-weight: 600;
   border-bottom: 1px solid var(--ink);
@@ -133,6 +173,7 @@ body {
 .above-card {
   position: relative;
   z-index: 1;
+}
 }
 
 /* hairline rule between items; no boxes, no shadows (anti-slop rule 12) */
@@ -165,6 +206,30 @@ details::details-content {
 }
 details[open]::details-content {
   block-size: auto;
+}
+
+/* the holdings sheet (native <dialog>) slides up from the bottom */
+dialog.sheet {
+  margin: auto auto 0;
+  max-width: min(100%, 480px);
+  width: 100%;
+  max-height: 85dvh;
+  border: 0;
+  border-radius: 12px 12px 0 0;
+  padding: 0;
+  background: var(--paper-raised);
+  color: var(--ink);
+  box-shadow: var(--sheet-shadow);
+  transition: translate 220ms cubic-bezier(0.2, 0, 0, 1), display 220ms allow-discrete, overlay 220ms allow-discrete;
+  translate: 0 0;
+}
+@starting-style {
+  dialog.sheet[open] {
+    translate: 0 100%;
+  }
+}
+dialog.sheet::backdrop {
+  background: rgb(0 0 0 / 0.3);
 }
 
 @media (prefers-reduced-motion: reduce) {

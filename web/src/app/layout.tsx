@@ -1,11 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import { Suspense, ViewTransition } from "react";
-import { Geist, Newsreader } from "next/font/google";
+import { Fraunces, Geist } from "next/font/google";
 import { NavTracker } from "@/components/BackLink";
 import "./globals.css";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
-const newsreader = Newsreader({ subsets: ["latin"], variable: "--font-newsreader", style: ["normal", "italic"] });
+// Fraunces for headlines (variable: weight, optical size, softness); plan §4.2
+const fraunces = Fraunces({ subsets: ["latin"], variable: "--font-fraunces", style: ["normal", "italic"], axes: ["SOFT", "opsz"] });
 
 export const metadata: Metadata = {
   title: "FINN",
@@ -25,13 +26,21 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en-IN" className={`${geist.variable} ${newsreader.variable}`}>
+    <html lang="en-IN" className={`${geist.variable} ${fraunces.variable}`} suppressHydrationWarning>
+      <head>
+        {/* the colour-blind palette is a per-device choice (Settings → Display), applied before first paint */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{if(localStorage.getItem("finn_cb")==="1")document.documentElement.dataset.cb="1"}catch(e){}`,
+          }}
+        />
+      </head>
       <body>
         {/* Phone-width column everywhere: the product is designed for one thumb. */}
         <Suspense fallback={null}>
           <NavTracker />
         </Suspense>
-        <div className="mx-auto min-h-dvh max-w-[480px] px-4 pb-[calc(env(safe-area-inset-bottom)+6rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)] md:max-w-[560px]">
+        <div className="mx-auto min-h-dvh max-w-[480px] px-4 pb-[calc(env(safe-area-inset-bottom)+5.5rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)] min-[400px]:px-5 md:max-w-[560px]">
           {/* pages crossfade on navigation (160 ms; off under reduced motion) */}
           <ViewTransition>{children}</ViewTransition>
         </div>

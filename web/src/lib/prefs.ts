@@ -1,4 +1,5 @@
 import type { Card, Edition } from "./types";
+import { pct as fmtPct, times } from "./format";
 
 /** "What counts as material?" -- the investor decides what unusual means (brief, Push). */
 export type Prefs = {
@@ -59,8 +60,8 @@ export function alertsFor(moveCards: Card[], since: string, until: string, prefs
     const f = c.facts as { change_pct?: number; volume_multiple?: number };
     const pct = f.change_pct ?? 0, vol = f.volume_multiple ?? 0;
     const rules = [
-      Math.abs(pct) >= prefs.price_pct ? `${pct >= 0 ? "▲" : "▼"}${Math.abs(pct).toFixed(1)}%` : null,
-      vol >= prefs.volume_x ? `${vol.toFixed(1)}× volume` : null,
+      Math.abs(pct) >= prefs.price_pct ? fmtPct(pct) : null,
+      vol >= prefs.volume_x ? `${times(vol)} volume` : null,
     ].filter((x): x is string => x !== null);
     if (rules.length) out.push({ card: c, rules });
   }
