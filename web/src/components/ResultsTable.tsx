@@ -1,11 +1,10 @@
 import type { ResultsFacts } from "@/lib/types";
-import { arrow, bp, crore, croreFromCr, dirClass, fyQuarter, pct } from "@/lib/format";
+import { bp, crore, croreFromCr, dirClass, fyQuarter, pct } from "@/lib/format";
 
 /**
- * The 4-row results micro-table (research 03 §4.1): tabular figures, margins in bp,
- * sign + arrow + colour (never colour alone). Banks get NII / PPOP / provisions / PAT.
- * When only the XBRL is available (current quarter, no comparatives), QoQ/YoY show
- * as pending instead of being guessed.
+ * The results table (plan §8.6): label | value | YoY | QoQ, tabular figures right-aligned, margins in bp,
+ * the sign carries direction (colour only helps; no arrows). Banks: NII, operating profit, provisions, PAT,
+ * then gross NPA. When only the XBRL exists (no comparatives), YoY/QoQ show as pending, never guessed.
  */
 export function ResultsTable({ r }: { r: ResultsFacts }) {
   const c = r.comparatives;
@@ -45,33 +44,42 @@ export function ResultsTable({ r }: { r: ResultsFacts }) {
       <table className="w-full text-small">
         <caption className="sr-only">Results {fyQuarter(r.period_end)}</caption>
         <thead>
-          <tr className="text-meta uppercase tracking-wider text-ink-3">
-            <th className="pb-1 text-left font-medium">{fyQuarter(r.period_end)}</th>
-            <th className="pb-1 text-right font-medium" />
-            <th className="pb-1 text-right font-medium">YoY</th>
-            <th className="pb-1 text-right font-medium">QoQ</th>
+          <tr className="kicker text-ink-3">
+            <th className="pb-2 text-left font-semibold">{fyQuarter(r.period_end)}</th>
+            <th className="pb-2 text-right font-semibold" />
+            <th className="w-[4.75rem] pb-2 text-right font-semibold">YoY</th>
+            <th className="w-[4.75rem] pb-2 text-right font-semibold">QoQ</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={row.label} className="border-t border-rule">
-              <td className="py-1.5 text-ink-2">{row.label}</td>
-              <td className="num py-1.5 text-right text-ink">{row.value}</td>
+            <tr key={row.label} className="h-10 border-t border-rule">
+              <td className="text-ink-2">{row.label}</td>
+              <td className="num text-right font-medium text-ink">{row.value}</td>
               <Delta v={row.yoy} pending={!c} />
               <Delta v={row.qoq} pending={!c} />
             </tr>
           ))}
           {margin != null && (
-            <tr className="border-t border-rule">
-              <td className="py-1.5 text-ink-2">EBITDA margin</td>
-              <td className="num py-1.5 text-right">{margin.toFixed(1)}%</td>
-              <td className={`num py-1.5 text-right ${dirClass(c?.yoy?.ebitda_margin_bp)}`}>{bp(c?.yoy?.ebitda_margin_bp)}</td>
-              <td className={`num py-1.5 text-right ${dirClass(c?.qoq?.ebitda_margin_bp)}`}>{bp(c?.qoq?.ebitda_margin_bp)}</td>
+            <tr className="h-10 border-t border-rule">
+              <td className="text-ink-2">EBITDA margin</td>
+              <td className="num text-right font-medium">{margin.toFixed(1)}%</td>
+              <td className={`num text-right font-medium ${dirClass(c?.yoy?.ebitda_margin_bp)}`}>{bp(c?.yoy?.ebitda_margin_bp)}</td>
+              <td className={`num text-right font-medium ${dirClass(c?.qoq?.ebitda_margin_bp)}`}>{bp(c?.qoq?.ebitda_margin_bp)}</td>
+            </tr>
+          )}
+          {isBank && c?.current?.gnpa_pct != null && (
+            <tr className="h-10 border-t border-rule">
+              <td className="text-ink-2">Gross NPA</td>
+              <td className="num text-right font-medium">{c.current.gnpa_pct.toFixed(2)}%</td>
+              <td className="text-right text-ink-3" colSpan={2}>
+                {c.current.nnpa_pct != null ? <span className="num">net {c.current.nnpa_pct.toFixed(2)}%</span> : null}
+              </td>
             </tr>
           )}
         </tbody>
       </table>
-      <figcaption className="mt-2 text-meta text-ink-3">
+      <figcaption className="mt-2 text-caption text-ink-3">
         <p>
           {r.nature}
           {r.reporting === "Half Yearly" ? " · half-yearly reporter, no QoQ" : ""}
@@ -88,7 +96,7 @@ export function ResultsTable({ r }: { r: ResultsFacts }) {
         </p>
         {/* one line says it was checked; the list of what ran is one tap away (audit F07) */}
         <details className="mt-1">
-          <summary className="inline-flex min-h-[44px] items-center gap-1 text-ink-2">
+          <summary className="inline-flex min-h-[44px] items-center gap-1.5 text-ink-2">
             <span aria-hidden className="text-up">✓</span>
             {r.check === "xbrl_exact" && !c
               ? "Exact from the exchange XBRL"
@@ -109,15 +117,8 @@ export function ResultsTable({ r }: { r: ResultsFacts }) {
 }
 
 function Delta({ v, pending }: { v?: number | null; pending: boolean }) {
-  if (pending) return <td className="num py-1 text-right text-ink-3">·</td>;
-  return (
-    <td className={`num py-1 text-right ${dirClass(v)}`}>
-      {pct(v)}
-      <span className="ml-0.5 text-[0.7em]" aria-hidden>
-        {arrow(v)}
-      </span>
-    </td>
-  );
+  if (pending) return <td className="num text-right text-ink-3">·</td>;
+  return <td className={`num text-right font-medium ${dirClass(v)}`}>{pct(v)}</td>;
 }
 
 function pageOf(url: string): string {

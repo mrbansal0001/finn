@@ -22,6 +22,21 @@ export function Dock() {
   const [q, setQ] = useState("");
   const [res, setRes] = useState<Results>({ q: "", companies: [], people: [] });
   const [note, setNote] = useState("");
+  const [focused, setFocused] = useState(false);
+  const [hidden, setHidden] = useState(false);
+
+  // out of the way while reading down a long page; back on scrolling up (plan §7, §8.11)
+  useEffect(() => {
+    let last = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      if (Math.abs(y - last) < 8) return;
+      setHidden(y > last && y > 120);
+      last = y;
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
   const { term: query, asked } = searchTerm(q);
   const ready = query.length >= 2 && res.q === query;
   const current: Results = ready ? res : { q: query, companies: [], people: [] };
@@ -78,7 +93,7 @@ export function Dock() {
         <li key={p.id}>
           <Link href={`/people/${p.id}`} className="flex min-h-[48px] flex-col justify-center px-3 py-1.5 hover:bg-paper">
             <span className="text-small text-ink">{p.name}</span>
-            <span className="truncate text-meta text-ink-2">{p.why}</span>
+            <span className="truncate text-caption text-ink-3">{p.why}</span>
           </Link>
         </li>
       ))}
@@ -100,10 +115,14 @@ export function Dock() {
 
   return (
     <ViewTransition name="finn-dock">
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-rule bg-paper/95 backdrop-blur supports-[backdrop-filter]:bg-paper/80">
+      <div
+        className={`fixed inset-x-0 bottom-0 z-20 border-t border-rule bg-paper/90 backdrop-blur transition-transform duration-200 supports-[backdrop-filter]:bg-paper/80 ${
+          hidden && !focused && !q ? "translate-y-full" : "translate-y-0"
+        }`}
+      >
         <div className="mx-auto max-w-[480px] px-4 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2 md:max-w-[560px]">
           {open && (
-            <div className="mb-2 max-h-[min(18rem,50dvh)] overflow-y-auto rounded-md border border-rule bg-paper-raised py-1" aria-live="polite">
+            <div className="mb-2 max-h-[min(18rem,50dvh)] overflow-y-auto rounded-lg border border-rule bg-paper-raised py-1" aria-live="polite">
               {searching && !current.companies.length && !current.people.length ? (
                 <p className="px-3 py-2 text-small text-ink-3">Searching…</p>
               ) : current.failed ? (
@@ -125,7 +144,24 @@ export function Dock() {
               )}
             </div>
           )}
-          {note && <p role="status" className="mb-1 text-small text-ink-2">{note}</p>}
+          {note && <p role="status" className="mb-1.5 text-small text-ink-2">{note}</p>}
+          {/* three kinds of search, shown once the box is focused and empty */}
+          {focused && !q && (
+            <div className="mb-2 flex items-center gap-1.5 overflow-x-auto" aria-label="Examples">
+              <span className="shrink-0 text-caption text-ink-3">Try</span>
+              {["BEL", "specialty chemicals", "Rhea"].map((x) => (
+                <button
+                  key={x}
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => setQ(x)}
+                  className="min-h-[36px] shrink-0 rounded-full border border-rule px-3 text-caption text-ink-2 hover:text-ink"
+                >
+                  {x}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <form onSubmit={submit} role="search" className="min-w-0 flex-1">
               <label htmlFor="ask" className="sr-only">
@@ -144,18 +180,20 @@ export function Dock() {
                     setNote("");
                   }
                 }}
+                onFocus={() => setFocused(true)}
+                onBlur={() => setFocused(false)}
                 placeholder="Company, person or theme"
                 autoCapitalize="none"
                 autoCorrect="off"
                 spellCheck={false}
                 enterKeyHint="search"
-                className="h-11 w-full rounded-md border border-ink-3 bg-paper-raised px-3 text-body placeholder:text-ink-3 focus:border-accent focus:outline-none"
+                className="h-11 w-full rounded-lg border border-ink-3 bg-paper-raised px-3.5 text-body placeholder:text-ink-3 focus:border-accent focus:outline-none"
               />
             </form>
             <Link
               href="/settings"
               aria-label="What counts: your alert rules and filters"
-              className="inline-flex size-11 shrink-0 items-center justify-center rounded-md border border-rule text-ink-2 hover:text-ink"
+              className="inline-flex size-11 shrink-0 items-center justify-center rounded-lg border border-rule text-ink-2 hover:text-ink"
             >
               <svg aria-hidden width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
                 <path d="M3 6h9M15 6h2M3 14h3M9 14h8" />
@@ -173,7 +211,7 @@ export function Dock() {
 function Group({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
   return (
     <section>
-      <p className="px-3 pb-0.5 pt-2 text-meta uppercase tracking-wider text-ink-3">
+      <p className="kicker px-3 pb-1 pt-2.5 text-ink-3">
         {title} · {count}
       </p>
       <ul aria-label={title}>{children}</ul>

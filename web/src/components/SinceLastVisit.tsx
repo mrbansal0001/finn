@@ -34,8 +34,8 @@ export function SinceLastVisit({ active, seen }: { active: boolean; seen: string
     <Link
       href={`/?w=since&t=${encodeURIComponent(since)}`}
       aria-current={active ? "page" : undefined}
-      className={`inline-flex min-h-[44px] items-center whitespace-nowrap rounded-full px-3 text-small ${
-        active ? "bg-ink text-paper" : "text-ink-2 hover:text-ink"
+      className={`inline-flex min-h-[44px] items-center whitespace-nowrap rounded-full px-4 text-small ${
+        active ? "bg-ink font-medium text-paper" : "text-ink-2 hover:text-ink"
       }`}
     >
       Since last visit

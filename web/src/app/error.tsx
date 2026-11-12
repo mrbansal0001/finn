@@ -11,7 +11,7 @@ export default function Error({ reset }: { error: Error & { digest?: string }; r
         The data service didn&apos;t answer in time. It usually does on a second try.
       </p>
       <div className="mt-4 flex gap-4 text-body">
-        <button onClick={reset} className="min-h-[44px] rounded-md bg-ink px-4 text-paper">Try again</button>
+        <button onClick={reset} className="min-h-12 rounded-lg bg-ink px-5 text-small font-medium text-paper">Try again</button>
         <Link href="/" className="inline-flex min-h-[44px] items-center text-accent">Back to the edition</Link>
       </div>
     </main>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { NetworkLine as Line } from "@/lib/types";
+import { monthYear } from "@/lib/format";
 
 /**
  * The Network, quietly inside Push: one line, the person and the evidence.
@@ -42,11 +43,11 @@ export function NetworkLine({
           ) : null}
           {line.insider ? <span className="text-ink-3"> · insider{compact ? "" : ": public information only"}</span> : null}
           {!compact && line.last_contact && asOf ? (
-            <span className="text-ink-3"> · last spoke {monthsAgo(line.last_contact, asOf)}</span>
+            <span className="text-ink-3"> · last spoke {monthYear(line.last_contact)}</span>
           ) : null}
         </span>
       </p>
-      {extra(reason, line.relation) && <p className="ml-5 mt-0.5 text-small text-ink-3">Best placed: {extra(reason, line.relation)}.</p>}
+      {extra(reason, line.relation) && <p className="ml-5 mt-1 text-caption text-ink-3">Best placed: {extra(reason, line.relation)}</p>}
     </div>
   );
 }
@@ -56,12 +57,4 @@ function extra(reason: string | undefined, relation: string): string {
   if (!reason) return "";
   const r = reason.startsWith(relation) ? reason.slice(relation.length) : reason;
   return r.replace(/^[\s;,.]+/, "").trim();
-}
-
-function monthsAgo(iso: string, asOf: string): string {
-  // measured against the edition's data time, not the render clock
-  const days = Math.round((new Date(asOf).getTime() - new Date(iso).getTime()) / 86_400_000);
-  if (days < 14) return `${days}d ago`;
-  if (days < 60) return `${Math.round(days / 7)} wk ago`;
-  return `${Math.round(days / 30)} mo ago`;
 }

@@ -20,8 +20,8 @@ export function NoteDraft({ name, company, topic, kind, role }: { name: string; 
   const [text, setText] = useState(`Hi ${first}, ${what} ${why} Could we speak for 15 minutes this week?`);
   const [copied, setCopied] = useState<"" | "ok" | "failed">("");
   return (
-    <div className="mt-4">
-      <label htmlFor="note" className="text-meta text-ink-3">
+    <div className="mt-5">
+      <label htmlFor="note" className="text-caption text-ink-3">
         Draft a note (edit it, then copy; nothing is sent from FINN)
       </label>
       <textarea
@@ -29,7 +29,7 @@ export function NoteDraft({ name, company, topic, kind, role }: { name: string; 
         value={text}
         onChange={(e) => setText(e.target.value)}
         rows={5}
-        className="mt-1 w-full rounded-md border border-ink-3 bg-paper-raised p-3 text-body focus:border-accent focus:outline-none"
+        className="mt-1.5 w-full rounded-lg border border-ink-3 bg-paper-raised px-3.5 py-3 text-body focus:border-accent focus:outline-none"
       />
       <button
         type="button"
@@ -43,11 +43,11 @@ export function NoteDraft({ name, company, topic, kind, role }: { name: string; 
           }
           setTimeout(() => setCopied(""), 2500);
         }}
-        className="mt-2 min-h-[44px] rounded-md bg-ink px-5 text-small text-paper"
+        className="mt-3 min-h-12 rounded-lg bg-ink px-5 text-small font-medium text-paper"
       >
         {copied === "ok" ? "Copied" : "Copy"}
       </button>
-      <span role="status" className="ml-3 text-meta text-ink-3">
+      <span role="status" className="ml-3 text-caption text-ink-3">
         {copied === "failed" ? "Couldn't copy here; select the text instead." : ""}
       </span>
     </div>

@@ -49,7 +49,7 @@ export function BriefButton({ edition, alerts = 0 }: { edition: Edition; alerts?
       aria-pressed={speaking}
       className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full px-2 text-small text-ink-2 hover:text-ink"
     >
-      <span aria-hidden className="text-meta">{speaking ? "■" : "▶"}</span>
+      <span aria-hidden className="text-caption">{speaking ? "■" : "▶"}</span>
       {failed ? "Couldn't play" : speaking ? "Stop" : "Listen"}
     </button>
   );

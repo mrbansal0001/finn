@@ -7,6 +7,7 @@ import { cookies } from "next/headers";
 import { parsePrefs, PREFS_COOKIE } from "@/lib/prefs";
 import { findCard, getView } from "@/lib/data";
 import { KIND_LABEL, when } from "@/lib/format";
+import { changeWord } from "@/components/EditionCard";
 import { NetworkLine } from "@/components/NetworkLine";
 import type { NetworkLine as NetworkLineT } from "@/lib/types";
 import { ResultsTable } from "@/components/ResultsTable";
@@ -46,7 +47,7 @@ async function Detail({ params }: { params: PageProps<"/card/[id]">["params"] })
   }
   const weight = snap.portfolio.find((h) => h.symbol === card.symbol)?.weight ?? 0;
   const ageH = (new Date(snap.data_until).getTime() - new Date(card.at).getTime()) / 3_600_000;
-  const people = (card.facts.people as { name: string; change: string; role: string; orgs: { org: string; start?: string; end?: string }[]; schools: string[] }[] | undefined) ?? [];
+  const people = (card.facts.people as { name: string; change: string; role: string; effective?: string | null; orgs: { org: string; start?: string; end?: string }[]; schools: string[] }[] | undefined) ?? [];
 
   return (
     <main>
@@ -56,7 +57,7 @@ async function Detail({ params }: { params: PageProps<"/card/[id]">["params"] })
         <span aria-hidden>·</span>
         <Link href={`/c/${card.symbol}`} className="tap text-ink-2 hover:text-ink">{card.symbol}</Link>
         <span aria-hidden>·</span>
-        <span className="num font-normal normal-case tracking-normal">{when(card.at)}</span>
+        <span className="num text-caption font-normal normal-case tracking-normal">{when(card.at, snap.data_until)}</span>
       </p>
       <h1 className="mt-1.5 font-serif text-title">{card.headline ?? `${card.company}: ${card.nse_subject}`}</h1>
       <p className="mt-0.5 text-small text-ink-3">{card.company.replace(/ Limited$/, "")}</p>
@@ -64,27 +65,33 @@ async function Detail({ params }: { params: PageProps<"/card/[id]">["params"] })
       {card.facts.results && <ResultsTable r={card.facts.results} />}
 
       {people.length > 0 && (
-        <section className="mt-8">
+        <section className="mt-10">
           <h2 className="section-h">From the filing</h2>
           {people.map((p) => (
-            <div key={p.name} className="py-2.5 text-body">
-              <p>
-                <span className="font-medium">{p.name}</span> <span className="text-ink-2">· {p.change} · {p.role}</span>
+            <div key={p.name} className="border-b border-rule py-3 last:border-b-0">
+              {/* a composed sentence, not raw fields (plan §9.2) */}
+              <p className="text-body">
+                <span className="font-medium text-ink">{p.name}</span>
+                <span className="text-ink-2">
+                  {p.role ? `, ${p.role}` : ""}
+                  {changeWord(p.change) ? `, ${changeWord(p.change)}` : ""}
+                  {p.effective ? ` effective ${effectiveDate(p.effective)}` : ""}.
+                </span>
               </p>
               {p.orgs.length > 0 && (
-                <p className="text-small text-ink-2">
+                <p className="mt-1 text-caption text-ink-2">
                   {p.orgs.map((o) => `${o.org}${o.start ? ` ${o.start}–${o.end ?? ""}` : ""}`).join(" · ")}
                 </p>
               )}
-              {p.schools.length > 0 && <p className="text-small text-ink-3">{p.schools.join(" · ")}</p>}
+              {p.schools.length > 0 && <p className="mt-0.5 text-caption text-ink-3">{p.schools.join(" · ")}</p>}
             </div>
           ))}
-          <p className="mt-2 rounded-md bg-paper-raised px-3 py-2 text-small text-ink-2">{overlapLine(card.network, people, snap.contacts.length, snap.network_status)}</p>
+          <p className="mt-3 rounded-lg bg-tint px-4 py-3 text-small text-ink-2">{overlapLine(card.network, people, snap.contacts.length, snap.network_status)}</p>
         </section>
       )}
 
       {card.network.length > 0 && (
-        <section className="mt-8">
+        <section className="mt-10">
           <h2 className="section-h">Who can explain this</h2>
           {/* the first person carries the "best placed" reason under their own line (no repeat above it) */}
           {card.network.map((l, i) => (
@@ -100,20 +107,20 @@ async function Detail({ params }: { params: PageProps<"/card/[id]">["params"] })
       )}
 
       {card.sources.length > 0 && (
-        <section className="mt-8">
+        <section className="mt-10">
           <h2 className="section-h">Sources</h2>
           <SourceChips sources={card.sources} />
         </section>
       )}
 
-      <section className="mt-8">
+      <section className="mt-10">
         <h2 className="section-h">Why this is here</h2>
         <ul className="mt-2 list-disc space-y-0.5 pl-5 text-small text-ink-2">
           {reasons(card, weight, ageH).map((r) => (
             <li key={r}>{r}</li>
           ))}
         </ul>
-        <details className="mt-1 text-meta text-ink-3">
+        <details className="mt-1 text-caption text-ink-3">
           <summary className="inline-flex min-h-[44px] items-center">How the order is computed</summary>
           <dl className="grid grid-cols-[1fr_auto] gap-y-1">
             <dt>Tier: {card.tier}</dt><dd className="num text-right">+{TIER_WEIGHT[card.tier]}</dd>
@@ -130,6 +137,12 @@ async function Detail({ params }: { params: PageProps<"/card/[id]">["params"] })
       <Dock />
     </main>
   );
+}
+
+/** "12 Nov 2026" from whatever date form the filing used; unchanged if it can't be read. */
+function effectiveDate(s: string): string {
+  const d = new Date(s.replace(/(\d+)(st|nd|rd|th)\b/i, "$1"));
+  return Number.isNaN(d.getTime()) ? s : d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
 }
 
 /** Plain reasons first; the arithmetic sits under "How the order is computed". */

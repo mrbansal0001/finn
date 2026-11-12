@@ -5,7 +5,8 @@ import { Dock } from "@/components/Dock";
 import { Suspense } from "react";
 import { getLedger, getRequest, getUniverse, getView } from "@/lib/data";
 import { RequestButton } from "./RequestButton";
-import { arrow, dirClass, pct, when } from "@/lib/format";
+import { dirClass, pct, price as fmtPrice, when } from "@/lib/format";
+import { SectionNav } from "@/components/SectionNav";
 import { EditionCard } from "@/components/EditionCard";
 import { PromisesLedger } from "@/components/PromisesLedger";
 import { ResultsTable } from "@/components/ResultsTable";
@@ -42,11 +43,14 @@ async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] 
       <main>
         <BackLink fallback="/" />
         <h1 className="font-serif text-title">No NSE equity called {symbol}</h1>
+        {close.length > 0 && <p className="mt-2 text-small text-ink-3">Did you mean</p>}
         {close.length > 0 && (
-          <ul className="mt-3 text-body">
+          <ul className="hair mt-3 text-body">
             {close.map(([s, n]) => (
-              <li key={s} className="py-1">
-                <Link href={`/c/${s}`} className="text-accent">{s}</Link> <span className="text-ink-2">{n}</span>
+              <li key={s}>
+                <Link href={`/c/${s}`} className="flex min-h-[48px] items-center gap-3">
+                  <span className="font-medium text-accent">{s}</span> <span className="truncate text-small text-ink-2">{n}</span>
+                </Link>
               </li>
             ))}
           </ul>
@@ -85,37 +89,26 @@ async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] 
         </p>
         <h1 className="mt-1 font-serif text-display">{name.replace(/ Limited$/, "")}</h1>
         {price && (
-          <p className="mt-1.5 flex flex-wrap items-baseline gap-x-2 text-body">
-            <span className="num font-medium">₹{price.close.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>
-            <span className={`num ${dirClass(price.change_pct)}`}>
-              {pct(price.change_pct)}
-              <span aria-hidden className="ml-0.5 text-[0.7em]">{arrow(price.change_pct)}</span>
-            </span>
+          <p className="mt-2 flex flex-wrap items-baseline gap-x-2 text-body">
+            <span className="num font-medium">{fmtPrice(price.close)}</span>
+            <span className={`num font-medium ${dirClass(price.change_pct)}`}>{pct(price.change_pct)}</span>
             <span className="text-small text-ink-3">
-              close <span className="num">{when(price.day + "T15:30:00")}</span>
+              · close <span className="num">{when(price.day + "T15:30:00", snap.data_until)}</span>
             </span>
           </p>
         )}
       </header>
 
-      {sections.length > 2 && (
-        <nav aria-label="On this page" className="-mx-1 mt-4 flex gap-1 overflow-x-auto">
-          {sections.map(([id, label]) => (
-            <a key={id} href={`#${id}`} className="inline-flex min-h-[40px] items-center whitespace-nowrap rounded-full border border-rule px-3 text-small text-ink-2 hover:text-ink">
-              {label}
-            </a>
-          ))}
-        </nav>
-      )}
+      {sections.length > 2 && <SectionNav sections={sections} />}
 
       {ledger?.snapshot && ledger.snapshot.what_they_do.length > 0 && (
-        <section className="mt-7">
+        <section className="mt-8">
           <h2 className="section-h">What they do · FY{String(ledger.snapshot.year).slice(2)} annual report</h2>
           <ul className="mt-2.5 space-y-2 text-body">
             {ledger.snapshot.what_they_do.slice(0, 2).map((x, i) => (
               <li key={i}>
                 {x.text}{" "}
-                <a href={`${ledger.snapshot!.url}#page=${x.page}`} target="_blank" rel="noopener noreferrer" className="tap num text-meta text-accent">
+                <a href={`${ledger.snapshot!.url}#page=${x.page}`} target="_blank" rel="noopener noreferrer" className="tap num text-caption text-accent">
                   AR p.{x.page}
                 </a>
               </li>
@@ -123,14 +116,14 @@ async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] 
           </ul>
           {(ledger.snapshot.what_they_do.length > 2 || ledger.snapshot.segments.length > 0) && (
             <details className="group mt-1">
-              <summary className="inline-flex min-h-[40px] items-center gap-1 text-small text-accent">
+              <summary className="inline-flex min-h-[44px] items-center gap-1 text-small text-accent">
                 More, with segments <span aria-hidden className="transition-transform duration-200 group-open:rotate-90">›</span>
               </summary>
               <ul className="space-y-2 text-body">
                 {ledger.snapshot.what_they_do.slice(2).map((x, i) => (
                   <li key={i}>
                     {x.text}{" "}
-                    <a href={`${ledger.snapshot!.url}#page=${x.page}`} target="_blank" rel="noopener noreferrer" className="tap num text-meta text-accent">
+                    <a href={`${ledger.snapshot!.url}#page=${x.page}`} target="_blank" rel="noopener noreferrer" className="tap num text-caption text-accent">
                       AR p.{x.page}
                     </a>
                   </li>
@@ -150,23 +143,26 @@ async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] 
       )}
 
       {results && (
-        <section id="results" className="mt-9 scroll-mt-4">
+        <section id="results" className="mt-10 scroll-mt-4">
           <h2 className="section-h">Latest results</h2>
           <ResultsTable r={results} />
         </section>
       )}
 
-      <div id="promises" className="mt-9 scroll-mt-4">
+      <div id="promises" className="mt-10 scroll-mt-4">
         {ledger ? (
           <PromisesLedger ledger={ledger} verifiers={snap.verifiers} />
         ) : (
           <section>
             <h2 className="section-h">Promised vs delivered</h2>
-            <p className="mt-3 text-body text-ink-2">
-              Built from the last four earnings-call transcripts and the annual report, nothing else. Every promise is quoted
-              with its page; statuses are computed in code.
-            </p>
-            <Coverage symbol={symbol} req={req} dataUntil={snap.data_until} />
+            <div className="mt-4 rounded-lg bg-tint px-4 py-4">
+              <p className="font-serif text-subhead">Not covered yet</p>
+              <p className="mt-1 text-small text-ink-2">
+                FINN builds this from the last four earnings-call transcripts and the annual report, nothing else. Every promise
+                is quoted with its page; statuses are computed in code.
+              </p>
+              <Coverage symbol={symbol} req={req} dataUntil={snap.data_until} />
+            </div>
           </section>
         )}
       </div>
@@ -198,18 +194,18 @@ async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] 
 
 function Coverage({ symbol, req, dataUntil }: { symbol: string; req: Awaited<ReturnType<typeof getRequest>>; dataUntil: string }) {
   if (req?.status === "unavailable") {
-    return <p className="mt-3 text-body text-ink-2">{req.detail ?? "Not enough primary material to build a ledger."}</p>;
+    return <p className="mt-3 text-small text-ink">{req.detail ?? "Not enough primary material to build a ledger."}</p>;
   }
   if (req?.status === "ready") {
-    return <p className="mt-3 text-body text-ink-2">Built. The ledger appears here within a few minutes as the cache refreshes.</p>;
+    return <p className="mt-3 text-small text-ink">Built. The ledger appears here within a few minutes as the cache refreshes.</p>;
   }
   if (req) {
     return (
-      <p className="mt-3 text-body text-ink-2">
+      <p className="mt-3 text-small text-ink">
         {req.status === "building" ? "Building now" : "Queued"} since <span className="num">{when(req.requested_at)}</span> IST. FINN&apos;s
         research worker reads the last four transcripts, verifies every quote against its page and computes each status on its
         next run (data last updated <span className="num">{when(dataUntil)}</span> IST).
-        {req.detail ? <span className="block text-small italic text-ink-3">{req.detail}</span> : null}
+        {req.detail ? <span className="mt-1 block text-caption italic text-ink-3">{req.detail}</span> : null}
       </p>
     );
   }

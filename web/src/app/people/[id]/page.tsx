@@ -6,6 +6,7 @@ import { Suspense } from "react";
 import { findCard, getView } from "@/lib/data";
 import type { Contact } from "@/lib/types";
 import { NoteDraft } from "@/components/NoteDraft";
+import { monthYear } from "@/lib/format";
 
 export default function PersonPage({ params, searchParams }: PageProps<"/people/[id]">) {
   return (
@@ -49,17 +50,15 @@ async function Person({ params, searchParams }: { params: PageProps<"/people/[id
       <p className="mt-1 text-body text-ink-2">
         {c.current.role}, {c.current.org} · {c.city}
       </p>
-      <p className="mt-1 text-small text-ink-3">
-        How you know them: {c.how_met} · <span className="text-ink-2">{label(s.total)} tie</span>
-        {c.last_contact ? (
-          <>
-            , last spoke <span className="num">{daysAgo(c.last_contact, today)}</span> days ago
-          </>
-        ) : null}
+      <p className="mt-2 text-small text-ink-3">
+        How you know them: {c.how_met}
+        <br />
+        <span className="font-medium text-ink-2">{label(s.total)[0].toUpperCase() + label(s.total).slice(1)} tie</span>
+        {c.last_contact ? <> · last spoke {monthYear(c.last_contact)}</> : null}
       </p>
 
       {cards.length > 0 && (
-        <section className="mt-8">
+        <section className="mt-10">
           <h2 className="section-h">Why talk to them now</h2>
           <ul className="hair">
             {cards.slice(0, 5).map((card) => (
@@ -76,7 +75,7 @@ async function Person({ params, searchParams }: { params: PageProps<"/people/[id
       )}
 
       {links.length > 0 && (
-        <section className="mt-8">
+        <section className="mt-10">
           <h2 className="section-h">Connects you to</h2>
           <ul className="hair">
             {links.map((h, i) => (
@@ -94,7 +93,7 @@ async function Person({ params, searchParams }: { params: PageProps<"/people/[id
         </section>
       )}
 
-      <section className="mt-8">
+      <section className="mt-10">
         <h2 className="section-h">Career</h2>
         <ol className="hair">
           {[...c.history].reverse().map((h, i) => (
@@ -125,17 +124,17 @@ async function Person({ params, searchParams }: { params: PageProps<"/people/[id
           </span>
           <span aria-hidden className="text-ink-3 transition-transform duration-200 group-open:rotate-90">›</span>
         </summary>
-        <dl className="grid grid-cols-[1fr_auto] gap-y-1.5 text-small">
-          <Part k="Last spoke" v={c.last_contact ? `${daysAgo(c.last_contact, today)} days ago` : "never"} w={s.recency} />
+        <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-2 text-small">
+          <Part k="Last spoke" v={c.last_contact ? `${monthYear(c.last_contact)} (${daysAgo(c.last_contact, today)} days)` : "never"} w={s.recency} />
           <Part k="Interactions, last 12 months" v={String(c.interactions_12m)} w={s.frequency} />
           <Part k="They reach out too" v={`${Math.round(c.reciprocity * 100)}%`} w={s.reciprocity} />
           <Part k="Your rating" v={`${c.rating}/5`} w={s.rating} />
         </dl>
-        <p className="mb-3 mt-2 text-meta text-ink-3">
+        <p className="mb-3 mt-2 text-caption text-ink-3">
           0.40 × recency + 0.25 × frequency + 0.20 × reciprocity + 0.15 × rating = <span className="num">{s.total.toFixed(2)}</span>
         </p>
       </details>
-      <p className="mt-6 text-meta text-ink-3">Synthetic profile for this prototype. Real networks come only from your own consented imports.</p>
+      <p className="mt-6 text-caption text-ink-3">Synthetic profile for this prototype. Real networks come only from your own consented imports.</p>
       <Dock />
     </main>
   );
