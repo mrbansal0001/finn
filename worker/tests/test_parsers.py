@@ -86,3 +86,19 @@ def test_twin_filings_become_one_card():
     ed = cards.build(fs, [], {"TITAN": 5}, {"TITAN": "Titan"}, datetime(2026, 11, 5), datetime(2026, 11, 6))
     all_cards = ed["leads"] + ed["more"]
     assert len(all_cards) == 1 and len(all_cards[0]["sources"]) == 2
+
+
+def test_a_truncated_feed_is_never_cached(monkeypatch, tmp_path):
+    """12 Nov: NSE served the announcements RSS cut off at 239,387 bytes; it was cached for 10 minutes."""
+    import pytest
+    from finn_worker import fetch, feeds
+    monkeypatch.setattr(fetch, "DATA_DIR", tmp_path)
+
+    class R:
+        status_code, content = 200, b"<rss><channel><item>cut"
+        def raise_for_status(self): pass
+
+    monkeypatch.setattr(fetch, "_http", lambda: type("C", (), {"get": lambda self, u: R()})())
+    with pytest.raises(fetch.Incomplete):
+        fetch.get("https://example.test/feed.xml", max_age=600, validate=feeds._complete_rss)
+    assert not fetch.cache_path("https://example.test/feed.xml").exists()

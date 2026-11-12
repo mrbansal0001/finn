@@ -92,8 +92,12 @@ def parse_results(xml_bytes: bytes) -> list[ResultsItem]:
 
 
 def poll_announcements() -> list[FeedItem]:
-    return parse_announcements(fetch.get(ANNOUNCEMENTS_URL, max_age=10 * 60))
+    return parse_announcements(fetch.get(ANNOUNCEMENTS_URL, max_age=10 * 60, validate=_complete_rss))
 
 
 def poll_results() -> list[ResultsItem]:
-    return parse_results(fetch.get(RESULTS_URL, max_age=10 * 60))
+    return parse_results(fetch.get(RESULTS_URL, max_age=10 * 60, validate=_complete_rss))
+
+
+def _complete_rss(body: bytes) -> bool:
+    return body.rstrip().endswith(b"</rss>")

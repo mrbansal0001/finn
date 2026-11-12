@@ -9,6 +9,7 @@ Rules (see docs/research/02-data-sources.md §4):
 from __future__ import annotations
 
 import hashlib
+import os
 import time
 from pathlib import Path
 from urllib.parse import urlparse
@@ -21,6 +22,10 @@ DATA_DIR = Path(__file__).resolve().parents[3] / "data" / "raw"
 
 _last_hit: dict[str, float] = {}
 _client: httpx.Client | None = None
+
+
+class Incomplete(RuntimeError):
+    """The server answered 200 with a truncated body; try again next cycle."""
 
 
 class Refused(RuntimeError):
@@ -44,7 +49,7 @@ def cache_path(url: str) -> Path:
     return DATA_DIR / digest[:2] / f"{digest}{suffix}"
 
 
-def get(url: str, *, max_age: float | None = None) -> bytes:
+def get(url: str, *, max_age: float | None = None, validate=None) -> bytes:
     """Return the body of `url`, from cache when fresh enough.
 
     max_age=None means cached forever (filings never change once published);
@@ -64,7 +69,13 @@ def get(url: str, *, max_age: float | None = None) -> bytes:
     if resp.status_code in (401, 403, 429):
         raise Refused(f"{resp.status_code} from {host} for {url}")
     resp.raise_for_status()
+    if validate is not None and not validate(resp.content):
+        # an incomplete body (a feed being rewritten mid-download, 12 Nov) is never cached
+        raise Incomplete(f"incomplete body from {host} ({len(resp.content)} bytes) for {url}")
 
+    # atomic: a reader never sees a half-written cache file (audit appendix, fetch.py)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(resp.content)
+    tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+    tmp.write_bytes(resp.content)
+    os.replace(tmp, path)
     return resp.content
