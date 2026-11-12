@@ -213,8 +213,10 @@ function Coverage({ holdings, research, qs, close, networkReady }: { holdings: R
         </>
       )}
       <p className="mt-3 text-caption text-ink-3">
-        <span aria-hidden className="inline-block size-2 rounded-full bg-accent align-[1px]" /> Blue dot: something new this week. ● available, ○ not covered. Each cell opens its list. Coverage only: a quiet or
-        covered company isn&apos;t &ldquo;safe&rdquo;.
+        <span aria-hidden className="inline-block size-2 rounded-full bg-accent align-[1px]" /> something new this week,{" "}
+        <span aria-hidden className="inline-block size-2 rounded-full bg-ink-3 align-[1px]" /> available,{" "}
+        <span aria-hidden className="inline-block size-2 rounded-full border border-ink-3 align-[1px]" /> not covered. Each cell opens its list. Coverage only: a
+        quiet or covered company isn&apos;t &ldquo;safe&rdquo;.
       </p>
     </div>
   );
@@ -334,7 +336,7 @@ function Agenda({ events, today, close }: { events: Event[]; today?: string; clo
                         </Link>
                       ) : e.href ? (
                         <a href={e.href} target="_blank" rel="noopener noreferrer" className="text-ink hover:underline">
-                          {e.label} <span className="text-accent">↗</span>
+                          {e.label} <span className="text-accent">↗︎</span>
                         </a>
                       ) : (
                         <span className="text-ink">{e.label}</span>

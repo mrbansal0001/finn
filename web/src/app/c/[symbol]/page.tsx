@@ -15,6 +15,7 @@ import { QuestionCard, QuestionRow } from "@/components/QuestionCard";
 import { About, AboutPart } from "@/components/About";
 import { filingMarkers } from "@/lib/markers";
 import { MoveSpark } from "@/components/MoveSpark";
+import { Mark } from "@/components/StatusIcon";
 import { NetworkLine } from "@/components/NetworkLine";
 import { FollowedQuestions } from "@/components/FollowedQuestions";
 import { fromPromise, promiseHref, resultsQuestion } from "@/lib/investigate";
@@ -114,7 +115,7 @@ async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] 
                 {/* price and filings in one first glance: a mark above the line on each day the company filed */}
                 <MoveSpark rows={history} day={price.day} width={150} height={44} marks={marks} label={`${symbol}: the last 20 closes, each day's volume, and a mark on each day the company filed`} />
                 <span className="pb-0.5 text-caption text-ink-3">
-                  Last 20 sessions; bars are volume{marks.length ? <>; <span className="text-accent">▼</span> a filing</> : null}
+                  Last 20 sessions; bars are volume{marks.length ? <>; <Mark kind="filing" /> a filing</> : null}
                 </span>
               </div>
             )}
@@ -262,7 +263,7 @@ async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] 
             <p>
               From the FY{String(ledger.snapshot.year).slice(2)} annual report, pages {ledger.snapshot.pages[0]}–{ledger.snapshot.pages[1]}.{" "}
               <a href={ledger.snapshot.url} target="_blank" rel="noopener noreferrer" className="text-accent">
-                Annual report ↗
+                Annual report ↗︎
               </a>
             </p>
           </AboutPart>

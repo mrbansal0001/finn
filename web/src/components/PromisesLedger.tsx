@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { Ledger, LedgerCell, NetworkLine as Line, PromiseRow, PromiseStatus } from "@/lib/types";
 import { NetworkLine } from "./NetworkLine";
 import { PromiseReplay } from "./PromiseReplay";
+import { StatusIcon, STATUS_META } from "./StatusIcon";
 import { promiseHref } from "@/lib/investigate";
 import Link from "next/link";
 
@@ -11,18 +12,21 @@ import Link from "next/link";
  * Promised vs delivered (plan §8.7; D-024, D-047).
  * Default: the promises that need attention as a list — what was promised, its status as a word, one line on
  * what changed, who said it last. "All" groups every promise by status. "History" is the four-call matrix.
- * Status is never colour alone (glyph + word). No composite credibility score.
+ * Status is never colour alone (drawn icon + word; StatusIcon). No composite credibility score.
  */
-const STATUS: Record<PromiseStatus, { g: string; word: string; color: string }> = {
-  delivered: { g: "●", word: "Delivered", color: "var(--s-delivered)" },
-  partly: { g: "◐", word: "Partly", color: "var(--s-partly)" },
-  missed: { g: "○", word: "Missed", color: "var(--s-missed)" },
-  revised: { g: "↻", word: "Revised", color: "var(--s-revised)" },
-  silent: { g: "—", word: "Went silent", color: "var(--s-silent)" },
-  closed: { g: "◌", word: "Ended", color: "var(--s-silent)" },
-  early: { g: "◦", word: "Open", color: "var(--s-early)" },
-  conflict: { g: "⚠", word: "Conflicting", color: "var(--s-partly)" },
+// words for this list (shorter than the replay's); colours and icons come from StatusIcon (13 Nov)
+const STATUS: Record<PromiseStatus, { word: string; color: string }> = {
+  delivered: { word: "Delivered", color: STATUS_META.delivered.color },
+  partly: { word: "Partly", color: STATUS_META.partly.color },
+  missed: { word: "Missed", color: STATUS_META.missed.color },
+  revised: { word: "Revised", color: STATUS_META.revised.color },
+  silent: { word: "Went silent", color: STATUS_META.silent.color },
+  closed: { word: "Ended", color: STATUS_META.closed.color },
+  early: { word: "Open", color: STATUS_META.early.color },
+  conflict: { word: "Conflicting", color: STATUS_META.conflict.color },
 };
+/** Open but not mentioned on that call: drawn faint (still open, nothing said). */
+const carried = (cell?: LedgerCell) => cell?.status === "early" && /^open; not revisited|not mentioned now/i.test(cell.note ?? "");
 const LEGEND: PromiseStatus[] = ["delivered", "partly", "missed", "revised", "silent", "closed", "early"];
 const LEGEND_WORD: Partial<Record<PromiseStatus, string>> = { silent: "silent", closed: "ended", early: "open" };
 const GROUPS: PromiseStatus[] = ["missed", "revised", "conflict", "partly", "silent", "delivered", "closed", "early"];
@@ -69,9 +73,7 @@ export function PromisesLedger({ ledger: built, verifiers = {} }: { ledger: Ledg
       <ul className="mt-3 flex flex-wrap gap-x-3 gap-y-0.5 text-caption text-ink-2" aria-label="Promises by status">
         {LEGEND.filter((s) => counts[s]).map((s) => (
           <li key={s} className="flex items-baseline gap-1.5 whitespace-nowrap">
-            <span style={{ color: STATUS[s].color }} aria-hidden className="leading-none">
-              {STATUS[s].g}
-            </span>
+            <StatusIcon status={s} size={14} className="self-center" />
             <span className="num font-medium text-ink">{counts[s]}</span> {LEGEND_WORD[s] ?? STATUS[s].word.toLowerCase()}
           </li>
         ))}
@@ -119,9 +121,7 @@ export function PromisesLedger({ ledger: built, verifiers = {} }: { ledger: Ledg
             return (
               <section key={g} className="mt-5">
                 <h3 className="kicker flex items-baseline gap-2 text-ink-3">
-                  <span style={{ color: STATUS[g].color }} aria-hidden className="text-small leading-none">
-                    {STATUS[g].g}
-                  </span>
+                  <StatusIcon status={g} size={14} className="self-center" />
                   {STATUS[g].word} <span className="num font-normal">{rows.length}</span>
                 </h3>
                 <ul className="mt-1">
@@ -179,7 +179,8 @@ export function PromisesLedger({ ledger: built, verifiers = {} }: { ledger: Ledg
 /** One promise as a list row: title + status word, what changed, who said it last. The row opens its detail. */
 function Item({ row, ledger, open, onToggle, verifier, hideTag }: { row: PromiseRow; ledger: Ledger; open: boolean; onToggle: () => void; verifier?: Line; hideTag?: boolean }) {
   const st = STATUS[row.latest];
-  const change = changeLine(row, ledger);
+  // hand-checked notes carry their own ↻ marks; the icon already says "revised"
+  const change = changeLine(row, ledger).replace(/\s*↻\s*/g, " ").replace(/\s{2,}/g, " ").trim();
   return (
     <li className="border-b border-rule">
       <button onClick={onToggle} aria-expanded={open} className="block w-full py-3 text-left">
@@ -191,8 +192,8 @@ function Item({ row, ledger, open, onToggle, verifier, hideTag }: { row: Promise
           </span>
           <span className="flex shrink-0 flex-col items-end gap-1">
             {!hideTag && (
-              <span className="flex items-baseline gap-1 whitespace-nowrap text-caption font-medium" style={{ color: st.color }}>
-                <span aria-hidden>{st.g}</span>
+              <span className="flex items-center gap-1 whitespace-nowrap text-caption font-medium" style={{ color: st.color }}>
+                <StatusIcon status={row.latest} size={14} />
                 {st.word}
               </span>
             )}
@@ -268,13 +269,11 @@ function MatrixRow({ row, ledger, verifier, open, onToggle }: { row: PromiseRow;
               {s ? (
                 <button
                   onClick={onToggle}
-                  className="min-h-[48px] min-w-[44px] text-headline leading-none"
-                  style={{ color: STATUS[s].color }}
-                  title={STATUS[s].word}
-                  aria-label={`${promiseTitle(row.title)}, ${c.label}: ${cell.missed_then_reset ? "missed, then " : ""}${STATUS[s].word}`}
+                  className="inline-flex min-h-[48px] min-w-[44px] items-center justify-center"
+                  title={`${STATUS[s].word}${carried(cell) ? ", not mentioned on this call" : ""}${cell.missed_then_reset ? " after the old date passed" : ""}`}
+                  aria-label={`${promiseTitle(row.title)}, ${c.label}: ${cell.missed_then_reset ? "date missed, then " : ""}${STATUS[s].word}${carried(cell) ? ", not mentioned" : ""}`}
                 >
-                  {cell.missed_then_reset ? <span style={{ color: STATUS.missed.color }}>○</span> : null}
-                  {STATUS[s].g}
+                  <StatusIcon status={s} size={20} faint={carried(cell)} missedFirst={!!cell.missed_then_reset} />
                 </button>
               ) : (
                 <span aria-label="not stated yet" />
@@ -328,7 +327,7 @@ function Detail({ row, ledger, verifier }: { row: PromiseRow; ledger: Ledger; ve
           is not the year, so the status stays open.
           {row.tracking.source && (
             <a href={row.tracking.source} target="_blank" rel="noopener noreferrer" className="tap ml-1.5 text-caption text-accent">
-              results table ↗
+              results table ↗︎
             </a>
           )}
         </p>
@@ -357,7 +356,7 @@ function Quote({ label, q }: { label: string; q: { text: string; page: number; u
       <blockquote className="mt-0.5 font-serif text-body font-normal italic text-ink">&ldquo;{q.text}&rdquo;</blockquote>
       {q.url && (
         <a href={`${q.url}#page=${q.page}`} target="_blank" rel="noopener noreferrer" className="tap mt-1 inline-flex text-caption text-accent">
-          transcript p.{q.page} ↗
+          transcript p.{q.page} ↗︎
         </a>
       )}
     </figure>
@@ -467,20 +466,20 @@ function orderRows(rows: PromiseRow[]) {
 }
 
 /** The promise's path in four marks, oldest first: how it evolved, at a glance (the History matrix in a row).
- *  An empty ring: not stated yet on that call. */
+ *  A faint icon: still open, not mentioned on that call; a short hairline: not stated yet. */
 function CallStrip({ row, ledger }: { row: PromiseRow; ledger: Ledger }) {
   const cells = ledger.calls.map((c) => ({ label: c.label, cell: row.calls[c.label] }));
-  const said = cells.map(({ label, cell }) => `${label}: ${cell?.status ? STATUS[cell.status].word.toLowerCase() : "not stated"}`).join(", ");
+  const said = cells
+    .map(({ label, cell }) => `${label}: ${cell?.status ? `${STATUS[cell.status].word.toLowerCase()}${carried(cell) ? ", not mentioned" : ""}` : "not stated"}`)
+    .join(", ");
   return (
     <span className="flex items-center gap-1" role="img" aria-label={`Call by call: ${said}`}>
       {cells.map(({ label, cell }) =>
         cell?.status ? (
-          <span key={label} aria-hidden className="w-3 text-center text-caption leading-none" style={{ color: STATUS[cell.status].color }}>
-            {STATUS[cell.status].g}
-          </span>
+          <StatusIcon key={label} status={cell.status} size={13} faint={carried(cell)} missedFirst={!!cell.missed_then_reset} />
         ) : (
-          <span key={label} aria-hidden className="flex w-3 justify-center">
-            <span className="size-1.5 rounded-full border border-rule" />
+          <span key={label} aria-hidden className="flex w-[13px] justify-center">
+            <span className="h-px w-2 bg-rule" />
           </span>
         ),
       )}

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { CallQuote, Ledger, PromiseRow, PromiseStatus } from "@/lib/types";
+import { Mark, StatusIcon, STATUS_META } from "./StatusIcon";
 
 /**
  * A promise replayed call by call (creative review §2; visual review §7). One stop per earnings call: the
@@ -11,21 +12,22 @@ import type { CallQuote, Ledger, PromiseRow, PromiseStatus } from "@/lib/types";
  * Stops are calls, not values: nothing is plotted on a numeric axis, so a crore figure and a date are never
  * joined as if comparable. Date promises with two or more readable deadlines also get a calendar lane.
  */
-const STATUS: Record<PromiseStatus, { g: string; word: string; color: string }> = {
-  delivered: { g: "●", word: "Delivered", color: "var(--s-delivered)" },
-  partly: { g: "◐", word: "Partly delivered", color: "var(--s-partly)" },
-  missed: { g: "○", word: "Missed", color: "var(--s-missed)" },
-  revised: { g: "↻", word: "Revised", color: "var(--s-revised)" },
-  silent: { g: "—", word: "Not mentioned", color: "var(--s-silent)" },
-  closed: { g: "◌", word: "Period ended", color: "var(--s-silent)" },
-  early: { g: "◦", word: "Stated", color: "var(--s-early)" },
-  conflict: { g: "⚠", word: "Conflicting", color: "var(--s-partly)" },
+// the replay's own words ("as stated on this call"); icons and colours from StatusIcon (13 Nov)
+const STATUS: Record<PromiseStatus, { word: string; color: string }> = {
+  delivered: { word: "Delivered", color: STATUS_META.delivered.color },
+  partly: { word: "Partly delivered", color: STATUS_META.partly.color },
+  missed: { word: "Missed", color: STATUS_META.missed.color },
+  revised: { word: "Revised", color: STATUS_META.revised.color },
+  silent: { word: "Not mentioned", color: STATUS_META.silent.color },
+  closed: { word: "Period ended", color: STATUS_META.closed.color },
+  early: { word: "Stated", color: STATUS_META.early.color },
+  conflict: { word: "Conflicting", color: STATUS_META.conflict.color },
 };
 
 type Deadline = { label: string; from?: number; to?: number; exact: boolean }; // months since year 0
 type Stop = {
   call: string; date: string; at?: number; status: PromiseStatus | null; target: string; changed: boolean; said: boolean;
-  note: string; quote?: CallQuote; due: Deadline | null;
+  note: string; quote?: CallQuote; due: Deadline | null; missedFirst: boolean;
 };
 
 const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
@@ -109,7 +111,7 @@ export function stopsFor(row: PromiseRow, calls: Ledger["calls"]): Stop[] {
       cell?.quote ??
       (row.first_quote?.call === c.label ? { text: row.first_quote.text, page: row.first_quote.page, url: row.first_quote.url, speaker: row.first_quote.speaker } : undefined) ??
       (row.latest_quote?.call === c.label ? { text: row.latest_quote.text, page: row.latest_quote.page, url: row.latest_quote.url } : undefined);
-    return { call: c.label, date: c.date, at, status, target, said, changed: status === "revised", note: cell?.note ?? "", quote, due: deadlineOf(cell?.note ?? "", at) };
+    return { call: c.label, date: c.date, at, status, target, said, changed: status === "revised", note: cell?.note ?? "", quote, due: deadlineOf(cell?.note ?? "", at), missedFirst: !!cell?.missed_then_reset };
   });
 }
 
@@ -140,7 +142,8 @@ export function PromiseReplay({ row, calls }: { row: PromiseRow; calls: Ledger["
           return (
             <div key={s.call} className="relative">
               {/* the rail to the next call: solid when the promise was spoken of, dotted when not */}
-              {next && (
+              {/* the rail starts once the promise exists: calls before it was first stated are left blank */}
+              {next && s.status && (
                 <span aria-hidden className={`absolute left-1/2 top-[calc(3.25rem+26px)] w-full border-t ${next.said ? "border-ink-3" : "border-dashed border-rule"}`} />
               )}
               {/* one target for the whole column: the stated target, the marker and the call date (§7) */}
@@ -153,7 +156,7 @@ export function PromiseReplay({ row, calls }: { row: PromiseRow; calls: Ledger["
                 className="relative z-10 flex w-full flex-col items-center rounded-lg pb-1 text-center disabled:cursor-default"
               >
                 <span className={`line-clamp-3 min-h-[3.25rem] px-1 text-caption leading-tight ${s.changed ? "font-medium text-ink" : s.said ? "text-ink-2" : "italic text-ink-3"}`}>
-                  {s.target || (s.status ? "" : "not yet stated")}
+                  {s.target || (s.status ? "" : "not stated yet")}
                 </span>
                 <span
                   className={`mt-1 flex size-11 items-center justify-center rounded-full text-headline leading-none transition-colors ${
@@ -162,7 +165,10 @@ export function PromiseReplay({ row, calls }: { row: PromiseRow; calls: Ledger["
                   style={!active && st ? { color: st.color } : undefined}
                   aria-hidden
                 >
-                  {st ? st.g : <span className="size-2 rounded-full border border-rule" />}
+                  {s.status ? (
+                    // the active stop draws in paper on ink; a call that carried it without mentioning it, faint
+                    <StatusIcon status={s.status} size={22} color={active ? "var(--paper)" : undefined} faint={!active && !s.said && s.status === "early"} missedFirst={s.missedFirst} />
+                  ) : null}
                 </span>
                 <span className={`num mt-1.5 text-caption ${active ? "font-medium text-ink underline decoration-accent decoration-2 underline-offset-4" : "text-ink-3"}`}>{s.call}</span>
               </button>
@@ -191,7 +197,7 @@ export function PromiseReplay({ row, calls }: { row: PromiseRow; calls: Ledger["
                   {cur.quote.speaker && <span>{cur.quote.speaker}</span>}
                   {cur.quote.url && (
                     <a href={`${cur.quote.url}#page=${cur.quote.page}`} target="_blank" rel="noopener noreferrer" className="tap text-accent">
-                      transcript p.{cur.quote.page} ↗
+                      transcript p.{cur.quote.page} ↗︎
                     </a>
                   )}
                 </figcaption>
@@ -218,7 +224,7 @@ export function PromiseReplay({ row, calls }: { row: PromiseRow; calls: Ledger["
                 Management stated on the {evidence.s.call} call{evidence.ev.period ? `, for ${evidence.ev.period}` : ""}: <span className="font-serif italic text-ink">&ldquo;{evidence.ev.quote}&rdquo;</span>
                 {evidence.ev.url && (
                   <a href={`${evidence.ev.url}#page=${evidence.ev.page}`} target="_blank" rel="noopener noreferrer" className="tap ml-1.5 text-caption text-accent">
-                    p.{evidence.ev.page} ↗
+                    p.{evidence.ev.page} ↗︎
                   </a>
                 )}
               </>
@@ -323,7 +329,8 @@ function Calendar({ stops, sel, onSel }: { stops: Stop[]; sel: string; onSel: (c
           ))}
       </div>
       <p className="mt-1 text-caption text-ink-3">
-        Dots: when it was said. ◆ an exact month; a bar a quarter, half or year as stated. Undated statements aren&apos;t drawn.
+        Dots: when it was said. <Mark kind="exact" /> an exact month; <Mark kind="interval" /> a quarter, half or year as stated. Undated
+        statements aren&apos;t drawn.
       </p>
     </figure>
   );

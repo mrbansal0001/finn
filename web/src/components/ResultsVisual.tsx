@@ -144,7 +144,7 @@ export function ResultsVisual({ r, question }: { r: ResultsFacts; question?: { t
                 <>
                   {" "}
                   <a href={r.source_url} target="_blank" rel="noopener noreferrer" className="tap text-accent">
-                    Source ↗
+                    Source ↗︎
                   </a>
                 </>
               )}

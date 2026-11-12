@@ -42,7 +42,10 @@ export function BriefButton({ script }: { script: string }) {
       aria-pressed={speaking}
       className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full px-2 text-small text-ink-2 hover:text-ink"
     >
-      <span aria-hidden className="text-caption">{speaking ? "■" : "▶"}</span>
+      {/* drawn, not ▶/■ characters: iPhones can render ▶ as a coloured emoji (13 Nov) */}
+      <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden className="shrink-0">
+        {speaking ? <rect x="2" y="2" width="8" height="8" rx="1.5" fill="currentColor" /> : <path d="M3 1.8v8.4a.6.6 0 0 0 .9.5l7-4.2a.6.6 0 0 0 0-1L3.9 1.3a.6.6 0 0 0-.9.5z" fill="currentColor" />}
+      </svg>
       {speaking ? "Stop" : failed ? "Try again" : "Listen"}
     </button>
   );

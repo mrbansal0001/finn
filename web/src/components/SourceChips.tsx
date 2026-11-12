@@ -21,7 +21,7 @@ export function SourceChips({ sources }: { sources: Source[] }) {
           {s.label}
           {s.page ? <span className="num ml-1.5 text-ink-3">p.{s.page}</span> : null}
           {kind(s.url) ? <span className="ml-1.5 text-ink-3">({kind(s.url)})</span> : null}
-          <span aria-hidden className="ml-1 text-ink-3">↗</span>
+          <span aria-hidden className="ml-1 text-ink-3">↗︎</span>
         </a>
       ) : (
         <span className="inline-flex min-h-[44px] items-center rounded-full border border-rule px-4 text-caption text-ink-3">

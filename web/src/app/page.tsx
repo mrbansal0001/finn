@@ -374,7 +374,7 @@ function Routine({ ed, refTime, id }: { ed: Edition; refTime: string; id: string
                                 </a>
                               ) : (
                                 <a href={x.link} target="_blank" rel="noopener noreferrer" className="tap mt-1 inline-flex text-caption text-accent">
-                                  PDF ↗
+                                  PDF ↗︎
                                 </a>
                               ))}
                           </li>

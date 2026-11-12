@@ -1,5 +1,6 @@
 import type { ResultsFacts } from "@/lib/types";
 import { bp, crore, croreFromCr, dirClass, fyQuarter, pct } from "@/lib/format";
+import { Mark } from "./StatusIcon";
 
 /**
  * The results table (plan §8.6): label | value | YoY | QoQ, tabular figures right-aligned, margins in bp,
@@ -89,7 +90,7 @@ export function ResultsTable({ r }: { r: ResultsFacts }) {
             <>
               {" "}
               <a href={r.source_url} target="_blank" rel="noopener noreferrer" className="tap whitespace-nowrap text-accent">
-                {r.source === "xbrl" ? "Exchange XBRL data (XML)" : `Results PDF${pageOf(r.source_url)}`} ↗
+                {r.source === "xbrl" ? "Exchange XBRL data (XML)" : `Results PDF${pageOf(r.source_url)}`} ↗︎
               </a>
             </>
           )}
@@ -97,7 +98,7 @@ export function ResultsTable({ r }: { r: ResultsFacts }) {
         {/* one line says it was checked; the list of what ran is one tap away (audit F07) */}
         <details className="mt-1">
           <summary className="inline-flex min-h-[44px] items-center gap-1.5 text-ink-2">
-            <span aria-hidden className="text-up">✓</span>
+            <Mark kind="check" />
             {r.check === "xbrl_exact" && !c
               ? "Exact from the exchange XBRL"
               : `${c?.checks?.filter((x) => !x.startsWith("XBRL")).length ?? 0} checks passed${r.check === "xbrl_match" ? ", and it matches the exchange XBRL" : ""}`}

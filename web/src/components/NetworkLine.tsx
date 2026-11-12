@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { NetworkLine as Line } from "@/lib/types";
 import { monthYear } from "@/lib/format";
+import { Avatar } from "./Avatar";
 
 /**
  * The Network, quietly inside Push: the person and the evidence on one line; on detail pages a second,
@@ -34,8 +35,10 @@ export function NetworkLine({
   const best = extra(reason, line.relation);
   return (
     <div className={compact ? "mt-1.5" : "mt-3"}>
-      <p className={`flex items-baseline gap-2 text-small ${oneLine ? "min-w-0" : ""}`}>
-        <span aria-hidden className="text-accent">◦</span>
+      <p className={`flex items-start gap-2 text-small ${oneLine ? "min-w-0 items-center" : ""}`}>
+        <span className={oneLine ? "" : "mt-px"}>
+          <Avatar name={line.name} />
+        </span>
         <span className={`text-ink-2 ${oneLine ? "truncate" : ""}`}>
           <Link
             href={`/people/${line.contact_id}${from ? `?from=${encodeURIComponent(from)}` : ""}`}
@@ -53,7 +56,7 @@ export function NetworkLine({
         </span>
       </p>
       {(meta.length > 0 || (line.insider && !compact) || best) && (
-        <div className="ml-5 mt-1 space-y-0.5 text-caption text-ink-3">
+        <div className="ml-7 mt-1 space-y-0.5 text-caption text-ink-3">
           {best && <p>Best placed: {best}</p>}
           {(meta.length > 0 || (line.insider && !compact)) && (
             <p>

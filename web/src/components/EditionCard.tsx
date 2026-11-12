@@ -4,6 +4,7 @@ import { dirClass, pct } from "@/lib/format";
 import { CardMeta } from "./CardMeta";
 import { NetworkLine } from "./NetworkLine";
 import { MoveSpark } from "./MoveSpark";
+import { Avatar } from "./Avatar";
 
 type Person = { name?: string; change?: string; role?: string; effective?: string | null };
 
@@ -85,7 +86,7 @@ export function EditionCard({
         <div className="above-card mt-3 flex min-h-[44px] items-center justify-between gap-3">
           {showNetwork && card.network?.[0] ? (
             <span className="flex min-w-0 items-center gap-2 text-small">
-              <span aria-hidden className="text-accent">◦</span>
+              <Avatar name={card.network[0].name} />
               <Link
                 href={`/people/${card.network[0].contact_id}?from=${encodeURIComponent(card.id)}`}
                 className="tap truncate font-medium text-accent underline-offset-2 hover:underline"

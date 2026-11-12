@@ -159,7 +159,7 @@ async function Investigate({ searchParams }: { searchParams: PageProps<"/investi
                     &ldquo;{p.quote}&rdquo;
                     {p.cite && (
                       <a href={p.cite.href} target="_blank" rel="noopener noreferrer" className="tap ml-1.5 whitespace-nowrap font-sans text-caption not-italic text-accent">
-                        {p.cite.text} ↗
+                        {p.cite.text} ↗︎
                       </a>
                     )}
                   </blockquote>
@@ -173,14 +173,14 @@ async function Investigate({ searchParams }: { searchParams: PageProps<"/investi
                     <blockquote className="mt-1 font-serif text-small italic text-ink-2">&ldquo;{p.quote}&rdquo;</blockquote>
                     {p.cite && (
                       <a href={p.cite.href} target="_blank" rel="noopener noreferrer" className="tap mt-1 inline-flex text-caption text-accent">
-                        {p.cite.text} ↗
+                        {p.cite.text} ↗︎
                       </a>
                     )}
                   </details>
                 ))}
               {p.cite && !p.quote && (
                 <a href={p.cite.href} target="_blank" rel="noopener noreferrer" className="tap mt-1 inline-flex text-caption text-accent">
-                  {p.cite.text} ↗
+                  {p.cite.text} ↗︎
                 </a>
               )}
             </li>

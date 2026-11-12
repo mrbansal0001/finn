@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRef, useState } from "react";
+import { Mark } from "./StatusIcon";
 
 export type Session = { d: string; c: number; pc: number; v: number; avg: number | null; n: number; gap?: boolean };
 export type Marker = { d: string; time: string; afterClose: boolean; title: string; href: string; external?: boolean };
@@ -145,8 +146,8 @@ export function PriceVolumeChart({ rows, alertDay, markers, symbol }: { rows: Se
 
       {/* one caption line at most (layout plan §9.5); the definitions sit with the table below */}
       <figcaption className="mt-1 text-caption text-ink-3">
-        Tap or drag across the chart to pick a session. Dashed: the alert&apos;s 20-session average. ▼ a filing (hollow: after the close);
-        timing, not cause.
+        Tap or drag across the chart to pick a session. Dashed: the alert&apos;s 20-session average. <Mark kind="filing" /> a filing,{" "}
+        <Mark kind="filing-after" /> after the close; timing, not cause.
       </figcaption>
 
       {here.length > 0 && (
@@ -160,7 +161,7 @@ export function PriceVolumeChart({ rows, alertDay, markers, symbol }: { rows: Se
               <br />
               {m.external ? (
                 <a href={m.href} target="_blank" rel="noopener noreferrer" className="text-ink hover:underline">
-                  {m.title} <span className="text-accent">↗</span>
+                  {m.title} <span className="text-accent">↗︎</span>
                 </a>
               ) : (
                 <Link href={m.href} className="text-ink hover:underline">
