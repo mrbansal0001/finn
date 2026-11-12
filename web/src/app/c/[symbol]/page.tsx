@@ -11,6 +11,9 @@ import { EditionCard } from "@/components/EditionCard";
 import { PromisesLedger } from "@/components/PromisesLedger";
 import { ResultsTable } from "@/components/ResultsTable";
 import { NetworkLine } from "@/components/NetworkLine";
+import { FollowedQuestions } from "@/components/FollowedQuestions";
+import { fromCard, fromPromise, resultsQuestion } from "@/lib/investigate";
+import type { Ledger, Snapshot } from "@/lib/types";
 
 export default function CompanyPage({ params }: PageProps<"/c/[symbol]">) {
   return (
@@ -150,6 +153,9 @@ async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] 
         </section>
       )}
 
+      <FollowedQuestions symbol={symbol} />
+      <Questions symbol={symbol} snap={snap} ledger={ledger} />
+
       {results && (
         <section id="results" className="mt-10 scroll-mt-4">
           <h2 className="section-h">Latest results</h2>
@@ -221,4 +227,50 @@ function Coverage({ symbol, req, dataUntil }: { symbol: string; req: Awaited<Ret
     );
   }
   return <RequestButton symbol={symbol} />;
+}
+
+/** Three questions worth the investor's attention, from the latest results and the promises that changed
+ *  (creative review, company hierarchy step 3). Each opens its investigation. None when nothing supports one. */
+function Questions({ symbol, snap, ledger }: { symbol: string; snap: Snapshot; ledger: Ledger | null }) {
+  const out: { tag: string; q: string; href: string }[] = [];
+  const res = [...snap.editions["30d"].leads, ...snap.editions["30d"].more]
+    .filter((c) => c.symbol === symbol && c.kind === "results" && c.facts.results?.comparatives)
+    .sort((a, b) => b.at.localeCompare(a.at))[0];
+  if (res) out.push({ tag: "Latest results", q: fromCard(res, snap, ledger).question, href: `/investigate?card=${res.id}` });
+  else if (snap.results[symbol]?.comparatives) {
+    const r = snap.results[symbol];
+    const q = resultsQuestion(r);
+    if (q) out.push({ tag: "Latest results", q: q.q, href: `/investigate?c=${encodeURIComponent(symbol)}&r=1` });
+  }
+  if (ledger) {
+    const pick = (st: string[]) =>
+      ledger.rows
+        .filter((r) => st.includes(r.latest) && !/: (no figure|direction only)$/.test(r.title))
+        .sort((a, b) => (b.mentions ?? 1) - (a.mentions ?? 1))[0];
+    for (const [r, tag] of [[pick(["revised"]), "Promise revised"], [pick(["silent", "missed", "partly"]), "Promise went quiet"]] as const) {
+      if (r && out.length < 3) out.push({ tag: r.latest === "silent" ? "Promise went quiet" : r.latest === "revised" ? tag : "Promise settled", q: fromPromise(r, ledger, snap).question, href: `/investigate?c=${encodeURIComponent(symbol)}&p=${encodeURIComponent(r.id)}` });
+    }
+    const tracked = ledger.rows.find((r) => r.tracking);
+    if (tracked && out.length < 3) out.push({ tag: "Promise on course?", q: fromPromise(tracked, ledger, snap).question, href: `/investigate?c=${encodeURIComponent(symbol)}&p=${encodeURIComponent(tracked.id)}` });
+  }
+  if (!out.length) return null;
+  return (
+    <section className="mt-10" aria-labelledby="questions-h">
+      <h2 id="questions-h" className="section-h">
+        <span>Questions worth your attention</span>
+      </h2>
+      <ul className="hair mt-1">
+        {out.map((x) => (
+          <li key={x.href}>
+            <Link href={x.href} className="group block py-3">
+              <span className="tag">{x.tag}</span>
+              <span className="mt-1.5 block font-serif text-subhead text-ink group-hover:underline">{x.q}</span>
+              <span className="mt-1 inline-flex text-small font-medium text-accent">Investigate ›</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-1 text-caption text-ink-3">Written from the filed figures and the call-by-call record, by fixed rules.</p>
+    </section>
+  );
 }

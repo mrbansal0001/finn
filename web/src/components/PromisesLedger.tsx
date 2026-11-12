@@ -3,6 +3,8 @@
 import { useState } from "react";
 import type { Ledger, LedgerCell, NetworkLine as Line, PromiseRow, PromiseStatus } from "@/lib/types";
 import { NetworkLine } from "./NetworkLine";
+import { PromiseReplay } from "./PromiseReplay";
+import Link from "next/link";
 
 /**
  * Promised vs delivered (plan §8.7; D-024, D-047).
@@ -286,30 +288,8 @@ function Detail({ row, ledger, verifier }: { row: PromiseRow; ledger: Ledger; ve
     <div className="mt-1 border-l-2 border-rule pl-4 text-small">
       {/* for a settled promise, the comparison comes first, in one sentence */}
       {settled?.note && <p className="mb-2 text-small font-medium text-ink">{sentence(settled.note)}</p>}
-      {row.first_quote && (
-        <Quote label={`Promised in ${row.first_quote.call}${row.first_quote.speaker ? ` by ${row.first_quote.speaker}` : ""}`} q={row.first_quote} />
-      )}
-      <ol className="mt-3 space-y-1.5">
-        {ledger.calls.map((c) => {
-          const cell = row.calls[c.label];
-          if (!cell?.status) return null;
-          return (
-            <li key={c.label} className="grid grid-cols-[4.25rem_1.25rem_1fr] items-baseline gap-1">
-              <span className="num text-caption text-ink-3">{c.label}</span>
-              <span style={{ color: STATUS[cell.status].color }} aria-hidden>
-                {cell.missed_then_reset ? "○" : ""}
-                {STATUS[cell.status].g}
-              </span>
-              <span className="text-ink-2">
-                <span className="sr-only">{STATUS[cell.status].word}: </span>
-                {cell.missed_then_reset ? "Date missed; new date: " : ""}
-                {noteText(cell.note)}
-              </span>
-            </li>
-          );
-        })}
-      </ol>
-      {row.latest_quote && <Quote label={`Latest statement, ${row.latest_quote.call}`} q={row.latest_quote} />}
+      {/* the promise replayed call by call, with each call's own words (creative review §2) */}
+      <PromiseReplay row={row} calls={ledger.calls} />
       {ledger.calls.map((c) => {
         const ev = row.calls[c.label]?.evidence;
         if (!ev) return null;
@@ -347,6 +327,12 @@ function Detail({ row, ledger, verifier }: { row: PromiseRow; ledger: Ledger; ve
           <NetworkLine line={verifier} compact />
         </div>
       )}
+      <Link
+        href={`/investigate?c=${encodeURIComponent(ledger.symbol)}&p=${encodeURIComponent(row.id)}`}
+        className="mt-3 inline-flex min-h-[44px] items-center gap-1 text-small font-medium text-accent"
+      >
+        Investigate this promise <span aria-hidden>›</span>
+      </Link>
     </div>
   );
 }
@@ -431,9 +417,6 @@ function lastLine(row: PromiseRow, ledger: Ledger): string {
   return `${said}${on}`;
 }
 
-/** a cell note as a sentence: "new: X" -> "Stated: X", "reiterated: X" -> "Restated: X" */
-const noteText = (s?: string) =>
-  !s ? "" : /^new:/i.test(s) ? `Stated: ${clean(s)}` : /^reiterated:/i.test(s) ? `Restated: ${clean(s)}` : /^quantified:/i.test(s) ? `Now quantified: ${clean(s)}` : sentence(s);
 const clean = (s: string) => s.replace(/^(new|reiterated|quantified):\s*/i, "").trim();
 const sentence = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 const monthName = (m: number) => ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][m - 1] ?? "";

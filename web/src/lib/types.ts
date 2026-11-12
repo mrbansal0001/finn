@@ -112,7 +112,10 @@ export type PromiseStatus = "delivered" | "partly" | "missed" | "silent" | "revi
 
 export type Evidence = { quote: string; page: number; url?: string | null; call?: string | null; speaker?: string | null; period?: string | null };
 
-export type LedgerCell = { status: PromiseStatus | null; note?: string; missed_then_reset?: boolean; evidence?: Evidence };
+export type CallQuote = { text: string; page: number | null; url?: string | null; speaker?: string | null };
+
+// quote: what was said on that call (worker pull.build); absent in hand-checked ledgers and older builds
+export type LedgerCell = { status: PromiseStatus | null; note?: string; missed_then_reset?: boolean; evidence?: Evidence; quote?: CallQuote };
 
 export type PromiseRow = {
   id: string;

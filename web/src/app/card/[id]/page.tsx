@@ -4,7 +4,9 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { parsePrefs, PREFS_COOKIE } from "@/lib/prefs";
-import { findCard, getView } from "@/lib/data";
+import { findCard, getLedger, getView } from "@/lib/data";
+import { fromCard } from "@/lib/investigate";
+import Link from "next/link";
 import { KIND_LABEL } from "@/lib/format";
 import { changeWord } from "@/components/EditionCard";
 import { CardMeta } from "@/components/CardMeta";
@@ -46,6 +48,7 @@ async function Detail({ params }: { params: PageProps<"/card/[id]">["params"] })
     card.facts = { ...card.facts, matched: matched.length ? matched : [`below your rules (±${prefs.price_pct}%, ${prefs.volume_x}×); listed on the company page`] };
   }
   const weight = snap.portfolio.find((h) => h.symbol === card.symbol)?.weight ?? 0;
+  const inv = fromCard(card, snap, await getLedger(card.symbol));
   const ageH = (new Date(snap.data_until).getTime() - new Date(card.at).getTime()) / 3_600_000;
   const people = (card.facts.people as { name: string; change: string; role: string; effective?: string | null; orgs: { org: string; start?: string; end?: string }[]; schools: string[] }[] | undefined) ?? [];
 
@@ -57,6 +60,19 @@ async function Detail({ params }: { params: PageProps<"/card/[id]">["params"] })
       <p className="mt-0.5 text-small text-ink-3">{card.company.replace(/ Limited$/, "")}</p>
       {card.why && <p className="mt-3 text-body text-ink-2">{card.why}</p>}
       {card.facts.results && <ResultsTable r={card.facts.results} />}
+
+      {/* the question this raises, and the way into it (creative review: Investigate) */}
+      <section className="mt-8 rounded-xl bg-tint px-4 py-4" aria-labelledby="q-h">
+        <h2 id="q-h" className="kicker text-ink-3">The question it raises</h2>
+        <p className="mt-1.5 font-serif text-subhead text-ink">{inv.question}</p>
+        <Link
+          href={`/investigate?card=${card.id}`}
+          className="mt-3 inline-flex min-h-12 items-center gap-1.5 rounded-lg bg-ink px-5 text-small font-medium text-paper"
+        >
+          Investigate <span aria-hidden>›</span>
+        </Link>
+        <p className="mt-2 text-caption text-ink-3">The figures, the company&apos;s own words on it, who could help, and a way to follow it up.</p>
+      </section>
 
       {people.length > 0 && (
         <section className="mt-10">

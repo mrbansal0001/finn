@@ -6,6 +6,7 @@ import { getView } from "@/lib/data";
 import type { Edition, WindowKey } from "@/lib/types";
 import { dirClass, fullDate, pct, shortDay, since, when } from "@/lib/format";
 import { EditionCard } from "@/components/EditionCard";
+import { FollowedQuestions } from "@/components/FollowedQuestions";
 import { Dock } from "@/components/Dock";
 import { HoldingsSheet } from "@/components/HoldingsSheet";
 import { WindowLink, WindowSwitcher } from "@/components/WindowSwitcher";
@@ -75,6 +76,7 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
               <HoldingsSheet holdings={snap.portfolio.map((h) => row(h.symbol, h.weight))} research={snap.research_set.map((s) => row(s))} />
             </div>
             <p className="mt-1 text-caption text-ink-3">A demo portfolio. Filings and prices are real; the network is synthetic.</p>
+            <FollowedQuestions />
           </>
         }
         sinceSeen={until}

@@ -52,6 +52,14 @@ export function EditionCard({
           <NetworkLine line={card.network[0]} compact asOf={refTime} from={card.id} oneLine />
         </div>
       )}
+      {/* one purposeful action on a lead: carry this event into a question (creative review) */}
+      {!compact && (
+        <div className="above-card mt-2">
+          <Link href={`/investigate?card=${card.id}`} className="tap inline-flex items-center gap-1 text-small font-medium text-accent">
+            Investigate <span aria-hidden>›</span>
+          </Link>
+        </div>
+      )}
     </article>
   );
 }
