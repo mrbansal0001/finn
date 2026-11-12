@@ -160,7 +160,7 @@ def rule_headline(summary: str, subject: str) -> str | None:
 
 def build(filings: list[dict], moves: list[dict], weights: dict[str, float], names: dict[str, str],
           since: datetime, until: datetime, results: dict[str, dict] | None = None,
-          events: dict[str, list[dict]] | None = None) -> dict:
+          events: dict[str, list[dict]] | None = None, calendar: list[str] | None = None) -> dict:
     """Return the Edition: leads, more, routine fold, counts. `filings` rows come from store."""
     in_window = [f for f in filings if since <= datetime.fromisoformat(f["published_at"]) <= until]
     cards: list[Card] = []
@@ -195,6 +195,14 @@ def build(filings: list[dict], moves: list[dict], weights: dict[str, float], nam
         needs_read = headline is None or any(f["needs_document"] for f in fs)
         why, facts, source = None, {}, "rule" if headline else "pending"
         read = [scrub_event(e) for f in fs for e in (events or {}).get(f["id"], [])]
+        if read and all(e.get("kind") == "unreadable" for e in read) and cat != "results":
+            # the document couldn't be read: the filing stays as material as its category says, with its
+            # source, instead of folding into housekeeping (audit F04)
+            again = any(e.get("retryable") and (e.get("attempts") or 1) < 3 for e in read)
+            headline, source, needs_read = f"{lead['subject'].strip()} filed", "rule", False
+            why = ("Material filing received; FINN couldn't read the document"
+                   + (" yet and will try again" if again else "") + ". Open the filing below.")
+            read = []
         if read:
             needs_read = False
             ok = [e for e in read if e.get("headline_ok") and e.get("headline")]
@@ -263,44 +271,20 @@ def build(filings: list[dict], moves: list[dict], weights: dict[str, float], nam
             c.why = c.why or ("FINN shows results only when the table passes its checks against the filing; "
                               "this one did not, so open the filing for the numbers.")
 
-    # the biggest alerting move per symbol in the window (a volume-only spike on a flat day counts too)
-    biggest: dict[str, dict] = {}
-    for m in moves:
-        d = datetime.fromisoformat(m["day"] + "T15:30:00")
-        if not (since <= d <= until) or not (m["price_alert"] or m["volume_alert"]):
+    # the stock's reaction is told on the filing card it follows ("the stock fell 6.8% the next session");
+    # the move cards themselves are a separate registry (build_moves), filtered by the investor's rules
+    told: set[str] = set()
+    for m in sorted(moves, key=lambda m: m["day"]):
+        if abs(m["change_pct"]) < 2 and m["volume_multiple"] < 1.5:
+            continue                       # too small to be worth a sentence on a filing card
+        hit = explaining_card(m, cards, calendar or sorted({x["day"] for x in moves}))
+        if hit is None or hit.id in told:
             continue
-        cur = biggest.get(m["symbol"])
-        if cur is None or abs(m["change_pct"]) > abs(cur["change_pct"]):
-            biggest[m["symbol"]] = m
-    trading_days = sorted({m["day"] for m in moves})
-    for m in biggest.values():
-        d = datetime.fromisoformat(m["day"] + "T15:30:00")
-        why_filing = explaining_card(m, cards, trading_days)
-        earlier = None if why_filing else explaining_filing(m, filings, trading_days)   # filed just before the window
-        arrow = "▲" if m["change_pct"] >= 0 else "▼"
-        move_line = (f"The stock {'rose' if m['change_pct'] >= 0 else 'fell'} {abs(m['change_pct']):.1f}% "
-                     f"{'the same session' if why_filing and why_filing.at[:10] == m['day'] else 'the next session'} "
-                     f"on {m['volume_multiple']:.1f}× usual volume.")
-        if why_filing is not None:
-            why_filing.why = f"{why_filing.why} {move_line}".strip() if why_filing.why else move_line
-        cards.append(Card(
-            id=f"move-{m['symbol']}-{m['day']}", symbol=m["symbol"], company=names.get(m["symbol"], m["symbol"]),
-            # default tier at the default thresholds (5%, 2x); the app re-tiers with the user's own
-            # a move explained by a filing card is told on that card ("the stock rose 8.6% next session"),
-            # so it doesn't take a second lead slot for the same story
-            kind="move", tier="lead" if round(abs(m["change_pct"]), 1) >= 5 and why_filing is None and not earlier else "notable",
-            at=d.isoformat(), nse_subject="",
-            headline=f"{'Up' if m['change_pct'] >= 0 else 'Down'} {abs(m['change_pct']):.1f}% on {m['volume_multiple']:.1f}× usual volume",
-            headline_source="rule",
-            # D-019: never guess a cause; name the filing that preceded it, if any
-            why=(f"Closed ₹{m['close']:,.2f} {arrow}{abs(m['change_pct']):.1f}%; volume {m['volume_multiple']:.1f}× the 20-session average. "
-                 + (f"Follows “{why_filing.headline}” ({_when(why_filing.at)}), in this edition." if why_filing
-                    else f"Follows its {earlier} — just before this window." if earlier
-                    else "No filing explains this move.")),
-            facts={**{k: m[k] for k in ("close", "change_pct", "volume", "volume_multiple", "price_alert", "volume_alert")},
-                   "explained_by": why_filing.id if why_filing else ("earlier filing" if earlier else None)},
-            sources=[Source("NSE bhavcopy", None)],
-        ))
+        told.add(hit.id)
+        line = (f"The stock {'rose' if m['change_pct'] >= 0 else 'fell'} {abs(m['change_pct']):.1f}% "
+                f"{'the same session' if hit.at[:10] == m['day'] else 'the next session'} "
+                f"on {m['volume_multiple']:.1f}× usual volume.")
+        hit.why = f"{hit.why} {line}".strip() if hit.why else line
 
     cards = _merge_duplicate_people(cards)
 
@@ -319,6 +303,47 @@ def build(filings: list[dict], moves: list[dict], weights: dict[str, float], nam
         "routine_total": sum(routine.values()),
         "counts": {"filings": len(in_window), "cards": len(cards)},
     }
+
+
+BHAV_URL = "https://nsearchives.nseindia.com/content/cm/BhavCopy_NSE_CM_0_0_0_{d}_F_0000.csv.zip"
+
+
+def build_moves(moves: list[dict], cards: list[dict], filings: list[dict], weights: dict[str, float],
+                names: dict[str, str], until: datetime, calendar: list[str]) -> list[dict]:
+    """Every session that crossed the lowest thresholds the settings allow, as its own card with a durable id
+    (audit F01/F05). The app keeps the ones that meet the investor's rules -- a 4%/8x day is never erased by
+    a bigger-price 6%/1.6x day -- and every alert row opens its own card.
+
+    `cards` are the 30-day edition's filing cards: a move is placed after the filing published between the
+    previous session's close and this one's, on the full exchange calendar (not just the sessions that moved)."""
+    objs = [Card(**{**c, "sources": [Source(**x) for x in c["sources"]]}) for c in cards]
+    out = []
+    for m in moves:
+        d = datetime.fromisoformat(m["day"] + "T15:30:00")
+        why_filing = explaining_card(m, objs, calendar)
+        earlier = None if why_filing else explaining_filing(m, filings, calendar)
+        arrow = "▲" if m["change_pct"] >= 0 else "▼"
+        n = m.get("baseline_n") or 20
+        base = f"the {n}-session average" if n >= 20 else f"the average of only {n} earlier sessions"
+        tier = "lead" if round(abs(m["change_pct"]), 1) >= 5 and why_filing is None and not earlier else "notable"
+        c = Card(
+            id=f"move-{m['symbol']}-{m['day']}", symbol=m["symbol"], company=names.get(m["symbol"], m["symbol"]),
+            kind="move", tier=tier, at=d.isoformat(), nse_subject="",
+            headline=f"{'Up' if m['change_pct'] >= 0 else 'Down'} {abs(m['change_pct']):.1f}% on {m['volume_multiple']:.1f}× usual volume",
+            headline_source="rule",
+            # D-019: never guess a cause; say what was filed between the previous close and this close
+            why=(f"Closed ₹{m['close']:,.2f} {arrow}{abs(m['change_pct']):.1f}%; volume {m['volume_multiple']:.1f}× {base}. "
+                 + (f"Filed before this session: “{why_filing.headline}” ({_when(why_filing.at)})." if why_filing
+                    else f"Filed before this session: its {earlier}." if earlier
+                    else "No material filing between the previous close and this close.")),
+            facts={**{k: m[k] for k in ("close", "change_pct", "volume", "volume_multiple")},
+                   "baseline_n": n, "explained_by": why_filing.id if why_filing else ("earlier filing" if earlier else None)},
+            sources=[Source(f"NSE bhavcopy {d:%d %b %Y}", BHAV_URL.format(d=f"{d:%Y%m%d}"))],
+        )
+        age_h = (until - d).total_seconds() / 3600
+        c.score = TIER_WEIGHT[c.tier] + KIND_WEIGHT["move"] + 4 * weights.get(c.symbol, 0) - min(age_h, 24 * 30) * 0.15
+        out.append(asdict(c))
+    return sorted(out, key=lambda c: c["at"], reverse=True)
 
 
 def _source_label(f: dict) -> str:

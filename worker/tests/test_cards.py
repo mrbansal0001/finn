@@ -68,3 +68,59 @@ def test_a_minor_people_filing_does_not_explain_a_move():
     days = ["2026-11-05", "2026-11-06"]
     cco = _card("HDFCBANK", "management_change", "2026-11-06T15:21:00", tier="notable")
     assert explaining_card({"symbol": "HDFCBANK", "day": "2026-11-06"}, [cco], days) is None
+
+
+# ---- audit 12 Nov (F01, F04, F05, F06)
+from datetime import date, datetime
+
+from finn_worker import cards as C
+from finn_worker import prices
+
+
+def _filing(fid, sym, cat, at, tier="lead", subject="Litigation / dispute", link="https://x/a.pdf"):
+    return {"id": fid, "symbol": sym, "company_name": sym, "category": cat, "tier": tier, "published_at": at,
+            "subject": subject, "summary": "", "link": link, "needs_document": 1}
+
+
+def test_an_unreadable_material_filing_stays_visible_with_its_source():
+    f = _filing("f1", "ABC", "litigation", "2026-11-10T12:00:00")
+    ev = {"f1": [{"kind": "unreadable", "headline": None, "people": [], "error": "ReadTimeout", "retryable": True, "attempts": 1}]}
+    ed = C.build([f], [], {"ABC": 5}, {"ABC": "ABC Ltd"}, datetime(2026, 11, 9), datetime(2026, 11, 11), {}, ev)
+    cards = ed["leads"] + ed["more"]
+    assert len(cards) == 1 and ed["routine_total"] == 0
+    assert cards[0]["tier"] == "lead" and "couldn't read" in cards[0]["why"] and cards[0]["sources"][0]["url"]
+
+
+def _mv(sym, day, pct, x, n=20):
+    return {"symbol": sym, "day": day, "close": 100.0, "change_pct": pct, "volume": 1, "volume_multiple": x,
+            "price_alert": True, "volume_alert": True, "baseline_n": n}
+
+
+def test_every_qualifying_session_is_its_own_card():
+    """A 6%/1.6x day must not erase a 4%/8x day: the app filters by the investor's rules afterwards."""
+    mv = [_mv("ABC", "2026-11-09", 4, 8), _mv("ABC", "2026-11-10", 6, 1.6)]
+    out = C.build_moves(mv, [], [], {"ABC": 5}, {"ABC": "ABC Ltd"}, datetime(2026, 11, 11), ["2026-11-09", "2026-11-10"])
+    assert {c["id"] for c in out} == {"move-ABC-2026-11-09", "move-ABC-2026-11-10"}
+    assert all(c["sources"][0]["url"].endswith("_F_0000.csv.zip") for c in out)
+
+
+def test_a_quiet_session_on_the_calendar_stops_a_stale_filing_explaining_a_move():
+    """Cochin: filed 10 Nov 14:27 (before that day's close); the 11 Nov move is not 'after' it."""
+    filing_card = C.asdict(C.Card(id="c1", symbol="COCHINSHIP", company="Cochin", kind="results", tier="lead",
+                                  at="2026-11-10T14:27:05", nse_subject="", headline="Results", headline_source="rule", why=None))
+    mv = [_mv("COCHINSHIP", "2026-11-11", -6.8, 10.4)]
+    full = C.build_moves(mv, [filing_card], [], {}, {}, datetime(2026, 11, 11), ["2026-11-07", "2026-11-10", "2026-11-11"])
+    assert full[0]["facts"]["explained_by"] is None
+
+
+def test_a_short_volume_baseline_is_said_as_such():
+    out = C.build_moves([_mv("NEW", "2026-11-10", 3, 2, n=7)], [], [], {}, {}, datetime(2026, 11, 11), ["2026-11-10"])
+    assert "only 7 earlier sessions" in out[0]["why"]
+
+
+def test_moves_are_exported_down_to_the_lowest_allowed_thresholds():
+    def bar(d, close, prev, vol):
+        return {"ABC": prices.Bar("ABC", d, close, close, close, close, prev, vol, 0.0)}
+    sessions = [bar(date(2026, 10, i + 1), 100, 100, 100) for i in range(20)] + [bar(date(2026, 10, 22), 101.5, 100, 130)]
+    got = prices.moves_series(sessions, ["ABC"])
+    assert any(m.day == date(2026, 10, 22) for m in got)          # 1.5% on 1.3x: inside what settings allow

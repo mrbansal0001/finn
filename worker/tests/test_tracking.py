@@ -10,7 +10,7 @@ def row(metric, lo=None, hi=None, unit="%", period="FY27", scope=None):
 
 def test_margin_target_tracked_against_the_filed_quarter():
     t = tracking.track(row("EBITDA margin", 22, 23), RES)
-    assert t["value"] == 15.6 and t["verdict"] == "below" and t["label"] == "Q2 FY27 filed (consolidated)"
+    assert t["value"] == 15.6 and t["verdict"] == "below" and t["label"] == "Q2 FY27 filed (consolidated), latest quarter"
 
 
 def test_ambiguous_or_segment_or_other_year_targets_are_not_tracked():
@@ -20,3 +20,11 @@ def test_ambiguous_or_segment_or_other_year_targets_are_not_tracked():
     assert tracking.track(row("EBITDA margin", 22, 23, scope="defence business"), RES) is None
     assert tracking.track(row("EBITDA margin", 22, 23, period="FY28"), RES) is None
     assert tracking.track(row("revenue growth", 15, None), RES)["verdict"] == "on track"
+
+
+def test_a_standalone_target_is_not_tracked_against_consolidated_results():
+    row = {"metric": "EBITDA margin", "target": {"low": 18, "high": 20, "unit": "%", "period": "FY27", "scope": "company",
+                                                  "basis": "standalone"}}
+    res = {"period_end": "2026-09-30", "nature": "Consolidated", "source_url": None,
+           "comparatives": {"current": {"ebitda_margin_pct": 20}, "yoy": {}}}
+    assert tracking.track(row, res) is None

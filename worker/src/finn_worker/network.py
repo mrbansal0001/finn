@@ -85,8 +85,9 @@ def strength(c: Contact, today: date) -> float:
     days = (today - date.fromisoformat(c.last_contact)).days if c.last_contact else 3650
     recency = math.exp(-max(days, 0) / 180)
     freq = min(1.0, math.log1p(c.interactions_12m or 0) / math.log1p(24))
-    shared = 1.0 if c.education else 0.0
-    return round(0.35 * recency + 0.25 * freq + 0.15 * (c.reciprocity or 0) + 0.15 * (c.rating or 0) / 5 + 0.10 * shared, 3)
+    # no "shared background" term: the demo investor has no profile to share one with, and having an
+    # education on file is not a shared background (audit F11)
+    return round(0.40 * recency + 0.25 * freq + 0.20 * (c.reciprocity or 0) + 0.15 * (c.rating or 0) / 5, 3)
 
 
 def strength_label(s: float) -> str:
@@ -145,7 +146,7 @@ def for_person(person: dict, contacts: list[Contact], today: date) -> list[dict]
             stints = [h for h in c.history if _org_match(po["org"], h["org"])]
             if not stints:
                 continue
-            spans = [ov for h in stints if (ov := _overlap(po, h))]
+            spans = [ov for h in stints if (ov := _overlap(po, h, today))]
             org = stints[0]["org"]
             if spans and po.get("inferred"):
                 # tenure derived from the filing's own words ("served the Bank for nearly 27 years")
@@ -274,17 +275,28 @@ def _same_topic(domain: str, wanted: str) -> bool:
     return bool(shared - _GENERIC_WORDS)
 
 
+_EDGE = {"strong": 1.0, "medium": 0.6, "weak": 0.3}
+
+
 def second_degree(lines: list[dict], contacts: list[Contact], edges: list[dict], today: date) -> list[dict]:
-    """Add 'via' for weak direct links that a strong contact can introduce."""
+    """Add 'via' for weak direct links: the introducer you know well AND who knows them well, with how they
+    know each other. Both links count; the best path wins, not the first one listed (audit F11)."""
     by_id = {c.id: c for c in contacts}
     for ln in lines:
         if ln["strength"] != "weak":
             continue
+        best, best_q = None, 0.0
         for e in edges:
             other = e["b"] if e["a"] == ln["contact_id"] else e["a"] if e["b"] == ln["contact_id"] else None
-            if other and strength(by_id[other], today) >= 0.6:
-                ln["via"] = by_id[other].name
-                break
+            if not other or other not in by_id:
+                continue
+            mine, theirs = strength(by_id[other], today), _EDGE.get(e.get("strength") or "", 0.0)
+            q = min(mine, theirs)                       # a path is as strong as its weaker link
+            if mine >= 0.6 and theirs >= 0.6 and q > best_q:
+                best, best_q = (by_id[other], e), q
+        if best:
+            ln["via"] = best[0].name
+            ln["via_context"] = best[1].get("context")
     return lines
 
 

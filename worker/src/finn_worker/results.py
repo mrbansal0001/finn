@@ -12,7 +12,7 @@ Flow (D-010, D-021, D-022):
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from . import docs, llm
 from .xbrl import QuarterResult
@@ -286,6 +286,7 @@ class Check:
     ok: bool
     status: str           # 'xbrl_match' | 'arithmetic_ok' | 'failed: ...'
     notes: list[str]
+    ran: list[str] = field(default_factory=list)   # the checks that actually ran (shown in the app; audit F07)
 
 
 def _close(a, b, tol):
@@ -305,28 +306,43 @@ def check(table: dict, xbrl: QuarterResult | None = None) -> Check:
     # column identity, not just arithmetic: a table whose columns are mislabelled or shifted can still
     # add up within each column (Ather: last year's column read as this quarter; SBI: rows shifted; E29)
     notes += _structure_notes(table)
+    ran: set[str] = set()
+    if _half_year_checked(table):
+        ran.add("half year = this quarter + the previous quarter")
     tol = 0.02 * 2  # rounding: two printed decimals on each side
     for c in _shown_columns(table):     # every column a figure is shown from (a misread full-year column
                                         # that no card uses must not withhold the quarter; Infosys, E30)
         if bank:
             notes += _bank_notes(c)
+            if c is cols[0]:
+                if None not in (c.get("interest_earned"), c.get("other_income"), c.get("total_income")):
+                    ran.add("interest earned + other income = total income")
+                if None not in (c.get("operating_profit"), c.get("provisions"), c.get("pbt")):
+                    ran.add("operating profit − provisions = PBT")
             continue
         if None not in (c.get("revenue"), c.get("other_income"), c.get("total_income")):
+            if c is cols[0]:
+                ran.add("revenue + other income = total income")
             if not _close(c["revenue"] + c["other_income"], c["total_income"], tol + 0.011 * abs(c["total_income"]) / 1000):
                 notes.append(f"{c['label']}: revenue+other income != total income")
         ti, te, pbt = c.get("total_income"), c.get("total_expenses"), c.get("pbt")
         if None not in (ti, te, pbt):
+            if c is cols[0]:
+                ran.add("income − expenses ± exceptional items = PBT")
             exc, jv = c.get("exceptional") or 0.0, c.get("jv_share") or 0.0
             options = [ti - te + se * exc + sj * jv for se in (1, -1, 0) for sj in (1, 0)]
             if not any(_near(o, pbt, rel=0.002, absolute=1.0) for o in options):
                 notes.append(f"{c['label']}: income - expenses ± exceptional != PBT")   # an exceptional line missed (E30)
         if None not in (c.get("pbt"), c.get("tax"), c.get("pat")):
+            if c is cols[0]:
+                ran.add("PBT − tax = PAT")
             # PAT may also include JV share after tax (XBRL ordering, E13)
             jv = c.get("jv_share") or 0.0
             if not (_close(c["pbt"] - c["tax"], c["pat"], 1.0) or _close(c["pbt"] - c["tax"] + jv, c["pat"], 1.0)):
                 notes.append(f"{c['label']}: PBT - tax != PAT")
     if notes:
-        return Check(False, "failed: " + "; ".join(notes), notes)
+        return Check(False, "failed: " + "; ".join(notes), notes, sorted(ran))
+    matched: list[str] = []
     if xbrl and xbrl.values:
         scale = UNIT_TO_RUPEES[table["unit"]]
         cur = cols[0]
@@ -335,9 +351,25 @@ def check(table: dict, xbrl: QuarterResult | None = None) -> Check:
             if x is None or t is None:
                 continue
             if abs(t * scale - x) > scale * 0.011:  # one printed paisa-digit of slack
-                return Check(False, f"failed: {key} {t * scale:.0f} vs XBRL {x:.0f}", [])
-        return Check(True, "xbrl_match", ["current column equals Integrated Filing XBRL on 1:1 lines"])
-    return Check(True, "arithmetic_ok", ["internal totals reconcile; no XBRL available to cross-check"])
+                return Check(False, f"failed: {key} {t * scale:.0f} vs XBRL {x:.0f}", [], sorted(ran))
+            matched.append(key)
+    # a sparse table can't claim to reconcile: two independent identities must have run on it, or two lines
+    # must equal the exchange's XBRL (audit F07). A loss-maker with no tax line (Ather) still has three.
+    enough = len(ran) >= 2
+    if len(matched) >= 2:
+        return Check(True, "xbrl_match", [f"equals the exchange XBRL on {', '.join(matched)}"],
+                     sorted(ran) + [f"XBRL: {', '.join(matched)} equal"])
+    if not enough:
+        return Check(False, "failed: too few printed lines to reconcile", [], sorted(ran))
+    return Check(True, "arithmetic_ok", ["internal totals reconcile; no XBRL available to cross-check"], sorted(ran))
+
+
+def _half_year_checked(table: dict) -> bool:
+    cols = table["columns"]
+    cur, d0 = cols[0], _date(cols[0])
+    if cur.get("months") != 3 or d0 is None:
+        return False
+    return bool(_pick(cols, 3, 3)) and any(c.get("months") == 6 and _date(c) == d0 for c in cols[1:])
 
 
 def _near(a, b, rel=0.005, absolute=1.0) -> bool:

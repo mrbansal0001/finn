@@ -283,7 +283,8 @@ def test_bel_consolidated_layout_without_a_plain_pbt_line():
     t = results.map_rows(raw)
     c = t["columns"][0]
     assert c["pbt"] == 205411 and c["tax"] == 52278 and c["jv_share"] == 904
-    assert results.check(t).ok
+    chk = results.check(t)          # a trimmed fixture: the profit identity holds, nothing failed
+    assert not chk.notes and "PBT − tax = PAT" in chk.ran
 
 
 def test_lt_owners_line_with_colon_and_equity_line_ignored():
@@ -324,7 +325,8 @@ def test_bharat_forge_stray_jv_tax_line_is_not_the_tax():
                     {"label": "9 Profit/ (loss) for the period/year (7-8)", "values": [2786.81, -898.88]}]}
     t = results.map_rows(raw)
     assert t["columns"][0]["tax"] == 1391.98 and t["columns"][1]["tax"] == 1343.32
-    assert results.check(t).ok
+    chk = results.check(t)          # a trimmed fixture: the profit identity holds, nothing failed
+    assert not chk.notes and "PBT − tax = PAT" in chk.ran
 
 
 def test_owners_profit_line_under_profit_heading_not_tci():
@@ -430,3 +432,19 @@ def test_unit_from_rupee_amounts_in_the_notes():
     t = "adjustments of Rs. 3,830 million as at ... Rs. 55 million ... guarantee up to EUR 1,540 million"
     assert results.unit_from_amounts(t) == "millions"
     assert results.unit_from_amounts("Rs. 3,830 million and Rs 12 crore") is None
+
+
+def test_a_sparse_table_cannot_claim_to_reconcile():
+    """Audit F07: revenue, PBT and PAT alone run no identity; the badge must not say 'reconciled'."""
+    t = {"nature": "Consolidated", "unit": "crores", "is_bank": False,
+         "columns": [{"label": "Q2", "period_end": "2026-09-30", "months": 3, "revenue": 100.0, "pbt": 20.0, "pat": 15.0}]}
+    chk = results.check(t)
+    assert not chk.ok and chk.ran == []
+
+
+def test_checks_that_ran_are_listed():
+    t = {"nature": "Consolidated", "unit": "crores", "is_bank": False,
+         "columns": [{"label": "Q2", "period_end": "2026-09-30", "months": 3, "revenue": 100.0, "other_income": 5.0,
+                      "total_income": 105.0, "total_expenses": 85.0, "pbt": 20.0, "tax": 5.0, "pat": 15.0}]}
+    chk = results.check(t)
+    assert chk.ok and chk.status == "arithmetic_ok" and "PBT − tax = PAT" in chk.ran and len(chk.ran) == 3

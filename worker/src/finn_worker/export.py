@@ -45,9 +45,17 @@ def snapshot(until: datetime | None = None) -> dict:
         x = xbrl_rows.get((r["symbol"], r["period_end"], r["nature"]))
         if r["source"] == "pdf" and r["check_status"] == "arithmetic_ok" and x:
             v = json.loads(r["values_json"])
-            bad = [k for k in ("revenue", "other_income", "finance_costs", "depreciation", "pat")
-                   if v.get(k) is not None and x.get(k) is not None and abs(v[k] - x[k]) > max(1e5, 0.0002 * abs(x[k]))]
-            r["check_status"] = f"failed: {', '.join(bad)} differ from XBRL" if bad else "xbrl_match"
+            both = [k for k in ("revenue", "other_income", "finance_costs", "depreciation", "pat")
+                    if v.get(k) is not None and x.get(k) is not None]
+            bad = [k for k in both if abs(v[k] - x[k]) > max(1e5, 0.0002 * abs(x[k]))]
+            if bad:
+                r["check_status"] = f"failed: {', '.join(bad)} differ from XBRL"
+            elif len(both) >= 2:                  # a match needs fields actually compared (audit F07)
+                r["check_status"] = "xbrl_match"
+                if r["comparatives_json"]:
+                    cj = json.loads(r["comparatives_json"])
+                    cj["checks"] = [c for c in cj.get("checks", []) if not c.startswith("XBRL")] + [f"XBRL: {', '.join(both)} equal"]
+                    r["comparatives_json"] = json.dumps(cj)
     for r in sorted(all_results, key=rank):
         # newest period, consolidated preferred (D-021), checked table with QoQ/YoY preferred over XBRL-only
         if (r["check_status"] or "").startswith("failed") or (r["source"] == "pdf" and r["check_status"] not in ("xbrl_match", "arithmetic_ok")):
@@ -63,15 +71,19 @@ def snapshot(until: datetime | None = None) -> dict:
         sessions = []
     latest = [{**m.__dict__, "day": m.day.isoformat()} for m in prices.moves(sessions, syms)]
     mv = [{**m.__dict__, "day": m.day.isoformat()} for m in prices.moves_series(sessions, syms)]
+    cal = prices.calendar(sessions)
 
     events: dict[str, list[dict]] = {}
     for e in con.execute(f"select filing_id, card from events where symbol in ({q})", syms):
         events.setdefault(e["filing_id"], []).append(json.loads(e["card"]))
-    editions = {k: cards.build(filings, mv, weights, names, until - w, until, res, events) for k, w in WINDOWS.items()}
+    editions = {k: cards.build(filings, mv, weights, names, until - w, until, res, events, cal) for k, w in WINDOWS.items()}
+    # every qualifying session as its own card; the app keeps those that meet the investor's rules (F01/F05)
+    move_cards = cards.build_moves(mv, editions["30d"]["leads"] + editions["30d"]["more"], filings, weights, names, until, cal)
 
     # The Network, inside Push and Pull (D-023). Local and deterministic.
     contacts, edges = network.load()
     today = until.date()
+    # move cards borrow the company's lines in the app ("company:SYM"): no extra private rows per visitor
     for ed in editions.values():
         network.annotate(ed["leads"] + ed["more"], today, contacts, edges)
         # people named in a filing: person-level matches first (dates overlap > same organisation)
@@ -99,7 +111,9 @@ def snapshot(until: datetime | None = None) -> dict:
     people = {s: network.second_degree(network.for_company(s, contacts, today), contacts, edges, today)
               for s in names}
     verifiers = {}
-    for lp in (ROOT / "data" / "ledgers").glob("*.json"):
+    # the machine-built ledgers shown by default (BEL, Deepak) get tracking and verifiers too (audit F11);
+    # their row ids (P1..) never collide with the hand-checked reference's (T1..)
+    for lp in [*(ROOT / "data" / "ledgers").glob("*.json"), *(ROOT / "data" / "ledgers_model").glob("*.json")]:
         led = json.loads(lp.read_text())
         before = json.dumps(led, ensure_ascii=False, sort_keys=True)
         tracking.apply(led, res.get(led["symbol"]))
@@ -114,7 +128,10 @@ def snapshot(until: datetime | None = None) -> dict:
         "generated_at": datetime.now().isoformat(timespec="seconds"),
         "data_until": until.isoformat(),
         "portfolio": p["holdings"], "research_set": p.get("research_set", []), "names": names,
-        "editions": editions, "results": res, "people": people, "verifiers": verifiers,
+        "editions": editions, "move_cards": move_cards, "results": res,
+        # what each part of the data is current to, separately (audit F09)
+        "freshness": {"filings_until": until.isoformat(), "price_session": cal[-1] if cal else None,
+                      "price_sessions": len(cal)}, "people": people, "verifiers": verifiers,
         # private to the owner; in production this lives behind Supabase row-level security
         "contacts": json.loads((ROOT / "config" / "network.json").read_text())["contacts"],
         "prices": {m["symbol"]: m for m in latest},

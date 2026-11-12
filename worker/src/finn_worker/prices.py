@@ -44,7 +44,9 @@ def bhavcopy(d: date) -> dict[str, Bar] | None:
         raw = fetch.get(URL.format(d=d))
     except httpx.HTTPStatusError as e:
         if e.response.status_code == 404:
-            if d < date.today():  # a past weekday with no file = holiday; remember, don't re-ask
+            # a weekday with no file days later = holiday; remember, don't re-ask (a file published late
+            # on the day itself must not be remembered as a closure)
+            if d < date.today() - timedelta(days=3):
                 _closed_marker(d).parent.mkdir(parents=True, exist_ok=True)
                 _closed_marker(d).touch()
             return None
@@ -95,6 +97,7 @@ class Move:
     volume_multiple: float     # vs average of the previous 20 sessions
     price_alert: bool
     volume_alert: bool
+    baseline_n: int = 20       # sessions behind the volume average (a recent listing has fewer)
 
 
 def moves(sessions: list[dict[str, Bar]], symbols: list[str], *,
@@ -113,16 +116,16 @@ def moves(sessions: list[dict[str, Bar]], symbols: list[str], *,
         chg = (bar.close / bar.prev_close - 1) * 100
         mult = bar.volume / avg if avg else 0.0
         out.append(Move(s, bar.day, bar.close, round(chg, 2), bar.volume, round(mult, 2),
-                        price_alert=abs(chg) >= price_pct, volume_alert=mult >= volume_x))
+                        price_alert=abs(chg) >= price_pct, volume_alert=mult >= volume_x, baseline_n=len(vols)))
     return out
 
 
 def moves_series(sessions: list[dict[str, Bar]], symbols: list[str], *, days: int = 22,
-                 floor_pct: float = 2.0, floor_x: float = 1.5) -> list[Move]:
+                 floor_pct: float = 1.0, floor_x: float = 1.2) -> list[Move]:
     """Moves for each of the last `days` sessions, each judged against its own previous 20.
 
-    Exported at a low floor; the app applies the investor's own thresholds (D-027),
-    so 'unusual' is theirs to define."""
+    Exported at the lowest thresholds the settings allow (1%, 1.2x; lib/prefs.ts); the app applies the
+    investor's own (D-027), so 'unusual' is theirs to define and nothing they could ask for is cut here."""
     out: list[Move] = []
     for i in range(max(1, len(sessions) - days), len(sessions)):
         window = sessions[max(0, i - 20): i + 1]
@@ -130,3 +133,8 @@ def moves_series(sessions: list[dict[str, Bar]], symbols: list[str], *, days: in
             if m.price_alert or m.volume_alert:
                 out.append(m)
     return out
+
+
+def calendar(sessions: list[dict[str, Bar]]) -> list[str]:
+    """Every session the exchange traded, quiet ones included (ISO dates, oldest first)."""
+    return [next(iter(day.values())).day.isoformat() for day in sessions if day]

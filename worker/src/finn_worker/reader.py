@@ -117,7 +117,8 @@ def read_results(con, f: dict) -> str:
     table, page = got
     xq = look(table["columns"][0].get("period_end"), table["nature"])
     chk = results.check(table, xq)
-    nums = results.card_numbers(table) if chk.ok else None
+    # the checks that ran travel with the numbers, so the app names only those (audit F07)
+    nums = {**results.card_numbers(table), "checks": chk.ran} if chk.ok else None
     store.upsert(con, "results", [{
         "symbol": f["symbol"], "period_end": table["columns"][0]["period_end"], "nature": table["nature"],
         "reporting": "Quarterly" if table["columns"][0].get("months") == 3 else "Half Yearly",
@@ -134,6 +135,18 @@ def read_results(con, f: dict) -> str:
     return chk.status
 
 
+def retryable(e: Exception) -> bool:
+    """Timeouts, connection drops, 5xx and malformed model output can succeed later; a 4xx or an
+    unsupported file won't. An explicit refusal is never retried around (fetch.Refused)."""
+    import httpx
+    from . import fetch
+    if isinstance(e, fetch.Refused):
+        return False
+    if isinstance(e, httpx.HTTPStatusError):
+        return e.response.status_code >= 500 or e.response.status_code == 429
+    return isinstance(e, (httpx.TimeoutException, httpx.TransportError, json.JSONDecodeError, TimeoutError, ConnectionError))
+
+
 def read_pending(limit: int = MAX_PER_CYCLE) -> str:
     con = store.connect()
     p = json.loads((store.DB_PATH.parents[1] / "config" / "portfolio.json").read_text())
@@ -143,7 +156,10 @@ def read_pending(limit: int = MAX_PER_CYCLE) -> str:
         select * from filings f
         where symbol in ({q}) and link like '%.pdf' and tier in ('lead','notable')
           and (needs_document = 1 or category in ('results','management_change','m_and_a','litigation','capex','fund_raise','credit_rating'))
-          and not exists (select 1 from events e where e.filing_id = f.id)
+          -- read already, unless every attempt so far failed on something temporary (retry up to 3 times)
+          and not exists (select 1 from events e where e.filing_id = f.id
+                          and not (e.kind = 'unreadable' and json_extract(e.card, '$.retryable') = 1
+                                   and coalesce(json_extract(e.card, '$.attempts'), 1) < 3))
           -- its twin (same company and type within 10 minutes) already read: don't pay twice
           and not exists (select 1 from events e join filings g on g.id = e.filing_id
                           where g.symbol = f.symbol and g.category = f.category
@@ -163,8 +179,12 @@ def read_pending(limit: int = MAX_PER_CYCLE) -> str:
             skipped += 1                            # no capable model right now (rate limit, no key, budget):
             continue                                # leave it queued; other filings may still be readable
         except Exception as e:                      # a broken PDF or a 4xx must not block the queue forever
+            prior = con.execute("select card from events where id = ?", (f"{f['id']}:0",)).fetchone()
+            attempts = (json.loads(prior["card"]).get("attempts", 1) + 1) if prior else 1
+            # the card keeps the filing visible as material-but-unread (audit F04); a temporary failure is retried
             evs = [{"kind": "unreadable", "headline": None, "why": None, "people": [], "quote": "", "page": None,
-                    "headline_ok": False, "error": f"{type(e).__name__}: {str(e)[:160]}"}]
+                    "headline_ok": False, "error": f"{type(e).__name__}: {str(e)[:160]}",
+                    "retryable": retryable(e), "attempts": attempts}]
         store.upsert(con, "events", [{
             "id": f"{f['id']}:{i}", "filing_id": f["id"], "symbol": f["symbol"], "kind": e["kind"],
             "tier": f["tier"], "published_at": f["published_at"], "card": e}

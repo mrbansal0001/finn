@@ -35,6 +35,13 @@ def track(row: dict, results: dict | None) -> dict | None:
         return None
     if _scope_words(t.get("scope")):
         return None                                   # a segment's target is not the company's figure
+    basis = f"{t.get('basis') or ''} {t.get('scope') or ''} {row.get('metric') or ''}".lower()
+    nature = (results.get("nature") or "").lower()
+    for b in ("standalone", "consolidated"):
+        if b in basis and b != nature:
+            return None                               # a standalone target vs consolidated results (audit F07)
+    if re.search(r"constant currency|\bcc\b|organic|like[- ]for[- ]like|ex[- ]", basis):
+        return None                                   # filed results are reported currency, all-in
     kind = next(((k, label) for k, rx, label in _KINDS if rx.search(row.get("metric") or "")), None)
     if not kind:
         return None
@@ -58,7 +65,8 @@ def track(row: dict, results: dict | None) -> dict | None:
         verdict = "above"
     elif lo is not None or hi is not None:
         verdict = "on track"
-    return {"label": f"Q{_quarter(pe)} FY{_fy_of(pe)} filed ({results['nature'].lower()})", "metric": kind[1],
+    # a quarter below a full-year range is an observation, not "off track": years are seasonal
+    return {"label": f"Q{_quarter(pe)} FY{_fy_of(pe)} filed ({results['nature'].lower()}), latest quarter", "metric": kind[1],
             "value": round(v, 1), "verdict": verdict, "source": results.get("source_url")}
 
 
