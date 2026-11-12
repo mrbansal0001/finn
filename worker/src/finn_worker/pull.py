@@ -246,7 +246,10 @@ def ground(item: dict) -> dict:
         # ('60 million' given back as 60,000,000; '1 lakh crore' as 100,000 crore; E30)
         word_factor = {"lakh": 1e5, "lakhs": 1e5, "million": 1e6, "mn": 1e6, "crore": 1e7, "crores": 1e7, "cr": 1e7,
                        "billion": 1e9, "bn": 1e9}
-        hit = next(((n, w) for n, w in nums for f in (1, 1000, 0.001) if abs(n * f - v) <= 0.005 * max(abs(v), 1)), None)
+        # a billion<->million restatement only makes sense for amounts, never for a % or a ratio (audit F02)
+        factors = (1, 1000, 0.001) if _unit_class(item.get("unit")) in ("money", "other", "none") and \
+            not re.search(r"%|percent|bps|basis|\bx\b|times|days?", item.get("unit") or "", re.I) else (1,)
+        hit = next(((n, w) for n, w in nums for f in factors if abs(n * f - v) <= 0.005 * max(abs(v), 1)), None)
         if hit is None:
             for n, w in nums:
                 f = word_factor.get(w or "")
@@ -495,9 +498,14 @@ def link(calls: list[tuple[str, list[dict]]]) -> list[Thread]:
             names = _names(it["metric"] + " " + (it.get("scope") or ""))
             best, best_s = None, 0
             facet = _facet(it["metric"])
+            rv = call_reviews(call)
             for t in threads:
                 prev = t.mentions[-1].item
                 shared = names & _names(t.metric)
+                t_end = period_end_month(t.period)
+                if per is None and t_end and rv and rv >= t_end and not shared:
+                    continue                  # a period-less statement after that period ended is about a later
+                                              # one (BEL: "~28%" on the Nov call is FY27, not a revision of FY26)
                 same_call = [m.item for m in t.mentions if m.call == call]
                 if same_call and not shared and not all(
                         _bounds(x) == _bounds(it) and (x.get("due") or None) == (it.get("due") or None) for x in same_call):
@@ -543,31 +551,100 @@ _LOWER_BETTER = re.compile(r"\bdays?\b|cost|debt|leverage|npa|attrition|expense|
                            r"d/e|gearing|cycle", re.I)
 
 
+# spending more or less than planned is not better or worse by itself (audit appendix: "above/below are observations")
+_NO_DIRECTION = re.compile(r"capex|capital (expenditure|outlay|investment)|\binvest|spend|outlay|hiring|headcount|"
+                           r"employees|head count|tax rate|dividend", re.I)
+
+
+def no_better_direction(metric: str) -> bool:
+    return bool(_NO_DIRECTION.search(metric or ""))
+
+
 def lower_is_better(metric: str, unit: str | None = None) -> bool:
     return bool(_LOWER_BETTER.search(f"{metric} {unit or ''}")) and not re.search(r"payable", metric, re.I)
 
 
-def _matching_actual(thread: Thread, last: dict, actuals: list[dict]) -> dict | None:
-    """A stated actual settles a promise only if it is the same metric, scope and unit, for the same period,
-    and of the same order of magnitude (E29: a segment target 'delivered' by whole-company revenue)."""
+_CURRENCY = (("usd", r"usd|\$|us dollars?|dollars?"), ("eur", r"eur|€|euros?"), ("gbp", r"gbp|£|pounds?"),
+             ("inr", r"inr|rs\.?|₹|rupees?|crores?|\bcr\b|lakhs?"))
+_SCALE_OF = (("bn", r"\bbn\b|billion"), ("mn", r"\bmn\b|million"), ("cr", r"crores?|\bcr\b"), ("lakh", r"lakhs?"),
+             ("k", r"thousand|\bk\b"))
+_SCALE_VALUE = {"bn": 1e9, "mn": 1e6, "cr": 1e7, "lakh": 1e5, "k": 1e3, None: 1.0}
+
+
+def _money(unit: str | None, scale: str | None = None) -> tuple[str | None, str | None]:
+    low = f"{unit or ''} {scale or ''}".lower()
+    cur = next((c for c, rx in _CURRENCY if re.search(rx, low)), None)
+    sc = next((k for k, rx in _SCALE_OF if re.search(rx, low)), None)
+    return cur, sc
+
+
+def convert(value: float, unit_from: str | None, unit_to: str | None, scale_from: str | None = None,
+            scale_to: str | None = None) -> float | None:
+    """value in unit_from expressed in unit_to, or None when the two can't be compared.
+    Rupees and dollars are never compared (no conversion policy); crore vs million is a scale change (audit F02)."""
+    ca, cb = _unit_class(unit_from), _unit_class(unit_to)
+    if ca != cb:
+        return None
+    if ca != "money":
+        return value
+    (cur_a, sc_a), (cur_b, sc_b) = _money(unit_from, scale_from), _money(unit_to, scale_to)
+    if cur_a is None or cur_b is None or cur_a != cur_b:
+        return None
+    return value * _SCALE_VALUE[sc_a] / _SCALE_VALUE[sc_b]
+
+
+def _printed(v: float, quote: str, unit: str | None) -> bool:
+    """The actual's number must be printed in its own quote (as-is, or as the full number behind a scale word)."""
+    nums = quote_numbers(quote or "")
+    if not re.search(r"year|month|quarter|week|day", unit or "", re.I):
+        nums = [(n, w) for n, w in nums if w not in _TIME]
+    factor = {"lakh": 1e5, "lakhs": 1e5, "million": 1e6, "mn": 1e6, "crore": 1e7, "crores": 1e7, "cr": 1e7,
+              "billion": 1e9, "bn": 1e9}
+    return any(abs(n - v) <= 0.005 * max(abs(v), 1) or (factor.get(w or "") and abs(n * factor[w] - v) <= 0.005 * max(abs(v), 1))
+               for n, w in nums)
+
+
+def _identity_words(thread: Thread, last: dict) -> tuple[set[str], set[str]]:
+    """What a matching actual must name: the programme/product names, else the specific scope words."""
+    names = {n.lower() for n in _names(f"{thread.metric} {last.get('metric', '')} {last.get('scope') or ''}")}
+    return names, {w for w in _scope_words(last.get("scope")) if len(w) >= 4}
+
+
+def _matching_actual(thread: Thread, last: dict, actuals: list[dict], period: str | None = None,
+                     after_call: str | None = None, call_order: list[str] | None = None) -> dict | None:
+    """A stated actual settles a promise only when everything that gives a number its meaning matches
+    (audit F02): same metric, the active target's period, a management speaker, the number printed in its
+    own quote, a comparable unit (never rupees vs dollars), the programme/segment named, a later call than
+    the target, and the same order of magnitude. Anything unknown abstains -- it is never a wildcard."""
+    period = period or thread.period
     lo, hi = _bounds(last)
     target = next((x for x in (lo, hi) if x is not None), None)
+    names, scope = _identity_words(thread, last)
     best, best_s = None, 0
     for a in actuals:
-        if a.get("period") != thread.period:
+        if a.get("period") != period or a.get("speaker_role") != "management":
             continue
+        if after_call and call_order and a.get("call") in call_order and \
+                call_order.index(a["call"]) <= call_order.index(after_call):
+            continue                              # an outcome comes from a later call than the promise
         s = fuzz.token_sort_ratio(_metric_key(a.get("metric", "")), _metric_key(thread.metric))
-        if s < 80 or _unit_class(a.get("unit")) != _unit_class(last.get("unit")):
-            continue
-        if not scopes_compatible(a, last):
+        if s < 80:
             continue
         v = a.get("value")
-        if not isinstance(v, (int, float)):
+        if not isinstance(v, (int, float)) or not _printed(v, a.get("quote", ""), a.get("unit")):
             continue
-        if target and _unit_class(last.get("unit")) == "money" and not (0.3 <= v / target <= 3):
+        conv = convert(v, a.get("unit"), last.get("unit"), a.get("scale"), last.get("scale"))
+        if conv is None:
+            continue
+        text = f"{a.get('metric', '')} {a.get('scope') or ''} {a.get('quote', '')}".lower()
+        if names and not any(re.search(rf"\b{re.escape(n)}\b", text) for n in names):
+            continue                              # NGC's target is not settled by total order inflow
+        if not names and scope and not any(w in text for w in scope):
+            continue                              # a segment target needs a figure for that segment
+        if target and _unit_class(last.get("unit")) == "money" and not (0.3 <= conv / target <= 3):
             continue
         if s > best_s:
-            best, best_s = a, s
+            best, best_s = {**a, "value": conv}, s
     return best
 
 
@@ -621,7 +698,9 @@ def statuses(thread: Thread, call_order: list[str], actuals: list[dict]) -> dict
                 out[call] = {"status": "early", "note": f"reiterated: {_describe(it)}"}
         else:
             mentions_so_far = len({m.call for m in thread.mentions if call_order.index(m.call) < call_order.index(call)})
-            due = str((prev or {}).get("due") or "")[:7] or end
+            # the period of the target as last stated, not the thread's first one (a H1 target moved to FY
+            # isn't closed when H1 ends; audit F02)
+            due = str((prev or {}).get("due") or "")[:7] or period_end_month((prev or {}).get("period")) or end
             if due and reviewed and reviewed >= due:
                 out[call] = {"status": "closed", "note": f"period ended ({due}); no outcome stated"}
             elif mentions_so_far >= 2:
@@ -631,13 +710,31 @@ def statuses(thread: Thread, call_order: list[str], actuals: list[dict]) -> dict
         prev = it or prev
     # settle against stated actuals for the target period, once a call has reviewed that period
     last = prev
-    if last and thread.period and end:
+    active = (last or {}).get("period") or thread.period
+    end = period_end_month(active) or (str((last or {}).get("due") or "")[:7] or None)
+    last_call = thread.mentions[-1].call
+    if last and active and end:
         over = any((call_reviews(c) or "") >= end for c in call_order)
-        hit = _matching_actual(thread, last, actuals) if over else None
+        hit = _matching_actual(thread, last, actuals, active, last_call, call_order) if over else None
+        if hit and (call_reviews(hit.get("call") or "") or "9999") < end:
+            hit = None                            # the actual must come from a call that reviewed the period
         lo, hi = _bounds(last)
         if hit and (lo is not None or hi is not None):   # directional/milestone items have no bound to test
             v = hit["value"]
-            if lower_is_better(thread.metric, last.get("unit")):
+            pre, suf = _fmt_unit(last.get("unit") or "")
+            if no_better_direction(thread.metric):
+                ref = [x for x in (lo, hi) if x is not None]
+                inside = (lo is None or v >= lo * 0.95) and (hi is None or v <= hi * 1.05)
+                if not inside:
+                    # say what was stated; don't call a capex overrun a beat or a miss
+                    cell = out.get(call_order[-1]) or {"status": "closed"}
+                    out[call_order[-1]] = {**cell, "status": cell.get("status") or "closed",
+                        "note": f"management stated {pre}{_g(v)}{suf} vs {_describe(last)}; not judged (neither higher nor lower is better)",
+                        "evidence": {"quote": hit["quote"], "page": hit["page"], "url": hit.get("url"),
+                                     "call": hit.get("call"), "speaker": hit.get("speaker"), "period": active}}
+                    return out
+                final, beat = "delivered", ""
+            elif lower_is_better(thread.metric, last.get("unit")):
                 bound = hi if hi is not None else lo
                 final = "delivered" if v <= bound * 1.005 else "partly" if v <= bound * 1.1 else "missed"
                 beat = " (beat)" if lo is not None and v < lo * 0.995 else ""
@@ -649,8 +746,10 @@ def statuses(thread: Thread, call_order: list[str], actuals: list[dict]) -> dict
                 else:
                     final = "delivered"                    # within band, or beat it
                 beat = " (beat)" if hi is not None and v > hi * 1.005 and last.get("kind") != "ceiling" else ""
-            out[call_order[-1]] = {"status": final, "note": f"stated actual {v:g} {hit.get('unit', '')} vs {_describe(last)}{beat}".replace("  ", " "),
-                                   "evidence": {"quote": hit["quote"], "page": hit["page"]}}
+            out[call_order[-1]] = {"status": final, "note": f"management stated {pre}{_g(v)}{suf} vs {_describe(last)}{beat}",
+                              "evidence": {"quote": hit["quote"], "page": hit["page"], "url": hit.get("url"),
+                                           "call": hit.get("call"), "speaker": hit.get("speaker"),
+                                           "period": active}}
     return out
 
 
@@ -694,6 +793,83 @@ def _describe(it: dict) -> str:
 
 # ------------------------------------------------------------------ build
 
+# 'Manoj Jain:' / 'Mr. Hitesh Sethia (2:16):' (a timestamp before the colon)
+_SPEAKER_LINE = re.compile(r"^\s*((?:(?:Mr|Ms|Mrs|Dr|Shri)\.?\s+)?[A-Z][A-Za-z.'\- ]{1,45}?)\s*(?:\(\d{1,2}:\d{2}(?::\d{2})?\))?\s*:\s*(?:$|(?=\S))", re.M)
+
+
+_NOT_A_NAME = {"date", "time", "page", "transcript", "participants", "corporate", "journalists", "sensitivity", "businesses", "solutions",
+               "numbers", "components", "highlights", "agenda", "disclaimer", "note", "notes", "q&a", "summary"}
+
+
+def _name_like(label: str) -> bool:
+    """'Manoj Jain', 'Moderator', 'Participant': yes. 'Moving on to EBITDA margin', 'CORPORATE PARTICIPANTS': no."""
+    toks = label.split()
+    return 1 <= len(toks) <= 5 and all(t[:1].isupper() for t in toks) and not any(t.lower().strip(".") in _NOT_A_NAME for t in toks)
+
+
+def _labels(text: str, known: set[str]) -> list[tuple[int, str]]:
+    """(position, name) of every speaker turn on a page: 'Name:' lines, or a line that is exactly the name of
+    someone who speaks on this call (Infosys prints 'Nandan Nilekani' alone on a line)."""
+    out = [(m.start(), re.sub(r"^(Mr|Ms|Mrs|Dr|Shri)\.?\s+", "", m.group(1).strip()))
+           for m in _SPEAKER_LINE.finditer(text) if _name_like(m.group(1).strip())]
+    if known:
+        for m in re.finditer(r"^[ \t]*([A-Z][A-Za-z.' \-]{3,45}?)[ \t]*$", text, re.M):
+            line = m.group(1).strip()
+            if any(fuzz.ratio(line.lower(), k.lower()) >= 90 for k in known):
+                out.append((m.start(), line))
+    return sorted(out)
+
+
+def speaker_of(quote: str, page: int, pages: dict[int, str], known: set[str] | None = None) -> str | None:
+    """The name on the nearest speaker line before the quote, on its page or (for a long answer) earlier pages.
+    Headings that end in a colon are skipped; `known` are the speakers the extraction saw on this call."""
+    known = {k for k in (known or set()) if k}
+    raw = pages.get(page, "")
+    at = _norm(raw).find(_norm(quote)[:60])
+    if at < 0:
+        return None
+    before = [name for pos, name in _labels(raw, known) if len(_norm(raw[:pos])) <= at]
+    if before:
+        return before[-1]
+    for back in range(page - 1, max(0, page - 16), -1):  # a long answer or presentation runs over pages
+        prev = _labels(pages.get(back, ""), known)
+        if prev:
+            return prev[-1][1]
+    return None
+
+
+_TITLES = re.compile(r"managing director|\bmd\b|chief|\bceo\b|\bcfo\b|\bcoo\b|director|chairman|chairperson|president|"
+                     r"head\b|investor relations|company secretary|general manager|executive|officer|management", re.I)
+
+
+def management_lines(pages: dict[int, str]) -> list[str]:
+    """Participant lines from the first pages ('MR. SATISH PAI – MANAGING DIRECTOR'). A speaker named on one of
+    them speaks for the company even if they made no forward-looking statement."""
+    out = []
+    for p in sorted(pages)[:4]:
+        for line in pages[p].splitlines():
+            if _TITLES.search(line) and len(line) < 160 and not re.search(r"securities|capital|research|analyst|"
+                                                                          r"equities|asset management|investments?\b", line, re.I):
+                out.append(line.strip().lower())
+    return out
+
+
+def speaker_role(name: str | None, management: set[str], analysts: set[str], titled: list[str] | None = None) -> str | None:
+    """'management' / 'analyst' / 'moderator', from the call's own speakers; None when unknown (never a guess)."""
+    if not name:
+        return None
+    low = name.lower()
+    if "moderator" in low or "operator" in low:
+        return "moderator"
+    if any(fuzz.token_set_ratio(low, m.lower()) >= 90 for m in management):
+        return "management"
+    if any(fuzz.token_set_ratio(low, a.lower()) >= 90 for a in analysts) or low.startswith("participant"):
+        return "analyst"
+    if titled and len(low) >= 5 and any(fuzz.partial_ratio(low, t) >= 92 for t in titled):
+        return "management"
+    return None
+
+
 def _title(th: "Thread", last: dict) -> str:
     per = last.get("period") or last.get("due") or th.period
     if per and last.get("kind") == "milestone" and re.fullmatch(r"\d{4}-\d{2}", str(per)):
@@ -709,6 +885,9 @@ def build(symbol: str) -> dict:
         _, pages = paged_text(t.url)
         out = extract(t.url)
         items = []
+        mgmt = {g.get("speaker") for g in out.get("guidance", []) if g.get("speaker_role") == "management" and g.get("speaker")}
+        analysts = {g.get("speaker") for g in out.get("guidance", []) if g.get("speaker_role") == "analyst" and g.get("speaker")}
+        titled = management_lines(pages)
         for it in out.get("guidance", []):
             if looks_backward(it):
                 continue                          # an achievement, not a commitment
@@ -724,14 +903,23 @@ def build(symbol: str) -> dict:
             if it.get("due") and cm and str(it["due"])[:7] < cm:
                 it["due"] = None                  # guidance can't be due before the call it was given on
             pe, rv = period_end_month(it.get("period")), call_reviews(t.label)
+            if pe and rv and pe == rv:
+                continue                          # the quarter this call reports: a result, not a promise (audit F02)
             if pe and rv and pe < rv:
                 it["period"] = None               # a target for a period already reported is a misread year (E30)
             items.append(it)
             verified += 1
         for a in out.get("actuals", []):
             a["period"] = normalise_period(a.get("period"), t.label, actual=True)
-            if verify(a, pages) is not None:
-                actuals.append(a)
+            p = verify(a, pages)
+            if p is None:
+                continue
+            a["page"], a["url"], a["call"] = p, t.url, t.label
+            # who said it, from the transcript's own speaker lines: an analyst's "you did 7,000 in H1"
+            # is a question, not an outcome (audit F02, BEL NGC)
+            a["speaker"] = speaker_of(a["quote"], p, pages, mgmt | analysts)
+            a["speaker_role"] = speaker_role(a["speaker"], mgmt, analysts, titled)
+            actuals.append(a)
         calls.append((t.label, items))
         meta.append({"label": t.label, "date": t.label, "url": t.url})
     order = [c for c, _ in calls]

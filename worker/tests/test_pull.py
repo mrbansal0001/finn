@@ -9,6 +9,12 @@ def m(metric, kind, lo=None, hi=None, unit="%", period=None, due=None, role="man
             "due": due, "speaker_role": role, "quote": f"{metric} statement", "page": 3}
 
 
+def act(metric, period, value, unit="%", quote=None, call="Q2FY27", role="management", **kw):
+    """A stated actual as build() records it: who said it, on which call, with the number printed."""
+    return {"metric": metric, "period": period, "value": value, "unit": unit, "page": 3, "call": call,
+            "quote": quote or f"{metric} was {value:g} {unit}", "speaker_role": role, **kw}
+
+
 def thread(*calls_items):
     return pull.link([(c, items) for c, items in zip(ORDER, calls_items)])
 
@@ -46,14 +52,14 @@ def test_silence_is_a_signal_only_after_repetition():
 
 def test_full_year_promise_not_settled_mid_year():
     ths = thread([], [m("Order inflow", "floor", 55000, unit="INR crore", period="FY27")], [], [])
-    h1 = [{"metric": "order inflow", "period": "FY27", "value": 7334, "unit": "INR crore", "quote": "q", "page": 1}]
+    h1 = [act("order inflow", "FY27", 7334, "INR crore")]
     s = pull.statuses(ths[0], ORDER, h1)                 # last call is Q2FY27: FY27 isn't over
     assert s["Q2FY27"]["status"] != "missed"
 
 
 def test_stated_actual_settles_a_floor():
     ths = thread([m("Revenue growth", "floor", 15, period="FY26")], [], [], [])
-    actual = [{"metric": "revenue growth", "period": "FY26", "value": 16.2, "unit": "%", "quote": "grew 16%", "page": 3}]
+    actual = [act("revenue growth", "FY26", 16.2, quote="we grew 16.2% in FY26")]
     s = pull.statuses(ths[0], ORDER, actual)
     assert s["Q2FY27"]["status"] == "delivered" and s["Q2FY27"]["evidence"]["page"] == 3
 
@@ -80,14 +86,14 @@ def test_copy_lint_rejects_slop_and_numberless_why():
 
 def test_directional_promise_is_not_settled_by_any_actual():
     ths = thread([m("Margins", "directional", period="FY26")], [], [], [])
-    actual = [{"metric": "margins", "period": "FY26", "value": 1.0, "unit": "%", "quote": "q", "page": 1}]
+    actual = [act("margins", "FY26", 1.0)]
     s = pull.statuses(ths[0], ORDER, actual)
     assert s["Q2FY27"]["status"] == "closed" and "period ended" in s["Q2FY27"]["note"]   # closed, not settled, not silent
 
 
 def test_beating_a_range_is_delivered_not_partly():
     ths = thread([m("Revenue growth", "range", 15, 17, period="FY26")], [], [], [])
-    actual = [{"metric": "revenue growth", "period": "FY26", "value": 22, "unit": "%", "quote": "q", "page": 1}]
+    actual = [act("revenue growth", "FY26", 22)]
     s = pull.statuses(ths[0], ORDER, actual)
     assert s["Q2FY27"]["status"] == "delivered" and "(beat)" in s["Q2FY27"]["note"]
 
@@ -261,21 +267,21 @@ def test_actual_of_another_scope_or_size_does_not_settle():
     pr = m("IT hardware revenue", "approximate", 1500, unit="INR crore", period="FY26")
     pr["scope"] = "IT hardware"
     ths = thread([pr], [], [], [])
-    whole = [{"metric": "revenue", "period": "FY26", "value": 48893, "unit": "INR crore", "quote": "q", "page": 1}]
+    whole = [act("revenue", "FY26", 48893, "INR crore")]
     s = pull.statuses(ths[0], ORDER, whole)
     assert s["Q2FY27"]["status"] not in ("delivered", "partly", "missed")
 
 
 def test_lower_is_better_metrics_are_judged_the_right_way():
     ths = thread([m("receivable days", "approximate", 60, unit="days", period="FY26")], [], [], [])
-    act = [{"metric": "receivable days", "period": "FY26", "value": 75, "unit": "days", "quote": "q", "page": 1}]
-    assert pull.statuses(ths[0], ORDER, act)["Q2FY27"]["status"] == "missed"
+    acts = [act("receivable days", "FY26", 75, "days")]
+    assert pull.statuses(ths[0], ORDER, acts)["Q2FY27"]["status"] == "missed"
 
 
 def test_half_year_promise_settles_once_the_half_is_reported():
     ths = thread([], [], [m("revenue growth", "floor", 15, period="H1FY27")], [])
-    act = [{"metric": "revenue growth", "period": "H1FY27", "value": 17, "unit": "%", "quote": "q", "page": 2}]
-    assert pull.statuses(ths[0], ORDER, act)["Q2FY27"]["status"] == "delivered"
+    acts = [act("revenue growth", "H1FY27", 17)]
+    assert pull.statuses(ths[0], ORDER, acts)["Q2FY27"]["status"] == "delivered"
 
 
 def test_q4_call_actual_belongs_to_the_year_just_ended():
@@ -314,3 +320,90 @@ def test_same_figure_said_differently_is_not_a_revision():
     ths = thread([m("net debt to EBITDA", "point", 2.5, unit="x", period="FY27")],
                  [m("net debt to EBITDA", "ceiling", None, 2.5, unit="x", period="FY27")], [], [])
     assert pull.statuses(ths[0], ORDER, [])["Q4FY26"]["status"] == "early"
+
+
+# ---- audit 12 Nov (F02): a genuine quote must not become a wrong verdict
+
+def _target(metric="Revenue", lo=100, unit="INR crore", period="FY26", scope=None, call=0):
+    it = m(metric, "point", lo, unit=unit, period=period)
+    it["scope"] = scope
+    calls = [[], [], [], []]
+    calls[call] = [it]
+    return thread(*calls)[0]
+
+
+def test_rupees_never_settle_a_dollar_target():
+    th = _target(lo=100, unit="USD million")
+    s = pull.statuses(th, ORDER, [act("revenue", "FY26", 100, "INR crore", quote="Revenue was INR 100 crore.")])
+    assert s["Q2FY27"]["status"] not in ("delivered", "partly", "missed")
+
+
+def test_crore_and_million_are_a_scale_change_not_a_mismatch():
+    th = _target(lo=100, unit="INR crore")                      # 100 cr = 1,000 mn
+    s = pull.statuses(th, ORDER, [act("revenue", "FY26", 1000, "INR million", quote="Revenue was INR 1,000 million.")])
+    assert s["Q2FY27"]["status"] == "delivered"
+
+
+def test_an_actual_without_the_targets_scope_abstains():
+    th = _target(metric="Defence revenue", scope="defence segment")
+    s = pull.statuses(th, ORDER, [act("revenue", "FY26", 100, "INR crore", quote="Revenue was INR 100 crore.")])
+    assert s["Q2FY27"]["status"] not in ("delivered", "partly", "missed")
+
+
+def test_an_actual_whose_quote_prints_another_number_is_rejected():
+    th = _target()
+    s = pull.statuses(th, ORDER, [act("revenue", "FY26", 100, "INR crore", quote="Revenue was 50 crore.")])
+    assert s["Q2FY27"]["status"] not in ("delivered", "partly", "missed")
+
+
+def test_an_analysts_figure_is_not_an_outcome():
+    th = _target(metric="NGC order inflow", lo=20000, period="H1FY27", call=0)
+    a = act("order inflow", "H1FY27", 7000, "INR crore", role="analyst",
+            quote="So, in the first half, the order inflow has been roughly more than INR7,000 crores.")
+    assert pull.statuses(th, ORDER, [a])["Q2FY27"]["status"] not in ("delivered", "partly", "missed")
+
+
+def test_total_order_inflow_does_not_settle_a_named_programme():
+    th = _target(metric="NGC order inflow", lo=20000, period="H1FY27")
+    a = act("order inflow", "H1FY27", 7000, "INR crore", quote="In the first half order inflow was INR7,000 crores.")
+    assert pull.statuses(th, ORDER, [a])["Q2FY27"]["status"] not in ("delivered", "partly", "missed")
+
+
+def test_a_target_moved_to_the_full_year_is_not_settled_on_the_old_half():
+    first = m("NGC order inflow", "range", 10000, 12000, unit="INR crore", period="H1FY27")
+    later = m("NGC order inflow", "approximate", 20000, unit="INR crore", period="FY27")
+    th = thread([first], [], [], [later])[0]
+    a = act("NGC order inflow", "H1FY27", 7000, "INR crore", quote="NGC order inflow in H1 was INR7,000 crores.")
+    s = pull.statuses(th, ORDER, [a])
+    assert s["Q2FY27"]["status"] == "revised"                    # 10-12k (H1) -> ~20k (FY27): open, not missed
+
+
+def test_an_outcome_must_come_from_a_later_call_than_the_promise():
+    th = _target(period="FY26", call=1)                          # stated on the Q4FY26 call
+    s = pull.statuses(th, ORDER, [act("revenue", "FY26", 100, "INR crore", call="Q4FY26",
+                                      quote="Revenue was INR 100 crore.")])
+    assert s["Q2FY27"]["status"] not in ("delivered", "partly", "missed")
+
+
+def test_percent_values_are_never_rescaled_by_a_thousand():
+    it = {"metric": "revenue growth", "kind": "point", "value_low": 10000, "value_high": None, "unit": "%",
+          "quote": "Revenue growth will be 10%.", "page": 1}
+    assert pull.ground(it)["value_low"] is None
+
+
+def test_speaker_lines_identify_who_said_a_figure():
+    pages = {9: "Ashwini radar is INR2,500 crores.\nDipen Vakil:\nGot it, sir. So, in the first half, the order inflow "
+                "has been roughly more than INR7,000 crores. So how do you expect\nManoj Jain:\nYes. Definitely."}
+    who = pull.speaker_of("So, in the first half, the order inflow has been roughly more than INR7,000 crores.", 9, pages)
+    assert who == "Dipen Vakil"
+    assert pull.speaker_role(who, {"Manoj Jain"}, {"Dipen Vakil"}) == "analyst"
+    assert pull.speaker_role(who, {"Manoj Jain"}, set()) is None            # unknown is unknown, not a guess
+    assert pull.speaker_role("Damodar Bhattad", set(), set(), ["mr. damodar bhattad – director (finance) & cfo"]) == "management"
+    assert pull.speaker_role("Manoj Jain", {"Manoj Jain"}, set()) == "management"
+
+
+def test_capex_above_plan_is_observed_not_judged():
+    th = _target(metric="capex", lo=2263, unit="INR crore", period="FY26")
+    s = pull.statuses(th, ORDER, [act("capex", "FY26", 3157, "INR crore", quote="capex is INR3,157 crores.")])
+    assert s["Q2FY27"]["status"] not in ("delivered", "partly", "missed") and "not judged" in s["Q2FY27"]["note"]
+    assert s["Q2FY27"]["evidence"]["quote"] == "capex is INR3,157 crores."
