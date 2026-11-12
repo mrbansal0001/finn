@@ -1,0 +1,242 @@
+{
+  "currency_mismatch_settlement": {
+    "status": "delivered",
+    "note": "stated actual 100 INR crore vs $100 mn",
+    "evidence": {
+      "quote": "Revenue was INR 100 crore.",
+      "page": 1
+    }
+  },
+  "missing_actual_scope_settlement": {
+    "status": "delivered",
+    "note": "stated actual 100 INR crore vs \u20b9100 cr",
+    "evidence": {
+      "quote": "Revenue was INR 100 crore.",
+      "page": 1
+    }
+  },
+  "wrong_actual_number_settlement": {
+    "status": "delivered",
+    "note": "stated actual 100 INR crore vs \u20b9100 cr",
+    "evidence": {
+      "quote": "Revenue was 50 crore.",
+      "page": 1
+    }
+  },
+  "revised_target_old_period": {
+    "thread_period": "H1FY27",
+    "latest_period": "FY27",
+    "cell": {
+      "status": "missed",
+      "note": "stated actual 7000 INR crore vs \u20b920,000 cr",
+      "evidence": {
+        "quote": "Revenue was INR 100 crore.",
+        "page": 1
+      }
+    }
+  },
+  "noncurrency_x1000_grounding": {
+    "metric": "revenue growth",
+    "kind": "point",
+    "value_low": 10000,
+    "value_high": null,
+    "unit": "%",
+    "period": "FY26",
+    "speaker_role": "management",
+    "scope": "company",
+    "quote": "Revenue growth will be 10%.",
+    "page": 1
+  },
+  "unreadable_material_folded": {
+    "cards": 0,
+    "routine": [
+      [
+        "Other housekeeping",
+        1
+      ]
+    ]
+  },
+  "largest_price_erases_volume_event": [
+    [
+      "move-ABC-2026-11-10",
+      {
+        "close": 100,
+        "change_pct": 6,
+        "volume": 100,
+        "volume_multiple": 1.6,
+        "price_alert": true,
+        "volume_alert": true,
+        "explained_by": null
+      }
+    ]
+  ],
+  "ui_minimum_below_export_floor": {
+    "move": {
+      "symbol": "ABC",
+      "day": "2026-10-22",
+      "close": 101.5,
+      "change_pct": 1.5,
+      "volume": 130,
+      "volume_multiple": 1.3,
+      "price_alert": true,
+      "volume_alert": true
+    },
+    "exported": 0
+  },
+  "window_cards_missing_from_detail_lookup": {
+    "24h": [
+      {
+        "id": "move-HDFCBANK-2026-11-11",
+        "symbol": "HDFCBANK",
+        "headline": "Up 1.1% on 1.5\u00d7 usual volume"
+      },
+      {
+        "id": "move-SBIN-2026-11-11",
+        "symbol": "SBIN",
+        "headline": "Up 1.8% on 2.0\u00d7 usual volume"
+      },
+      {
+        "id": "move-ITC-2026-11-11",
+        "symbol": "ITC",
+        "headline": "Up 2.2% on 1.2\u00d7 usual volume"
+      },
+      {
+        "id": "move-TITAN-2026-11-11",
+        "symbol": "TITAN",
+        "headline": "Down 0.7% on 1.9\u00d7 usual volume"
+      },
+      {
+        "id": "move-MARUTI-2026-11-11",
+        "symbol": "MARUTI",
+        "headline": "Up 2.0% on 1.8\u00d7 usual volume"
+      },
+      {
+        "id": "move-BHARATFORG-2026-11-11",
+        "symbol": "BHARATFORG",
+        "headline": "Up 1.4% on 1.6\u00d7 usual volume"
+      },
+      {
+        "id": "move-DEEPAKNTR-2026-11-11",
+        "symbol": "DEEPAKNTR",
+        "headline": "Up 3.2% on 0.5\u00d7 usual volume"
+      }
+    ],
+    "3d": [
+      {
+        "id": "move-HDFCBANK-2026-11-09",
+        "symbol": "HDFCBANK",
+        "headline": "Up 1.8% on 1.9\u00d7 usual volume"
+      },
+      {
+        "id": "move-SBIN-2026-11-09",
+        "symbol": "SBIN",
+        "headline": "Up 2.6% on 2.1\u00d7 usual volume"
+      },
+      {
+        "id": "move-ITC-2026-11-11",
+        "symbol": "ITC",
+        "headline": "Up 2.2% on 1.2\u00d7 usual volume"
+      },
+      {
+        "id": "move-TITAN-2026-11-11",
+        "symbol": "TITAN",
+        "headline": "Down 0.7% on 1.9\u00d7 usual volume"
+      },
+      {
+        "id": "move-MARUTI-2026-11-11",
+        "symbol": "MARUTI",
+        "headline": "Up 2.0% on 1.8\u00d7 usual volume"
+      },
+      {
+        "id": "move-BHARATFORG-2026-11-11",
+        "symbol": "BHARATFORG",
+        "headline": "Up 1.4% on 1.6\u00d7 usual volume"
+      },
+      {
+        "id": "move-DEEPAKNTR-2026-11-11",
+        "symbol": "DEEPAKNTR",
+        "headline": "Up 3.2% on 0.5\u00d7 usual volume"
+      },
+      {
+        "id": "move-ATHERENERG-2026-11-09",
+        "symbol": "ATHERENERG",
+        "headline": "Up 2.0% on 0.5\u00d7 usual volume"
+      }
+    ],
+    "7d": [
+      {
+        "id": "move-ITC-2026-11-11",
+        "symbol": "ITC",
+        "headline": "Up 2.2% on 1.2\u00d7 usual volume"
+      },
+      {
+        "id": "move-INFY-2026-11-05",
+        "symbol": "INFY",
+        "headline": "Up 3.5% on 0.6\u00d7 usual volume"
+      },
+      {
+        "id": "move-DEEPAKNTR-2026-11-11",
+        "symbol": "DEEPAKNTR",
+        "headline": "Up 3.2% on 0.5\u00d7 usual volume"
+      },
+      {
+        "id": "move-LT-2026-11-05",
+        "symbol": "LT",
+        "headline": "Up 2.7% on 1.8\u00d7 usual volume"
+      },
+      {
+        "id": "move-BEL-2026-11-05",
+        "symbol": "BEL",
+        "headline": "Down 0.7% on 1.6\u00d7 usual volume"
+      },
+      {
+        "id": "move-TITAN-2026-11-06",
+        "symbol": "TITAN",
+        "headline": "Up 3.4% on 5.5\u00d7 usual volume"
+      },
+      {
+        "id": "move-TATACHEM-2026-11-05",
+        "symbol": "TATACHEM",
+        "headline": "Up 2.1% on 0.5\u00d7 usual volume"
+      },
+      {
+        "id": "move-ATHERENERG-2026-11-05",
+        "symbol": "ATHERENERG",
+        "headline": "Down 3.3% on 1.8\u00d7 usual volume"
+      },
+      {
+        "id": "move-SHAILY-2026-11-06",
+        "symbol": "SHAILY",
+        "headline": "Up 2.5% on 1.0\u00d7 usual volume"
+      }
+    ]
+  },
+  "cochin_move_link": {
+    "at": "2026-11-10T14:27:05",
+    "why": "EBITDA margin 4.1%, \u2212251bp YoY. The stock fell 6.8% the next session on 10.4\u00d7 usual volume."
+  },
+  "local_machine_tracking": {
+    "BEL": {
+      "reference": 0,
+      "machine": 0
+    },
+    "DEEPAKNTR": {
+      "reference": 0,
+      "machine": 0
+    }
+  },
+  "sparse_table_passes_without_identity": {
+    "ok": true,
+    "status": "arithmetic_ok",
+    "notes": [
+      "internal totals reconcile; no XBRL available to cross-check"
+    ]
+  },
+  "standalone_target_vs_consolidated_tracking": {
+    "label": "Q2 FY27 filed (consolidated)",
+    "metric": "EBITDA margin",
+    "value": 20,
+    "verdict": "on track",
+    "source": null
+  }
+}

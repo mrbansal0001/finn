@@ -1,0 +1,451 @@
+{
+  "ledgers": 37,
+  "documents": 145,
+  "quote_checks": {
+    "normalized_exact": 1575
+  },
+  "latest_statuses": {
+    "closed": 217,
+    "early": 1019,
+    "delivered": 46,
+    "missed": 7,
+    "silent": 37,
+    "revised": 52,
+    "partly": 1
+  },
+  "exceptions": [],
+  "settlement_evidence": [
+    {
+      "symbol": "COALINDIA",
+      "row": "P22",
+      "title": "coal production target \u00b7 FY24: 780 million tons",
+      "call": "May 2025",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "COALINDIA",
+      "row": "P28",
+      "title": "capex \u00b7 FY24-FY26: \u20b920,000 cr",
+      "call": "May 2025",
+      "status": "missed",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "GRASIM",
+      "row": "P6",
+      "title": "capex \u00b7 FY26: \u20b93,157 cr",
+      "call": "Aug 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "LT",
+      "row": "P2",
+      "title": "order inflow growth \u00b7 5 years: 10\u201312%",
+      "call": "Jul 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "JIOFIN",
+      "row": "P2",
+      "title": "transaction processing volume \u00b7 Q3FY26: \u20b916,300 cr",
+      "call": "Oct 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "JIOFIN",
+      "row": "P4",
+      "title": "new business correspondents \u00b7 Q3FY26: 75,381 correspondents",
+      "call": "Oct 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "JIOFIN",
+      "row": "P5",
+      "title": "total income \u00b7 Q3FY26: 61 crores",
+      "call": "Oct 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "JIOFIN",
+      "row": "P8",
+      "title": "transaction processing volume \u00b7 Q3FY26: 16,315 crores",
+      "call": "Oct 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "JIOFIN",
+      "row": "P9",
+      "title": "gross fees and commission income \u00b7 Q3FY26: 96 crores",
+      "call": "Oct 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "JIOFIN",
+      "row": "P12",
+      "title": "premium facilitated \u00b7 Q3FY26: \u20b9212 cr",
+      "call": "Oct 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "JIOFIN",
+      "row": "P13",
+      "title": "total income \u00b7 Q4FY26: \u20b91,020 cr",
+      "call": "Oct 2026",
+      "status": "missed",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "JIOFIN",
+      "row": "P14",
+      "title": "fees and commission income \u00b7 Q3FY26: \u20b9182 cr",
+      "call": "Oct 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "JIOFIN",
+      "row": "P15",
+      "title": "share of associates & joint ventures \u00b7 Q3FY26: \u20b936 cr",
+      "call": "Oct 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "JIOFIN",
+      "row": "P16",
+      "title": "profit after tax \u00b7 Q3FY26: \u20b9269 cr",
+      "call": "Oct 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "JIOFIN",
+      "row": "P17",
+      "title": "standalone total income \u00b7 Q3FY26: \u20b9159 cr",
+      "call": "Oct 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "JIOFIN",
+      "row": "P18",
+      "title": "standalone profit after tax \u00b7 Q3FY26: \u20b973 cr",
+      "call": "Oct 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "JIOFIN",
+      "row": "P22",
+      "title": "insurance premium \u00b7 Q4FY26: \u20b9273 cr",
+      "call": "Oct 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "JIOFIN",
+      "row": "P23",
+      "title": "fee and commission income \u00b7 Q4FY26: \u20b945 cr",
+      "call": "Oct 2026",
+      "status": "missed",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "JIOFIN",
+      "row": "P24",
+      "title": "total income \u00b7 FY26: \u20b93,274 cr",
+      "call": "Oct 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "JIOFIN",
+      "row": "P26",
+      "title": "quarterly loan disbursements \u00b7 Q1FY27: >\u20b911,000 cr",
+      "call": "Oct 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "JIOFIN",
+      "row": "P32",
+      "title": "Total Payment Value \u00b7 Q1FY27: \u20b919,000 cr",
+      "call": "Oct 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "JIOFIN",
+      "row": "P33",
+      "title": "Gross Fee and Commission Income \u00b7 Q1FY27: \u20b9176 cr",
+      "call": "Oct 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "JIOFIN",
+      "row": "P34",
+      "title": "Closing AUM \u00b7 Q1FY27: \u20b918,412 cr",
+      "call": "Oct 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "JIOFIN",
+      "row": "P36",
+      "title": "total income \u00b7 Q1FY27: \u20b91,496 cr",
+      "call": "Oct 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "JIOFIN",
+      "row": "P37",
+      "title": "Fees and Commission Income \u00b7 Q1FY27: \u20b9325 cr",
+      "call": "Oct 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "JIOFIN",
+      "row": "P38",
+      "title": "Profit after Tax \u00b7 Q1FY27: \u20b9830 cr",
+      "call": "Oct 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "JIOFIN",
+      "row": "P50",
+      "title": "Total Fee and Commission Income \u00b7 Q2FY27: \u20b954 cr",
+      "call": "Oct 2026",
+      "status": "missed",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "INFY",
+      "row": "P29",
+      "title": "large deal growth \u00b7 FY25: 28%",
+      "call": "Oct 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "INFY",
+      "row": "P31",
+      "title": "Q4 revenue growth \u00b7 FY26: 1\u20132%",
+      "call": "Oct 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "INFY",
+      "row": "P47",
+      "title": "AI services revenue growth \u00b7 Q1FY27: 8.2%",
+      "call": "Oct 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "INFY",
+      "row": "P49",
+      "title": "employee hiring \u00b7 FY25: 20,000 employees",
+      "call": "Oct 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "INFY",
+      "row": "P51",
+      "title": "EBITDA margin \u00b7 FY25: 21%",
+      "call": "Oct 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "NESTLEIND",
+      "row": "P1",
+      "title": "organic growth \u00b7 FY22: 14.8%",
+      "call": "Aug 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "NESTLEIND",
+      "row": "P4",
+      "title": "operating margin \u00b7 Q4FY22: 21.1%",
+      "call": "Aug 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "NESTLEIND",
+      "row": "P7",
+      "title": "CAGR value growth \u00b7 FY22: 10.7%",
+      "call": "Aug 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "NESTLEIND",
+      "row": "P26",
+      "title": "capital investments \u00b7 FY23: \u20b92,480 cr",
+      "call": "Aug 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "HINDUNILVR",
+      "row": "P20",
+      "title": "USG growth \u00b7 FY26: 8%",
+      "call": "Nov 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "HINDUNILVR",
+      "row": "P21",
+      "title": "ARR \u00b7 FY26: \u20b91,400 cr",
+      "call": "Nov 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "NTPC",
+      "row": "P2",
+      "title": "renewable capacity addition \u00b7 FY26: 2,108 MW",
+      "call": "Nov 2026",
+      "status": "missed",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "NTPC",
+      "row": "P15",
+      "title": "coal capacity \u00b7 2026-03: 77 gigawatt",
+      "call": "Nov 2026",
+      "status": "missed",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "MAXHEALTH",
+      "row": "P16",
+      "title": "revenue impact \u00b7 FY26: \u20b9200 cr",
+      "call": "Nov 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "MAXHEALTH",
+      "row": "P37",
+      "title": "total bed capacity \u00b7 H1FY27: 6,200 beds",
+      "call": "Nov 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "MAXHEALTH",
+      "row": "P39",
+      "title": "Operating EBITDA \u00b7 H1FY27: \u20b91,524 cr",
+      "call": "Nov 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "MAXHEALTH",
+      "row": "P40",
+      "title": "PAT \u00b7 H1FY27: \u20b9805 cr",
+      "call": "Nov 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "MAXHEALTH",
+      "row": "P41",
+      "title": "free cash flow \u00b7 H1FY27: \u20b9897 cr",
+      "call": "Nov 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "BEL",
+      "row": "P3",
+      "title": "EBITDA margin \u00b7 FY26: ~28%",
+      "call": "Nov 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "BEL",
+      "row": "P10",
+      "title": "NGC order inflow \u00b7 FY27: ~\u20b920,000 cr",
+      "call": "Nov 2026",
+      "status": "missed",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "ICICIBANK",
+      "row": "P11",
+      "title": "business banking loan growth \u00b7 Q3FY26: 24.4%",
+      "call": "Jul 2026",
+      "status": "partly",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "ICICIBANK",
+      "row": "P20",
+      "title": "profit before tax growth \u00b7 FY26: 7.1%",
+      "call": "Jul 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "ICICIBANK",
+      "row": "P27",
+      "title": "credit cost \u00b7 FY26: 38 basis points",
+      "call": "Jul 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "CIPLA",
+      "row": "P4",
+      "title": "EBITDA margin \u00b7 FY26: ~21%",
+      "call": "Oct 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "KOTAKBANK",
+      "row": "P27",
+      "title": "unsecured retail portfolio growth \u00b7 Q1FY27: \u20b9707 cr",
+      "call": "Aug 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "KOTAKBANK",
+      "row": "P28",
+      "title": "Mortgage portfolio growth \u00b7 FY26: 15%",
+      "call": "Aug 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    },
+    {
+      "symbol": "HINDALCO",
+      "row": "P33",
+      "title": "capex \u00b7 FY26: \u20b931,619 cr",
+      "call": "Aug 2026",
+      "status": "delivered",
+      "evidence_has_url": false
+    }
+  ]
+}
