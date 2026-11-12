@@ -276,8 +276,8 @@ def build(filings: list[dict], moves: list[dict], weights: dict[str, float], nam
                 c.headline_source = "rule"
                 c.needs_read = False
             elif v.get("revenue") and v.get("pat") is not None:
-                c.headline = (f"Q{_fy_quarter(r['period_end'])} revenue ₹{v['revenue']/1e7:,.0f} cr, "
-                              f"profit ₹{v['pat']/1e7:,.0f} cr")
+                c.headline = (f"Q{_fy_quarter(r['period_end'])} revenue ₹{inr(v['revenue']/1e7)} cr, "
+                              f"profit ₹{inr(v['pat']/1e7)} cr")
                 c.headline_source = "xbrl"
         if c.kind == "results" and not c.headline:
             c.headline, c.headline_source, c.needs_read = "Results filed · numbers withheld", "rule", False
@@ -337,7 +337,6 @@ def build_moves(moves: list[dict], cards: list[dict], filings: list[dict], weigh
         d = datetime.fromisoformat(m["day"] + "T15:30:00")
         why_filing = explaining_card(m, objs, calendar)
         earlier = None if why_filing else explaining_filing(m, filings, calendar)
-        arrow = "▲" if m["change_pct"] >= 0 else "▼"
         n = m.get("baseline_n") or 20
         base = f"the {n}-session average" if n >= 20 else f"the average of only {n} earlier sessions"
         tier = "lead" if round(abs(m["change_pct"]), 1) >= 5 and why_filing is None and not earlier else "notable"
@@ -347,7 +346,7 @@ def build_moves(moves: list[dict], cards: list[dict], filings: list[dict], weigh
             headline=f"{'Up' if m['change_pct'] >= 0 else 'Down'} {abs(m['change_pct']):.1f}% on {m['volume_multiple']:.1f}× usual volume",
             headline_source="rule",
             # D-019: never guess a cause; say what was filed between the previous close and this close
-            why=(f"Closed ₹{m['close']:,.2f} {arrow}{abs(m['change_pct']):.1f}%; volume {m['volume_multiple']:.1f}× {base}. "
+            why=(f"Closed ₹{inr(m['close'], 2)}, {_signed_pct(m['change_pct'])}; volume {m['volume_multiple']:.1f}× {base}. "
                  + (f"Filed before this session: “{why_filing.headline}” ({_when(why_filing.at)})." if why_filing
                     else f"Filed before this session: its {earlier}." if earlier
                     else "No material filing between the previous close and this close.")),
@@ -461,6 +460,21 @@ def explaining_filing(m: dict, filings: list[dict], trading_days: list[str]) -> 
     return f"{_KIND_WORDS[f['category']]} ({_when(f['published_at'])})"
 
 
+def inr(x: float, decimals: int = 0) -> str:
+    """Indian digit grouping: 240357 -> '2,40,357'; 1061.2 with 2 decimals -> '1,061.20' (plan §5)."""
+    neg, x = x < 0, abs(x)
+    whole, frac = f"{x:.{decimals}f}".split(".") if decimals else (f"{x:.0f}", "")
+    head, tail = whole[:-3], whole[-3:]
+    head = ",".join(re.findall(r"\d{1,2}(?=(?:\d{2})*$)", head)) if head else ""
+    out = f"{head},{tail}" if head else tail
+    return ("−" if neg else "") + out + (f".{frac}" if frac else "")
+
+
+def _signed_pct(v: float) -> str:
+    r = round(v, 1)
+    return f"{'+' if r > 0 else '−' if r < 0 else ''}{abs(r):.1f}%"
+
+
 def _when(at: str) -> str:
     d = datetime.fromisoformat(at[:19])
     return f"{d:%a %d %b}, {d:%H:%M}"
@@ -489,24 +503,24 @@ def results_copy(n: dict) -> tuple[str, str | None]:
     if lead_underlying:
         parts.append(f"profit before one-offs {_dir(y['pbt_underlying'])} {abs(y['pbt_underlying']):.1f}%")
     elif cur_pat is not None and cur_pat < 0 and prev_pat is not None and prev_pat < 0:
-        parts.append(f"loss {'widened' if cur_pat < prev_pat else 'narrowed'} to ₹{abs(cur_pat):,.0f} cr")
+        parts.append(f"loss {'widened' if cur_pat < prev_pat else 'narrowed'} to ₹{inr(abs(cur_pat))} cr")
     elif pat is not None:
         parts.append(f"profit {_dir(pat)} {abs(pat):.1f}%")
     elif cur_pat is not None and prev_pat is not None and (cur_pat < 0) != (prev_pat < 0):
-        parts.append(f"swung to a loss of ₹{abs(cur_pat):,.0f} cr" if cur_pat < 0
-                     else f"back to a ₹{cur_pat:,.0f} cr profit from a loss")
+        parts.append(f"swung to a loss of ₹{inr(abs(cur_pat))} cr" if cur_pat < 0
+                     else f"back to a ₹{inr(cur_pat)} cr profit from a loss")
     headline = ", ".join(parts) or "Results filed"
     why = []
     if cur.get("ebitda_margin_pct") is not None and y.get("ebitda_margin_bp") is not None:
         bp = y["ebitda_margin_bp"]
         why.append(f"EBITDA margin {cur['ebitda_margin_pct']:.1f}%, {'+' if bp >= 0 else '−'}{abs(bp)}bp YoY.")
     if lead_underlying and pat is not None:
-        why.append(f"Reported profit {_dir(pat)} {abs(pat):.1f}% including ₹{abs(one_off):,.0f} cr of one-off items.")
+        why.append(f"Reported profit {_dir(pat)} {abs(pat):.1f}% including ₹{inr(abs(one_off))} cr of one-off items.")
     elif cur.get("exceptional") and y.get("pbt_ex_exceptional") is not None:
-        why.append(f"PBT includes a ₹{abs(cur['exceptional']):,.0f} cr exceptional item; before it, PBT {_dir(y['pbt_ex_exceptional'])} "
+        why.append(f"PBT includes a ₹{inr(abs(cur['exceptional']))} cr exceptional item; before it, PBT {_dir(y['pbt_ex_exceptional'])} "
                    f"{abs(y['pbt_ex_exceptional']):.1f}% YoY.")
     if cur.get("non_operating_extra") and not lead_underlying:
-        why.append(f"Total income includes ₹{cur['non_operating_extra']:,.0f} cr of non-operating gains, kept out of EBITDA.")
+        why.append(f"Total income includes ₹{inr(cur['non_operating_extra'])} cr of non-operating gains, kept out of EBITDA.")
     if n.get("net_of_excise"):
         why.append("Revenue is net of excise duty.")
     if n.get("is_bank") and cur.get("gnpa_pct") is not None:
