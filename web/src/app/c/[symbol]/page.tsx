@@ -2,6 +2,7 @@ import Link from "next/link";
 import { BackLink } from "@/components/BackLink";
 import { notFound } from "next/navigation";
 import { Dock } from "@/components/Dock";
+import { CompanySkeleton } from "@/components/Skeletons";
 import { Suspense } from "react";
 import { getLedger, getRequest, getUniverse, getView } from "@/lib/data";
 import { RequestButton } from "./RequestButton";
@@ -21,14 +22,7 @@ import type { Ledger, Snapshot } from "@/lib/types";
 
 export default function CompanyPage({ params }: PageProps<"/c/[symbol]">) {
   return (
-    <Suspense
-      fallback={
-        <main aria-busy="true">
-          <p className="min-h-[44px] content-center text-small text-ink-3">‹ Edition</p>
-          <p className="mt-1 text-small text-ink-3">Opening dossier…</p>
-        </main>
-      }
-    >
+    <Suspense fallback={<CompanySkeleton />}>
       <Company params={params} />
     </Suspense>
   );
@@ -395,7 +389,10 @@ function FilingRow({ id, kind, at, title, refTime }: { id: string; kind: string;
         <span className="kicker text-ink-3">{KIND_LABEL[kind] ?? "Filing"}</span>
         <span className="num text-caption text-ink-3">{when(at, refTime)}</span>
       </span>
-      <span className="mt-0.5 block text-body text-ink group-hover:underline">{title}</span>
+      <span className="mt-0.5 flex items-start justify-between gap-3">
+        <span className="text-body text-ink group-hover:underline">{title}</span>
+        <span aria-hidden className="go mt-0.5">›</span>
+      </span>
     </Link>
   );
 }

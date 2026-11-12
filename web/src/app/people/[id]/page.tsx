@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { BackLink } from "@/components/BackLink";
 import { Dock } from "@/components/Dock";
+import { PersonSkeleton } from "@/components/Skeletons";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { findCard, getView } from "@/lib/data";
@@ -14,7 +15,7 @@ import { About, AboutPart } from "@/components/About";
 
 export default function PersonPage({ params, searchParams }: PageProps<"/people/[id]">) {
   return (
-    <Suspense fallback={<main aria-busy="true" className="pt-12 text-small text-ink-3">Opening…</main>}>
+    <Suspense fallback={<PersonSkeleton />}>
       <Person params={params} searchParams={searchParams} />
     </Suspense>
   );
@@ -198,9 +199,12 @@ function daysAgo(iso: string, today: Date) {
 function PersonCard({ id, symbol, title }: { id: string; symbol: string; title: string }) {
   return (
     <li>
-      <Link href={`/card/${id}`} className="block py-2.5 hover:bg-paper-raised">
-        <span className="kicker mr-2 text-ink-3">{symbol}</span>
-        <span className="text-body text-ink">{title}</span>
+      <Link href={`/card/${id}`} className="flex items-start justify-between gap-3 py-2.5 hover:bg-paper-raised">
+        <span>
+          <span className="kicker mr-2 text-ink-3">{symbol}</span>
+          <span className="text-body text-ink">{title}</span>
+        </span>
+        <span aria-hidden className="go mt-0.5">›</span>
       </Link>
     </li>
   );

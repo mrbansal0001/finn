@@ -36,6 +36,8 @@ export function EditionCard({
         <h2 id={`h-${card.id}`} className={`mt-2 font-serif text-ink ${compact ? "text-subhead" : "text-headline"}`}>
           <Link href={`/card/${card.id}`} className="card-link decoration-rule underline-offset-4 hover:underline">
             {card.headline ?? <PendingHeadline card={card} />}
+            {/* the whole card opens: the chevron says so (13 Nov tap language) */}
+            <span aria-hidden className="go ml-1 inline-block font-sans text-small no-underline">›</span>
           </Link>
         </h2>
         {/* a compact move keeps its word-sized chart, as in the alerts box */}

@@ -9,6 +9,7 @@ import { EditionCard } from "@/components/EditionCard";
 import { MoveSpark } from "@/components/MoveSpark";
 import { FollowedQuestions } from "@/components/FollowedQuestions";
 import { Dock } from "@/components/Dock";
+import { EditionSkeleton } from "@/components/Skeletons";
 import { SYNTHETIC } from "@/components/About";
 import { JumpLink } from "@/components/JumpLink";
 import { HoldingsSheet } from "@/components/HoldingsSheet";
@@ -33,18 +34,9 @@ const LEAD_COUNT_WORDS = ["No lead story", "One thing matters", "Two things matt
 
 export default function EditionPage({ searchParams }: PageProps<"/">) {
   return (
-    <Suspense fallback={<Loading />}>
+    <Suspense fallback={<EditionSkeleton />}>
       <Edition searchParams={searchParams} />
     </Suspense>
-  );
-}
-
-function Loading() {
-  return (
-    <main aria-busy="true">
-      <h1 className="font-serif text-display font-semibold">FINN</h1>
-      <p className="mt-1 text-caption text-ink-3">Preparing your edition…</p>
-    </main>
   );
 }
 
@@ -268,7 +260,7 @@ function Alerts({
       <li key={card.id} className="border-t border-rule first:border-t-0">
         <Link
           href={`/card/${card.id}`}
-          className="grid min-h-[52px] grid-cols-[minmax(0,1fr)_3.75rem_3.75rem_4.5rem] items-center gap-1.5 px-4 py-1.5 hover:bg-paper-raised/60 max-[359px]:grid-cols-[minmax(0,1fr)_4.25rem_5rem]"
+          className="grid min-h-[52px] grid-cols-[minmax(0,1fr)_3.75rem_3.5rem_4.25rem_0.5rem] items-center gap-1.5 px-4 py-1.5 hover:bg-paper-raised/60 max-[389px]:grid-cols-[minmax(0,1fr)_3rem_3.25rem_4rem_0.5rem] max-[389px]:gap-1 max-[359px]:grid-cols-[minmax(0,1fr)_4.25rem_4.75rem_0.5rem]"
         >
           {/* the date sits under the ticker, so the ticker keeps its room at larger text sizes */}
           <span className="min-w-0">
@@ -276,7 +268,8 @@ function Alerts({
             <span className="num block text-caption text-ink-3">{shortDay(card.at)}</span>
           </span>
           {/* a word-sized picture of the alert: 20 sessions of price, volume bars, the alert day marked */}
-          <span className="max-[359px]:hidden">
+          {/* narrower phones get the same chart a little smaller, so tickers keep their full names */}
+          <span className="max-[389px]:[&>svg]:w-12 max-[359px]:hidden">
             <MoveSpark
               width={60}
               rows={history?.[card.symbol]}
@@ -288,6 +281,8 @@ function Alerts({
             {pct(f.change_pct)}
           </span>
           <span className="num text-right text-small text-ink-2">{(f.volume_multiple ?? 0).toFixed(1)}× vol</span>
+          {/* each row opens its own card */}
+          <span aria-hidden className="go text-right">›</span>
         </Link>
       </li>
     );
@@ -316,7 +311,8 @@ function Alerts({
           </summary>
           {/* the key for the word-sized charts, said once, where the longer list is */}
           <p className="px-4 pb-1.5 text-caption text-ink-3 max-[359px]:hidden">
-            Line: the last 20 closes. Bars: each day&apos;s volume, the alert day in <span className="text-accent">blue</span>.
+            Line: the last 20 closes. Bars: each day&apos;s volume, the alert day in blue{" "}
+            <span aria-hidden className="inline-block h-2.5 w-1 rounded-[1px] bg-accent align-[-1px]" />.
           </p>
           <ul className="border-t border-rule">{rest.map(row)}</ul>
         </details>

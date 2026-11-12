@@ -79,10 +79,10 @@ export function FollowedQuestions({ symbol, variant = "line" }: { symbol?: strin
       return (
         <>
           {" "}
-          <Link href="/questions" className="text-ink underline decoration-rule underline-offset-2 hover:decoration-ink">
+          <Link href="/questions" className="text-ink underline decoration-accent/50 underline-offset-2 hover:decoration-accent">
             {list.length} question{list.length === 1 ? "" : "s"} you follow
           </Link>
-          {n > 0 ? <span className="font-medium text-accent">, {n} with new evidence</span> : null}.
+          {n > 0 ? <span className="font-medium text-ink">, {n} with new evidence</span> : null}.
         </>
       );
     return (
@@ -112,7 +112,9 @@ export function FollowedQuestions({ symbol, variant = "line" }: { symbol?: strin
           return (
             <li key={q.id} className="py-2.5">
               <div className="flex items-start gap-2">
-                <span className="chip mt-0.5 shrink-0">{q.symbol}</span>
+                <Link href={`/c/${encodeURIComponent(q.symbol)}`} className="chip tap mt-0.5 shrink-0">
+                  {q.symbol}
+                </Link>
                 <Link href={q.href} className="line-clamp-2 text-small text-ink hover:underline">
                   {q.question}
                 </Link>

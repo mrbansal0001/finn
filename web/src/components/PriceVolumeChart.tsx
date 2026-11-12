@@ -145,7 +145,8 @@ export function PriceVolumeChart({ rows, alertDay, markers, symbol }: { rows: Se
 
       {/* one caption line at most (layout plan §9.5); the definitions sit with the table below */}
       <figcaption className="mt-1 text-caption text-ink-3">
-        Dashed: the alert&apos;s 20-session average. ▼ a filing (hollow: after the close); timing, not cause.
+        Tap or drag across the chart to pick a session. Dashed: the alert&apos;s 20-session average. ▼ a filing (hollow: after the close);
+        timing, not cause.
       </figcaption>
 
       {here.length > 0 && (

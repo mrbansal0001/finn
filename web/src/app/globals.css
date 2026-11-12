@@ -263,6 +263,125 @@ body {
   font-weight: 500;
 }
 
+/* What can be tapped, at a glance (13 Nov). One visual language across the app:
+   opens a page      blue text, or a blue › closing a row or card (.go)
+   opens outside     ↗ (a filing, a transcript, an annual report)
+   expands in place  a grey › that turns down when open (.fold)
+   switches a view   .seg / .pill
+   not interactive   ink or grey, never blue, never a chevron                          */
+.go {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.fold {
+  display: inline-block;
+  color: var(--ink-3);
+  flex-shrink: 0;
+  transition: transform 200ms;
+}
+[aria-expanded="true"] .fold,
+details[open] > summary .fold {
+  transform: rotate(90deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .fold {
+    transition: none;
+  }
+}
+
+/* Loading (13 Nov): a skeleton in the page's own shape, and a thin bar at the top while a page is on its way */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--tint);
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--paper) 60%, transparent), transparent);
+  animation: finn-shimmer 1.4s ease-in-out infinite;
+}
+@keyframes finn-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+.spinner {
+  display: inline-block;
+  width: 0.875rem;
+  height: 0.875rem;
+  border: 2px solid var(--rule);
+  border-top-color: var(--accent);
+  border-radius: 9999px;
+  animation: finn-spin 0.8s linear infinite;
+}
+@keyframes finn-spin {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+.nav-progress {
+  position: fixed;
+  inset: 0 auto auto 0;
+  z-index: 60;
+  height: 3px;
+  width: 0;
+  background: var(--accent);
+  border-radius: 0 2px 2px 0;
+  opacity: 0;
+  /* waits a beat so an instant (prefetched) page never flashes it, then grows and slows, never "finishing" early */
+  animation: finn-show 1ms 120ms forwards, finn-grow 10s 120ms cubic-bezier(0.1, 0.7, 0.2, 1) forwards;
+}
+/* the same bar carried on by a page's skeleton: already part-way, no delay, so it never visibly restarts */
+.nav-progress-cont {
+  opacity: 1;
+  animation: finn-grow-cont 10s cubic-bezier(0.1, 0.7, 0.2, 1) forwards;
+}
+@keyframes finn-grow-cont {
+  0% {
+    width: 30%;
+  }
+  100% {
+    width: 92%;
+  }
+}
+@keyframes finn-show {
+  to {
+    opacity: 1;
+  }
+}
+@keyframes finn-grow {
+  0% {
+    width: 0;
+  }
+  15% {
+    width: 35%;
+  }
+  100% {
+    width: 92%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after {
+    animation: none;
+  }
+  .spinner {
+    animation-duration: 2.4s;
+  }
+  .nav-progress {
+    width: 100%;
+    animation: finn-show 1ms 120ms forwards;
+  }
+  .nav-progress-cont {
+    width: 100%;
+    opacity: 1;
+    animation: none;
+  }
+}
+
 /* Separators by job, not by dot (plan addendum, 12 Nov):
    .chip  = an entity you can tap (a ticker): outlined, like a button
    .tag   = a fact you can't tap (sector, weight, "insider"): a soft filled label
@@ -278,13 +397,13 @@ body {
   line-height: 1;
   font-weight: 500;
   letter-spacing: 0.02em;
-  color: var(--ink-2);
+  color: var(--accent);
   white-space: nowrap;
-  transition: border-color 150ms, color 150ms;
+  transition: border-color 150ms, color 150ms, background-color 150ms;
 }
 .chip:hover {
-  border-color: var(--ink-3);
-  color: var(--ink);
+  border-color: var(--accent);
+  background: var(--tint);
 }
 .tag {
   display: inline-flex;

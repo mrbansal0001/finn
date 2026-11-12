@@ -166,7 +166,10 @@ function List({ rows, close, showWeight, networkReady }: { rows: Row[]; close: (
                 </span>
               )}
             </span>
-            {showWeight && <span className="num shrink-0 text-small text-ink-2">{h.weight}%</span>}
+            <span className="flex shrink-0 items-center gap-2">
+              {showWeight && <span className="num text-small text-ink-2">{h.weight}%</span>}
+              <span aria-hidden className="go">›</span>
+            </span>
           </Link>
         </li>
       ))}
@@ -210,7 +213,7 @@ function Coverage({ holdings, research, qs, close, networkReady }: { holdings: R
         </>
       )}
       <p className="mt-3 text-caption text-ink-3">
-        <span className="text-accent">Blue</span>: something new this week. ● available, ○ not covered. Each cell opens its list. Coverage only: a quiet or
+        <span aria-hidden className="inline-block size-2 rounded-full bg-accent align-[1px]" /> Blue dot: something new this week. ● available, ○ not covered. Each cell opens its list. Coverage only: a quiet or
         covered company isn&apos;t &ldquo;safe&rdquo;.
       </p>
     </div>
@@ -253,7 +256,8 @@ function Matrix({ rows, qs, close, max, networkReady, weighted }: { rows: Row[];
                 href={`/c/${sym}#promises`}
                 close={close}
                 on={!!h.ledger}
-                label={h.ledger ? (h.lastCall ?? "Ledger") : "No ledger"}
+                // short enough to keep the cell's chevron: "Oct ’26" (the full wording is the cell's accessible name)
+                label={h.ledger ? shortCall(h.lastCall) : "None"}
                 sr={h.ledger ? `Promises ledger, latest call ${h.lastCall ?? "unknown"}, built ${h.built ?? "unknown"}` : "No promises ledger yet"}
               />
               <Cell
@@ -275,9 +279,10 @@ function Matrix({ rows, qs, close, max, networkReady, weighted }: { rows: Row[];
 
 function Cell({ href, close, on, fresh, label, sr, muted }: { href: string; close: () => void; on: boolean; fresh?: boolean; label: string; sr: string; muted?: boolean }) {
   return (
-    <Link href={href} onClick={close} role="cell" aria-label={sr} className="flex min-h-[36px] items-center gap-1.5 rounded-md px-1 hover:bg-tint">
+    <Link href={href} onClick={close} role="cell" aria-label={sr} className="flex min-h-[36px] items-center gap-1 rounded-md px-0.5 hover:bg-tint">
       <span aria-hidden className={`size-2 shrink-0 rounded-full ${muted ? "border border-dashed border-ink-3" : on ? (fresh ? "bg-accent" : "bg-ink-3") : "border border-ink-3"}`} />
       <span className={`num truncate ${fresh ? "font-medium text-accent" : on ? "text-ink-2" : "text-ink-3"}`}>{label}</span>
+      <span aria-hidden className="go text-label">›</span>
     </Link>
   );
 }
@@ -319,11 +324,13 @@ function Agenda({ events, today, close }: { events: Event[]; today?: string; clo
                 .filter((e) => e.date === d)
                 .map((e, i) => (
                   <li key={i} className="flex items-start gap-2 text-small">
-                    <span className="chip shrink-0">{e.symbol}</span>
+                    <Link href={`/c/${encodeURIComponent(e.symbol)}`} onClick={close} className="chip tap shrink-0">
+                      {e.symbol}
+                    </Link>
                     <span className="min-w-0">
                       {e.kind === "reminder" ? (
                         <Link href={e.href!} onClick={close} className="line-clamp-2 text-ink hover:underline">
-                          {e.label}
+                          {e.label} <span aria-hidden className="go">›</span>
                         </Link>
                       ) : e.href ? (
                         <a href={e.href} target="_blank" rel="noopener noreferrer" className="text-ink hover:underline">
@@ -343,4 +350,11 @@ function Agenda({ events, today, close }: { events: Event[]; today?: string; clo
       <p className="text-caption text-ink-3">Dates the companies filed, plus the revisit dates you set. Results dates aren&apos;t guessed.</p>
     </div>
   );
+}
+
+/** "Oct 2026" -> "Oct ’26"; quarter labels ("Q2FY27") are already short. */
+function shortCall(label: string | null | undefined): string {
+  if (!label) return "Ledger";
+  const m = label.match(/^([A-Za-z]{3})[a-z]*\s+(\d{4})$/);
+  return m ? `${m[1]} ’${m[2].slice(2)}` : label;
 }

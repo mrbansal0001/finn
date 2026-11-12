@@ -1,5 +1,6 @@
 import { BackLink } from "@/components/BackLink";
 import { Dock } from "@/components/Dock";
+import { CardSkeleton } from "@/components/Skeletons";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { cookies } from "next/headers";
@@ -28,7 +29,7 @@ const KIND_WEIGHT: Record<string, number> = {
 
 export default function CardPage({ params }: PageProps<"/card/[id]">) {
   return (
-    <Suspense fallback={<main aria-busy="true" className="pt-12 text-small text-ink-3">Opening…</main>}>
+    <Suspense fallback={<CardSkeleton />}>
       <Detail params={params} />
     </Suspense>
   );

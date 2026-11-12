@@ -112,7 +112,7 @@ export function QuestionTrail() {
                 </div>
               </div>
               <Link href={q.href} className="mt-2 block font-serif text-headline text-ink hover:underline">
-                {q.question}
+                {q.question} <span aria-hidden className="go font-sans text-small">›</span>
               </Link>
 
               <ol className="relative mt-4 ml-1.5 border-l border-rule">

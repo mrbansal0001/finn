@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Suspense, ViewTransition } from "react";
 import { Fraunces, Geist } from "next/font/google";
 import { NavTracker } from "@/components/BackLink";
+import { NavProgress } from "@/components/NavProgress";
 import "./globals.css";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
@@ -39,6 +40,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         {/* Phone-width column everywhere: the product is designed for one thumb. */}
         <Suspense fallback={null}>
           <NavTracker />
+          {/* a thin bar at the top while a tapped page is on its way (13 Nov) */}
+          <NavProgress />
         </Suspense>
         <div className="mx-auto min-h-dvh max-w-[480px] px-4 pb-[calc(env(safe-area-inset-bottom)+5.5rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)] min-[400px]:px-5 md:max-w-[560px] min-[1100px]:has-[main.wide-page]:max-w-[1080px]">
           {/* pages crossfade on navigation (160 ms; off under reduced motion) */}

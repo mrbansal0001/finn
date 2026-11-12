@@ -91,12 +91,16 @@ export function ResultsVisual({ r, question }: { r: ResultsFacts; question?: { t
                 <li key={m.k}>
                   <button
                     onClick={() => setFocus(focus === m.k ? null : m.k)}
-                    aria-pressed={focus === m.k}
+                    aria-expanded={focus === m.k}
                     aria-label={`${m.label}: ${cr(m.now)} in ${nowQ} against ${cr(m.then)} in ${thenQ}`}
                     className={`block w-full rounded-lg px-2 py-1.5 text-left ${focus === m.k ? "bg-tint ring-1 ring-ink-3" : ""}`}
                   >
                     <span className="flex items-baseline justify-between gap-2">
-                      <span className="text-caption text-ink-2">{m.label}</span>
+                      <span className="text-caption text-ink-2">
+                        {m.label}
+                        {/* opens its filed figures below: the grey chevron that turns (13 Nov tap language) */}
+                        <span aria-hidden className="fold ml-1">›</span>
+                      </span>
                       <span className="num text-caption font-medium text-ink">{g != null && (m.now >= 0) === (m.then >= 0) ? signed(g) : ""}</span>
                     </span>
                     {/* two bars on this metric's own scale, from zero; a loss is outlined, not a negative bar */}

@@ -184,7 +184,11 @@ function Item({ row, ledger, open, onToggle, verifier, hideTag }: { row: Promise
     <li className="border-b border-rule">
       <button onClick={onToggle} aria-expanded={open} className="block w-full py-3 text-left">
         <span className="flex items-start justify-between gap-3">
-          <span className="text-small font-medium text-ink">{promiseTitle(row.title)}</span>
+          <span className="text-small font-medium text-ink">
+            {promiseTitle(row.title)}
+            {/* opens here: a grey chevron that turns down (13 Nov tap language) */}
+            <span aria-hidden className="fold ml-1.5">›</span>
+          </span>
           <span className="flex shrink-0 flex-col items-end gap-1">
             {!hideTag && (
               <span className="flex items-baseline gap-1 whitespace-nowrap text-caption font-medium" style={{ color: st.color }}>
@@ -250,7 +254,10 @@ function MatrixRow({ row, ledger, verifier, open, onToggle }: { row: PromiseRow;
       <tr className="border-t border-rule align-middle">
         <td className="pr-2">
           <button onClick={onToggle} aria-expanded={open} className="flex min-h-[48px] w-full items-center py-1.5 text-left text-ink">
-            {promiseTitle(row.title)}
+            <span>
+              {promiseTitle(row.title)}
+              <span aria-hidden className="fold ml-1.5">›</span>
+            </span>
           </button>
         </td>
         {ledger.calls.map((c) => {

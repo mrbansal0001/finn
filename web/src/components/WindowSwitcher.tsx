@@ -65,6 +65,7 @@ export function WindowSwitcher({
           <a
             key={x.key}
             href={x.href}
+            data-inpage
             onClick={(e) => {
               if (e.metaKey || e.ctrlKey || e.shiftKey) return; // a new tab still works
               e.preventDefault();
@@ -95,6 +96,7 @@ export function WindowLink({ to, href, children, className }: { to: string; href
   return (
     <a
       href={href}
+      data-inpage
       className={className}
       onClick={(e) => {
         e.preventDefault();

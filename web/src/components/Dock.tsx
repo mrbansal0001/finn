@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ViewTransition, useEffect, useState } from "react";
+import { NAV_START } from "./NavProgress";
 
 type Person = { id: string; name: string; why: string; match?: string };
 type Results = { q: string; companies: [string, string][]; people: Person[]; failed?: boolean };
@@ -71,19 +72,25 @@ export function Dock() {
     !current.people.some((p) => p.match === "name") &&
     (exactTicker || (!themed && current.companies.some(([, n]) => n.toUpperCase().startsWith(upper))));
 
+  // a navigation started in code still shows the loading bar (NavProgress listens for this)
+  const go = (href: string) => {
+    window.dispatchEvent(new Event(NAV_START));
+    router.push(href);
+  };
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
     setNote("");
     // only a single ticker-shaped word is ever opened as a ticker; a sentence never is (audit F11)
     const tickerish = /^[A-Za-z0-9&-]{1,20}$/.test(query);
     const exact = current.companies.find(([s]) => s === upper)?.[0];
-    if (asked && current.people[0]) router.push(`/people/${current.people[0].id}`);
-    else if (exact) router.push(`/c/${encodeURIComponent(exact)}`);
-    else if (current.people[0] && !current.companies.length) router.push(`/people/${current.people[0].id}`);
-    else if (current.companies[0] && !current.people.length) router.push(`/c/${encodeURIComponent(current.companies[0][0])}`);
+    if (asked && current.people[0]) go(`/people/${current.people[0].id}`);
+    else if (exact) go(`/c/${encodeURIComponent(exact)}`);
+    else if (current.people[0] && !current.companies.length) go(`/people/${current.people[0].id}`);
+    else if (current.companies[0] && !current.people.length) go(`/c/${encodeURIComponent(current.companies[0][0])}`);
     else if (current.companies.length || current.people.length) setNote("Pick one of the matches above.");
     else if (tickerish && !ready) setNote("Still searching…");
-    else if (tickerish) router.push(`/c/${encodeURIComponent(upper)}`); // the company page says if it isn't listed
+    else if (tickerish) go(`/c/${encodeURIComponent(upper)}`); // the company page says if it isn't listed
     else setNote("No match. Try a company name or ticker, a person, or a theme like “specialty chemicals”.");
   }
 

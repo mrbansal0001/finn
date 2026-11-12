@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { BackLink } from "@/components/BackLink";
 import { Dock } from "@/components/Dock";
+import { InvestigateSkeleton } from "@/components/Skeletons";
 import { InvestigateFlow, Step, type FlowPerson } from "@/components/InvestigateFlow";
 import { ResultsVisual } from "@/components/ResultsVisual";
 import { PriceVolumeChart } from "@/components/PriceVolumeChart";
@@ -22,7 +23,7 @@ export const metadata = { title: "Investigate · FINN" };
 
 export default function InvestigatePage({ searchParams }: PageProps<"/investigate">) {
   return (
-    <Suspense fallback={<main aria-busy="true" className="pt-12 text-small text-ink-3">Opening…</main>}>
+    <Suspense fallback={<InvestigateSkeleton />}>
       <Investigate searchParams={searchParams} />
     </Suspense>
   );
@@ -195,7 +196,7 @@ async function Investigate({ searchParams }: { searchParams: PageProps<"/investi
     <main className="wide-page">
       <BackLink fallback={inv.eventHref ?? `/c/${encodeURIComponent(inv.symbol)}`} />
       <div className="flex flex-wrap items-center gap-2">
-        <span className="kicker text-accent">Investigate</span>
+        <span className="kicker text-ink">Investigate</span>
         <Link href={`/c/${encodeURIComponent(inv.symbol)}`} className="chip tap">
           {inv.symbol}
         </Link>
