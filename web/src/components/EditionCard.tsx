@@ -61,19 +61,20 @@ function Figures({ r }: { r: ResultsFacts }) {
     : [["Revenue", c.yoy?.revenue], ...(c.is_lender ? [] : [["EBITDA", c.yoy?.ebitda] as [string, number | null | undefined]]), ["PAT", c.yoy?.pat]];
   const shown = items.filter(([, v]) => v != null);
   if (!shown.length) return null;
+  // label over value, in columns: fits a 320px phone without wrapping a figure onto its own line
   return (
-    <p className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-small" aria-label="Year on year">
-      <span className="text-meta uppercase tracking-wide text-ink-3">YoY</span>
+    <dl className="mt-2.5 grid max-w-[22rem] gap-x-4" style={{ gridTemplateColumns: `repeat(${shown.length}, minmax(0, 1fr)) auto` }}>
       {shown.map(([label, v]) => (
-        <span key={label} className="whitespace-nowrap">
-          <span className="text-ink-3">{label}</span>{" "}
-          <span className={`num ${dirClass(v)}`}>
+        <div key={label} className="min-w-0">
+          <dt className="truncate text-meta text-ink-3">{label}</dt>
+          <dd className={`num text-small ${dirClass(v)}`}>
             {pct(v)}
             <span aria-hidden className="ml-0.5 text-[0.7em]">{arrow(v)}</span>
-          </span>
-        </span>
+          </dd>
+        </div>
       ))}
-    </p>
+      <div className="self-end pb-0.5 text-meta text-ink-3">YoY</div>
+    </dl>
   );
 }
 
