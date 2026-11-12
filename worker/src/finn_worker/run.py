@@ -39,11 +39,15 @@ def _save_state(s: dict) -> None:
     STATE.write_text(json.dumps(s, indent=1))
 
 
+LAST_OK: dict[str, str] = {}   # step -> when it last succeeded (an attempt is not freshness; audit F09)
+
+
 def step(name: str, fn, *args, **kwargs):
     t0 = time.monotonic()
     try:
         out = fn(*args, **kwargs)
         log.info("%-16s ok   %6.1fs  %s", name, time.monotonic() - t0, out)
+        LAST_OK[name] = datetime.now().isoformat(timespec="seconds")
         return out
     except Exception as e:  # keep the cycle going
         log.error("%-16s FAIL %6.1fs  %s: %s", name, time.monotonic() - t0, type(e).__name__, e)
@@ -73,13 +77,18 @@ def once() -> None:
     from . import pull, sync as _sync
     step("requests_in", _sync.exchange_requests)
     step("coverage_queue", pull.drain_requests)
+    step("requests_out", _sync.exchange_requests)      # a finished build's status goes out now, not next cycle
+    # success times are saved before the export so the snapshot can say what is fresh and what isn't
+    state["last_ok"] = {**state.get("last_ok", {}), **LAST_OK}
+    _save_state(state)
     step("export", export.main)
     try:
         from . import sync
         step("sync", sync.push)
     except ImportError:
         pass
-    state["last_cycle"] = datetime.now().isoformat(timespec="seconds")
+    state["last_cycle"] = datetime.now().isoformat(timespec="seconds")      # attempted
+    state["last_ok"] = {**state.get("last_ok", {}), **LAST_OK}
     _save_state(state)
 
 

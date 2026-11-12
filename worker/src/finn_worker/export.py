@@ -131,11 +131,20 @@ def snapshot(until: datetime | None = None) -> dict:
         "editions": editions, "move_cards": move_cards, "results": res,
         # what each part of the data is current to, separately (audit F09)
         "freshness": {"filings_until": until.isoformat(), "price_session": cal[-1] if cal else None,
-                      "price_sessions": len(cal)}, "people": people, "verifiers": verifiers,
+                      "price_sessions": len(cal), "worker_last_ok": _worker_last_ok()}, "people": people, "verifiers": verifiers,
         # private to the owner; in production this lives behind Supabase row-level security
         "contacts": json.loads((ROOT / "config" / "network.json").read_text())["contacts"],
         "prices": {m["symbol"]: m for m in latest},
     }
+
+
+def _worker_last_ok() -> dict:
+    """When each worker step last succeeded (no private data): lets the app tell 'quiet' from 'stale'."""
+    try:
+        st = json.loads((ROOT / "data" / "worker_state.json").read_text())
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+    return {k: v for k, v in (st.get("last_ok") or {}).items() if k in ("announcements", "backfill", "read_filings", "coverage_queue")}
 
 
 def write_universe() -> int:
