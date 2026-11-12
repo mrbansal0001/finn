@@ -138,3 +138,11 @@ def test_a_filing_arriving_twice_is_folded_once():
     b = {**a, "id": "r2"}                                   # same filing via the backfill
     ed = C.build([a, b], [], {}, {}, datetime(2026, 11, 9), datetime(2026, 11, 11), {}, {})
     assert ed["routine_total"] == 1 and len(ed["routine_items"]) == 1
+
+
+def test_a_missing_attachment_is_not_called_a_zip():
+    f = _filing("x1", "ABC", "unclassified", "2026-11-10T12:00:00", tier="notable", subject="General Updates", link="-")
+    f["needs_document"] = 0
+    ed = C.build([f], [], {}, {}, datetime(2026, 11, 9), datetime(2026, 11, 11), {}, {})
+    card = (ed["leads"] + ed["more"])[0]
+    assert card["sources"] == [] and "ZIP" not in (card["why"] or "")

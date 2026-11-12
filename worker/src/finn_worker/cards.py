@@ -177,7 +177,7 @@ def build(filings: list[dict], moves: list[dict], weights: dict[str, float], nam
         folded_keys.add(key)
         routine[label] += 1
         routine_items.append({"label": label, "symbol": f["symbol"], "subject": (f.get("subject") or "").strip(),
-                              "at": f["published_at"], "link": f.get("link")})
+                              "at": f["published_at"], "link": f.get("link") if _real_link(f.get("link")) else None})
 
     # group same-company, same-kind filings on the same day into one card (results day = 4-6 filings)
     groups: dict[tuple, list[dict]] = defaultdict(list)
@@ -260,7 +260,8 @@ def build(filings: list[dict], moves: list[dict], weights: dict[str, float], nam
             id=cid, symbol=sym, company=names.get(sym, lead["company_name"]), kind=cat, tier=tier,
             at=lead["published_at"], nse_subject=lead["subject"], headline=headline,
             headline_source=source, why=why, facts=facts,
-            sources=[Source(_source_label(f), f["link"]) for f in fs if f["link"]],
+            # NSE writes "-" when a filing has no attachment: only a real address becomes a source
+            sources=[Source(_source_label(f), f["link"]) for f in fs if _real_link(f.get("link"))],
             needs_read=needs_read,
         ))
 
@@ -360,6 +361,10 @@ def build_moves(moves: list[dict], cards: list[dict], filings: list[dict], weigh
     return sorted(out, key=lambda c: c["at"], reverse=True)
 
 
+def _real_link(link: str | None) -> bool:
+    return bool(link) and str(link).startswith(("http://", "https://"))
+
+
 def _source_label(f: dict) -> str:
     link = (f.get("link") or "").lower()
     if link.endswith(".xml"):
@@ -391,7 +396,13 @@ def _fallback_copy(cat: str, fs: list[dict], why, needs_read: bool):
     if cat == "results":
         return None, why, needs_read                       # filled from the results table below, or withheld
     if links and not any(l.lower().endswith(".pdf") for l in links):
-        return f"{fs[0]['subject'].strip()} filed", why or "The filing is a ZIP attachment; open it below.", False
+        # say what the attachment actually is (audit: every non-PDF was called a ZIP)
+        real = [l.lower() for l in links if _real_link(l)]
+        note = ("No document was attached to this filing." if not real
+                else "Filed as XBRL data only (no PDF)." if all(l.endswith(".xml") for l in real)
+                else "The filing is a ZIP attachment; open it below." if any(l.endswith(".zip") for l in real)
+                else "Open the filing below.")
+        return f"{fs[0]['subject'].strip()} filed", why or note, False
     if cat not in READ_CATEGORIES and not any(f.get("needs_document") for f in fs):
         return f"{fs[0]['subject'].strip()} filed", why, False
     return None, why, needs_read                           # the reader will summarise it on a coming run
