@@ -165,13 +165,19 @@ def build(filings: list[dict], moves: list[dict], weights: dict[str, float], nam
     in_window = [f for f in filings if since <= datetime.fromisoformat(f["published_at"]) <= until]
     cards: list[Card] = []
     routine: dict[str, int] = defaultdict(int)
+    routine_items: list[dict] = []   # every folded filing, so the fold can be opened (UI plan: routine browser)
+
+    def fold(label: str, f: dict) -> None:
+        routine[label] += 1
+        routine_items.append({"label": label, "symbol": f["symbol"], "subject": (f.get("subject") or "").strip(),
+                              "at": f["published_at"], "link": f.get("link")})
 
     # group same-company, same-kind filings on the same day into one card (results day = 4-6 filings)
     groups: dict[tuple, list[dict]] = defaultdict(list)
     for f in in_window:
         if f["tier"] == "routine":
             label = next((g for g, rx in ROUTINE_GROUPS if rx.search(f["subject"] + " " + (f["summary"] or ""))), "Other housekeeping")
-            routine[label] += 1
+            fold(label, f)
             continue
         day = f["published_at"][:10]
         if f["category"] in ("results", "earnings_call", "press_release"):
@@ -234,10 +240,10 @@ def build(filings: list[dict], moves: list[dict], weights: dict[str, float], nam
             # read, and nothing beyond what another card carries: results decks and shareholder letters
             # repeat the results card (ENAM's reference counts them as results); the rest is housekeeping
             only_results = all(e.get("kind") in ("results", "routine") for e in read) and any(e.get("kind") == "results" for e in read)
-            routine["Results decks & letters" if only_results else "Other housekeeping"] += 1
+            fold("Results decks & letters" if only_results else "Other housekeeping", lead)
             continue
         if tier == "routine":
-            routine["People: re-appointments & auditors" if cat == "management_change" else "Other housekeeping"] += 1
+            fold("People: re-appointments & auditors" if cat == "management_change" else "Other housekeeping", lead)
             continue
         if headline is None:
             headline, why, needs_read = _fallback_copy(cat, fs, why, needs_read)
@@ -301,6 +307,7 @@ def build(filings: list[dict], moves: list[dict], weights: dict[str, float], nam
         "more": [asdict(c) for c in rest],
         "routine": sorted(routine.items(), key=lambda kv: -kv[1]),
         "routine_total": sum(routine.values()),
+        "routine_items": sorted(routine_items, key=lambda x: x["at"], reverse=True),
         "counts": {"filings": len(in_window), "cards": len(cards)},
     }
 

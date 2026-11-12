@@ -38,12 +38,16 @@ def discover(symbol: str, n: int = 4) -> list[Transcript]:
     page = fetch.get(SCREENER.format(symbol=symbol.upper()), max_age=7 * 24 * 3600).decode("utf-8", "replace")
     i = page.find("documents concalls")
     seg = page[i: page.find("</ul>", i)] if i > 0 else ""
-    out = []
+    out, seen = [], set()
     for li in re.split(r'<li class="flex flex-gap-8', seg)[1:]:
         d = re.search(r'nowrap"\s*style="width: 74px">([^<]+)<', li)
         t = re.search(r'href="([^"]+)"[^>]*title="Raw Transcript"', li)
         if d and t:
-            out.append(Transcript(d.group(1).strip(), html.unescape(t.group(1))))
+            label = d.group(1).strip()
+            if label in seen:
+                continue      # one call per month: a second "Jul 2026" was TCS's Jul 2025 call, mislabelled
+            seen.add(label)
+            out.append(Transcript(label, html.unescape(t.group(1))))
     return out[:n]
 
 

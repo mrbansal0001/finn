@@ -124,3 +124,10 @@ def test_moves_are_exported_down_to_the_lowest_allowed_thresholds():
     sessions = [bar(date(2026, 10, i + 1), 100, 100, 100) for i in range(20)] + [bar(date(2026, 10, 22), 101.5, 100, 130)]
     got = prices.moves_series(sessions, ["ABC"])
     assert any(m.day == date(2026, 10, 22) for m in got)          # 1.5% on 1.3x: inside what settings allow
+
+
+def test_every_folded_filing_can_be_opened():
+    f = _filing("r1", "ABC", "unclassified", "2026-11-10T12:00:00", tier="routine", subject="Trading Window-XBRL")
+    ed = C.build([f], [], {}, {}, datetime(2026, 11, 9), datetime(2026, 11, 11), {}, {})
+    assert ed["routine_total"] == 1 and ed["routine_items"][0]["subject"] == "Trading Window-XBRL"
+    assert ed["routine_items"][0]["link"] and ed["routine_items"][0]["label"] == ed["routine"][0][0]
