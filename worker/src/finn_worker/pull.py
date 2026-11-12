@@ -885,8 +885,13 @@ def build(symbol: str) -> dict:
     """End-to-end ledger for one ticker (requires a model key)."""
     found = list(reversed(discover(symbol)))           # oldest first
     calls, actuals, meta, verified, dropped = [], [], [], 0, 0
+    refused = []
     for t in found:
-        _, pages = paged_text(t.url)
+        try:
+            _, pages = paged_text(t.url)
+        except fetch.Refused:
+            refused.append(t.label)       # a source that refuses is skipped, never worked around
+            continue
         out = extract(t.url)
         items = []
         mgmt = {g.get("speaker") for g in out.get("guidance", []) if g.get("speaker_role") == "management" and g.get("speaker")}
@@ -964,7 +969,8 @@ def build(symbol: str) -> dict:
     except Exception:  # the ledger stands on its own if the AR can't be read
         snap = None
     return {"symbol": symbol.upper(), "calls": meta, "rows": rows, "snapshot": snap,
-            "provenance": (f"Built {date.today():%d %b %Y} from {len(found)} earnings-call transcripts only. "
+            "provenance": (f"Built {date.today():%d %b %Y} from {len(calls)} earnings-call transcripts only"
+                           + (f" ({', '.join(refused)} not readable: the source refused access). " if refused else ". ") +
                            f"{verified} quotes verified against their pages; {dropped} unverifiable statements dropped. "
                            "Statuses computed in code.")}
 
