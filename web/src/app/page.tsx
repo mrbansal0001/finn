@@ -183,10 +183,13 @@ function Alerts({ hits, prefs }: { hits: Alert[]; prefs: Prefs }) {
       <li key={card.id} className="border-t border-rule first:border-t-0">
         <Link
           href={`/card/${card.id}`}
-          className="grid min-h-[48px] grid-cols-[minmax(0,1fr)_3.25rem_4.25rem_5rem] items-center gap-2 px-4 hover:bg-paper-raised/60"
+          className="grid min-h-[52px] grid-cols-[minmax(0,1fr)_4.25rem_5rem] items-center gap-2 px-4 py-1.5 hover:bg-paper-raised/60"
         >
-          <span className="truncate text-small font-medium text-ink">{card.symbol}</span>
-          <span className="num text-caption text-ink-3">{shortDay(card.at)}</span>
+          {/* the date sits under the ticker, so the ticker keeps its room at larger text sizes */}
+          <span className="min-w-0">
+            <span className="block truncate text-small font-medium text-ink">{card.symbol}</span>
+            <span className="num block text-caption text-ink-3">{shortDay(card.at)}</span>
+          </span>
           <span className={`num text-right text-small ${priceFired ? `font-medium ${dirClass(f.change_pct)}` : "text-ink-2"}`}>
             {pct(f.change_pct)}
           </span>

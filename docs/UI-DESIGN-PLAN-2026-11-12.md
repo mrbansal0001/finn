@@ -443,3 +443,22 @@ Each step is one commit. Steps 1–3 change no page structure and can ship in on
 - Indian digit grouping conventions: [engineered.at](https://engineered.at/articles/convert-number-to-indian-format-number-using-javascript), [django-indian-numbers](https://github.com/defcon-007/django-indian-numbers)
 - Robinhood's figure typography (unofficial token export): [shadcn.io design reference](https://www.shadcn.io/design/robinhood/raw); Apple Stocks watchlist change toggles: [screensdesign](https://screensdesign.com/showcase/stocks)
 - FINN's own product research, `docs/research/03-product-design.md` §4, §6, §7.
+
+## Result (implemented 12 Nov; same measurement scripts)
+
+| Check (390px unless noted) | Before this plan | After |
+|---|---|---|
+| Text under 12px | none, except decorative arrows | none (the arrows are gone) |
+| Distinct text styles | 16 | 14 (the eight sizes; weight variants for figures and the wordmark) |
+| Tap targets under 44px | ≈ 8 | 4, all section-shortcut pills at the planned 40px |
+| Card links checked | 157 local / 145 live | 154 local / 142 live, 0 broken |
+| Browser console errors | 0 | 0 |
+| 125% text size | not tested | no sideways scroll or clipped controls on any screen |
+| Colour-blind toggle | — | up green → blue, down → orange, persists across pages |
+
+Deviations from the plan, decided by looking at the rendered result:
+- **Fraunces weight 440, not 500.** At 500 it read heavy at 18–20px on a phone; the font comparison had been rendered at 400.
+- **The tint is a warm deeper paper (#EFEBE2), not accent at 6%.** The blue mix read as cold grey against the warm paper.
+- **The 7-day edition is 1,692px, not ≤ 1,400px.** Larger body text (17px) and the alerts block cost the height. Trimming further would mean cutting the "why" line on lead cards, which carries the explanation.
+- **Alert rows put the date under the ticker** so long tickers survive larger text sizes.
+- **Not done:** tapping the alerts count to open "View all" (the "View all" row does it).
