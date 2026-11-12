@@ -143,6 +143,50 @@ function Preview({ data, price, vol, saved }: { data: PreviewData; price: number
         </ul>
       )}
       <p className="mt-2 text-caption text-ink-3">Past sessions, not a forecast. Saving applies the rules to every edition.</p>
+      {week && <Scatter data={data} w={week} price={price} vol={vol} />}
     </div>
+  );
+}
+
+/** Which observed sessions pass the rules: x = signed price change, y = volume multiple, the ± price lines
+ *  and the volume line drawn; a session alerts if it is outside either (OR), as the alert does. */
+function Scatter({ data, w, price, vol }: { data: PreviewData; w: PreviewData["windows"][number]; price: number; vol: number }) {
+  const pts = data.moves.filter((m) => ist(m.at) > ist(w.since) && ist(m.at) <= ist(w.until));
+  if (!pts.length) return null;
+  const W = 320, H = 190, P = 26;
+  const xm = Math.min(12, Math.max(price * 1.6, ...pts.map((m) => Math.abs(m.p))) + 0.5);
+  const ym = Math.min(12, Math.max(vol * 1.5, ...pts.map((m) => m.v)) + 0.3);
+  const x = (v: number) => P + ((Math.max(-xm, Math.min(xm, v)) + xm) / (2 * xm)) * (W - 2 * P);
+  const y = (v: number) => H - P - (Math.min(ym, v) / ym) * (H - 2 * P);
+  const pass = (m: { p: number; v: number }) => Math.abs(m.p) >= price || m.v >= vol;
+  const n = pts.filter(pass).length;
+  return (
+    <details className="mt-2">
+      <summary className="inline-flex min-h-[44px] items-center text-small text-accent">See every recorded session, 7 days</summary>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label={`${pts.length} sessions plotted; ${n} pass these rules`}>
+        {/* the quiet zone: inside both rules, no alert */}
+        <rect x={x(-price)} y={y(vol)} width={x(price) - x(-price)} height={H - P - y(vol)} className="fill-paper" />
+        <line x1={P} x2={W - P} y1={H - P} y2={H - P} className="stroke-rule" />
+        <line x1={x(0)} x2={x(0)} y1={P / 2} y2={H - P} className="stroke-rule" strokeDasharray="2 2" />
+        <line x1={x(-price)} x2={x(-price)} y1={P / 2} y2={H - P} className="stroke-accent" />
+        <line x1={x(price)} x2={x(price)} y1={P / 2} y2={H - P} className="stroke-accent" />
+        <line x1={P} x2={W - P} y1={y(vol)} y2={y(vol)} className="stroke-accent" />
+        {pts.map((m, i) => (
+          <circle key={i} cx={x(m.p)} cy={y(m.v)} r="3.2" className={pass(m) ? "fill-accent" : "fill-paper stroke-ink-3"} strokeWidth="1">
+            <title>{`${m.s}: ${signed(m.p)}, ${m.v.toFixed(1)}× volume`}</title>
+          </circle>
+        ))}
+        <text x={x(price) + 3} y={P / 2 + 8} fontSize="9" className="fill-accent">±{price.toFixed(1)}%</text>
+        <text x={W - P} y={y(vol) - 3} fontSize="9" textAnchor="end" className="fill-accent">{vol.toFixed(1)}×</text>
+        <text x={P} y={H - 8} fontSize="9" className="fill-ink-3">−{xm.toFixed(0)}%</text>
+        <text x={W - P} y={H - 8} fontSize="9" textAnchor="end" className="fill-ink-3">+{xm.toFixed(0)}%</text>
+        <text x={x(0)} y={H - 8} fontSize="9" textAnchor="middle" className="fill-ink-3">price change</text>
+        <text x={4} y={P / 2 + 4} fontSize="9" className="fill-ink-3">volume ×</text>
+      </svg>
+      <p className="text-caption text-ink-3">
+        <span className="num">{pts.length}</span> sessions plotted, <span className="num">{n}</span> pass (filled). A session alerts if it is beyond either
+        line. FINN only records sessions that moved at least 1% or traded 1.2× usual volume, so quieter days aren&apos;t plotted.
+      </p>
+    </details>
   );
 }

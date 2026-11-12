@@ -1,29 +1,70 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
+import { CHANGED, readQuestions } from "./followed";
 
-type Row = { symbol: string; name: string; sector: string; weight: number; ledger?: boolean; people?: number; updates?: number };
+type Row = {
+  symbol: string; name: string; sector: string; weight: number;
+  ledger?: boolean; built?: string | null; lastCall?: string | null;
+  people?: number; updates?: number; latest?: string | null;
+};
+type Event = { symbol: string; date: string; label: string; link: string | null };
+type View = "list" | "coverage" | "agenda";
+
+const subscribe = (cb: () => void) => {
+  window.addEventListener(CHANGED, cb);
+  window.addEventListener("storage", cb);
+  return () => {
+    window.removeEventListener(CHANGED, cb);
+    window.removeEventListener("storage", cb);
+  };
+};
+/** Followed questions per company, from this browser (server: none yet). */
+function useQuestionCounts(): Record<string, number> {
+  const raw = useSyncExternalStore(
+    subscribe,
+    () => JSON.stringify(readQuestions().reduce<Record<string, number>>((a, q) => ({ ...a, [q.symbol]: (a[q.symbol] ?? 0) + 1 }), {})),
+    () => "{}",
+  );
+  return JSON.parse(raw);
+}
 
 /**
- * "18 holdings" opens a sheet listing the portfolio (plan §8.1): the audit asked for the holdings to be
- * discoverable. A native <dialog>: focus is trapped, Escape and the backdrop close it.
+ * "18 holdings" opens the portfolio (plan §8.1; visual review §6). Three views:
+ *  List      the holdings and research names, with what FINN knows about each
+ *  Coverage  a matrix: updates this week, research (ledger), people, questions you follow; each cell opens
+ *            its own evidence. Weight as a bar beside the name. Coverage, never a risk score.
+ *  Agenda    events the companies announced (investor meets, calls), plus your own revisit dates
+ * A native <dialog>: focus is trapped, Escape and the backdrop close it.
  */
-export function HoldingsSheet({ holdings, research, networkReady = true }: { holdings: Row[]; research: Row[]; networkReady?: boolean }) {
+export function HoldingsSheet({
+  holdings,
+  research,
+  networkReady = true,
+  agenda = [],
+  today,
+}: {
+  holdings: Row[];
+  research: Row[];
+  networkReady?: boolean;
+  agenda?: Event[];
+  today?: string;
+}) {
   const ref = useRef<HTMLDialogElement>(null);
   const [gaps, setGaps] = useState(false);
+  const [view, setView] = useState<View>("list");
+  const qs = useQuestionCounts();
   // "where do I lack context?": no promises ledger yet, or no one in your network linked to it
   const lacks = (r: Row) => !r.ledger || (networkReady && !r.people);
   const nGaps = [...holdings, ...research].filter(lacks).length;
   const total = holdings.reduce((a, h) => a + h.weight, 0);
+  const close = () => ref.current?.close();
+  const show = (rows: Row[]) => (gaps ? rows.filter(lacks) : rows);
+
   return (
     <>
-      <button
-        type="button"
-        onClick={() => ref.current?.showModal()}
-        className="chip tap gap-1"
-        aria-haspopup="dialog"
-      >
+      <button type="button" onClick={() => ref.current?.showModal()} className="chip tap gap-1" aria-haspopup="dialog">
         <span className="num">{holdings.length}</span> holdings <span aria-hidden className="text-ink-3">›</span>
       </button>
       <dialog
@@ -31,7 +72,7 @@ export function HoldingsSheet({ holdings, research, networkReady = true }: { hol
         className="sheet"
         aria-labelledby="holdings-title"
         onClick={(e) => {
-          if (e.target === e.currentTarget) ref.current?.close(); // a tap on the backdrop
+          if (e.target === e.currentTarget) close(); // a tap on the backdrop
         }}
       >
         <div className="max-h-[85dvh] overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-3">
@@ -40,37 +81,73 @@ export function HoldingsSheet({ holdings, research, networkReady = true }: { hol
             <h2 id="holdings-title" className="font-serif text-title">
               The portfolio
             </h2>
-            <button type="button" onClick={() => ref.current?.close()} className="min-h-[44px] px-2 text-small text-ink-2">
+            <button type="button" onClick={close} className="min-h-[44px] px-2 text-small text-ink-2">
               Close
             </button>
           </div>
           <p className="text-caption text-ink-3">
-            A demo investor&apos;s {holdings.length} NSE holdings. Weights add up to <span className="num">{total}%</span>.
+            A demo investor&apos;s {holdings.length} NSE holdings (weights add up to <span className="num">{total}%</span>), plus {research.length} research
+            names with no weight.
           </p>
-          <div className="mt-3 flex gap-1.5" role="group" aria-label="Which companies">
-            {([[false, "All", holdings.length + research.length], [true, "Where I lack context", nGaps]] as const).map(([k, label, n]) => (
+
+          <div className="mt-3 flex gap-1" role="tablist" aria-label="View">
+            {(
+              [
+                ["list", "List"],
+                ["coverage", "Coverage"],
+                ["agenda", "Agenda"],
+              ] as const
+            ).map(([k, label]) => (
               <button
-                key={label}
-                aria-pressed={gaps === k}
-                onClick={() => setGaps(k)}
-                className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-full px-4 text-small ${gaps === k ? "bg-ink font-medium text-paper" : "border border-rule text-ink-2"}`}
+                key={k}
+                role="tab"
+                aria-selected={view === k}
+                onClick={() => setView(k)}
+                className={`min-h-[44px] flex-1 rounded-lg text-small ${view === k ? "bg-ink font-medium text-paper" : "bg-tint text-ink-2"}`}
               >
-                {label} <span className={`num text-caption ${gaps === k ? "text-paper/70" : "text-ink-3"}`}>{n}</span>
+                {label}
               </button>
             ))}
           </div>
-          {gaps && (
-            <p className="mt-2 text-caption text-ink-3">
-              No promises ledger yet, or no one in your network linked to the company. A gap in what you know, not a risk.
-            </p>
+
+          {view !== "agenda" && (
+            <div className="mt-3 flex gap-1.5" role="group" aria-label="Which companies">
+              {([[false, "All", holdings.length + research.length], [true, "Where I lack context", nGaps]] as const).map(([k, label, n]) => (
+                <button
+                  key={label}
+                  aria-pressed={gaps === k}
+                  onClick={() => setGaps(k)}
+                  className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-full px-4 text-small ${gaps === k ? "bg-ink font-medium text-paper" : "border border-rule text-ink-2"}`}
+                >
+                  {label} <span className={`num text-caption ${gaps === k ? "text-paper/70" : "text-ink-3"}`}>{n}</span>
+                </button>
+              ))}
+            </div>
           )}
-          <List rows={gaps ? holdings.filter(lacks) : holdings} close={() => ref.current?.close()} showWeight networkReady={networkReady} />
-          {research.length > 0 && (!gaps || research.some(lacks)) && (
+          {gaps && view !== "agenda" && (
+            <p className="mt-2 text-caption text-ink-3">No promises ledger yet, or no one in your network linked to the company. A gap in what you know, not a risk.</p>
+          )}
+
+          {view === "list" && (
             <>
-              <h3 className="section-h mt-6">Research list</h3>
-              <List rows={gaps ? research.filter(lacks) : research} close={() => ref.current?.close()} networkReady={networkReady} />
+              <List rows={show(holdings)} close={close} showWeight networkReady={networkReady} />
+              {research.length > 0 && show(research).length > 0 && (
+                <>
+                  <h3 className="section-h mt-6">Research list</h3>
+                  <List rows={show(research)} close={close} networkReady={networkReady} />
+                </>
+              )}
             </>
           )}
+          {view === "coverage" && <Coverage holdings={show(holdings)} research={show(research)} qs={qs} close={close} networkReady={networkReady} />}
+          {view === "agenda" && <Agenda events={agenda} today={today} close={close} />}
+
+          <Link href="/questions" onClick={close} className="mt-5 flex min-h-[48px] items-center justify-between border-t border-rule text-small text-ink">
+            Questions you follow
+            <span className="num text-ink-3">
+              {Object.values(qs).reduce((a, b) => a + b, 0)} <span aria-hidden>›</span>
+            </span>
+          </Link>
         </div>
       </dialog>
     </>
@@ -102,5 +179,176 @@ function List({ rows, close, showWeight, networkReady }: { rows: Row[]; close: (
         </li>
       ))}
     </ul>
+  );
+}
+
+type Sort = "weight" | "newest" | "gaps";
+
+/** The coverage matrix: four labelled cells per company, each opening its own evidence (visual review §6).
+ *  Outline = not covered, filled neutral = available, blue count = something new. Words beside every shape. */
+function Coverage({ holdings, research, qs, close, networkReady }: { holdings: Row[]; research: Row[]; qs: Record<string, number>; close: () => void; networkReady: boolean }) {
+  const [sort, setSort] = useState<Sort>("weight");
+  const max = Math.max(1, ...holdings.map((h) => h.weight));
+  const gapsOf = (r: Row) => Number(!r.ledger) + Number(networkReady && !r.people);
+  const order = (rows: Row[]) =>
+    [...rows].sort((a, b) =>
+      sort === "weight" ? b.weight - a.weight : sort === "newest" ? (b.latest ?? "").localeCompare(a.latest ?? "") : gapsOf(b) - gapsOf(a) || b.weight - a.weight,
+    );
+  return (
+    <div className="mt-3">
+      <div className="flex flex-wrap items-center gap-1 text-caption" role="group" aria-label="Sort by">
+        <span className="mr-1 text-ink-3">Sort</span>
+        {(
+          [
+            ["weight", "Weight"],
+            ["newest", "Newest event"],
+            ["gaps", "Missing coverage"],
+          ] as const
+        ).map(([k, label]) => (
+          <button key={k} aria-pressed={sort === k} onClick={() => setSort(k)} className={`min-h-[36px] rounded-full px-2.5 ${sort === k ? "bg-tint font-medium text-ink ring-1 ring-ink-3" : "text-ink-2"}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+      <Matrix rows={order(holdings)} qs={qs} close={close} max={max} networkReady={networkReady} weighted />
+      {research.length > 0 && (
+        <>
+          <h3 className="section-h mt-6">Research list (no weight)</h3>
+          <Matrix rows={order(research)} qs={qs} close={close} max={max} networkReady={networkReady} />
+        </>
+      )}
+      <p className="mt-3 text-caption text-ink-3">
+        <span className="text-accent">Blue</span>: something new this week. ● available, ○ not covered. Each cell opens its list. Coverage only: a quiet or
+        covered company isn&apos;t &ldquo;safe&rdquo;.
+      </p>
+    </div>
+  );
+}
+
+function Matrix({ rows, qs, close, max, networkReady, weighted }: { rows: Row[]; qs: Record<string, number>; close: () => void; max: number; networkReady: boolean; weighted?: boolean }) {
+  return (
+    <div className="mt-2" role="table" aria-label="Coverage by company">
+      <div role="row" className="grid grid-cols-4 gap-1 border-b border-rule pb-1 text-label text-ink-3">
+        <span role="columnheader">Updates, 7 days</span>
+        <span role="columnheader">Research</span>
+        <span role="columnheader">People</span>
+        <span role="columnheader">Your questions</span>
+      </div>
+      {rows.map((h) => {
+        const q = qs[h.symbol] ?? 0;
+        const sym = encodeURIComponent(h.symbol);
+        return (
+          <div key={h.symbol} role="row" className="border-b border-rule py-2">
+            <div className="flex items-center gap-2" role="rowheader">
+              <Link href={`/c/${sym}`} onClick={close} className="text-small font-medium text-ink hover:underline">
+                {h.symbol}
+              </Link>
+              {weighted ? (
+                <>
+                  {/* weight as a bar: concentration at a glance (an 18-slice pie is harder to scan) */}
+                  <span className="h-1.5 flex-1 rounded-full bg-tint" aria-hidden>
+                    <span className="block h-full rounded-full bg-ink-3" style={{ width: `${(100 * h.weight) / max}%` }} />
+                  </span>
+                  <span className="num w-9 text-right text-caption text-ink-2">{h.weight}%</span>
+                </>
+              ) : (
+                <span className="truncate text-caption text-ink-3">{h.name}</span>
+              )}
+            </div>
+            <div className="mt-1 grid grid-cols-4 gap-1 text-caption">
+              <Cell href={`/c/${sym}#filings`} close={close} on={!!h.updates} fresh={!!h.updates} label={h.updates ? `${h.updates} new` : "None"} sr={`${h.updates ?? 0} updates this week`} />
+              <Cell
+                href={`/c/${sym}#promises`}
+                close={close}
+                on={!!h.ledger}
+                label={h.ledger ? (h.lastCall ?? "Ledger") : "No ledger"}
+                sr={h.ledger ? `Promises ledger, latest call ${h.lastCall ?? "unknown"}, built ${h.built ?? "unknown"}` : "No promises ledger yet"}
+              />
+              <Cell
+                href={`/c/${sym}#people`}
+                close={close}
+                on={!!h.people}
+                label={!networkReady ? "Unavailable" : h.people ? `${h.people}` : "None"}
+                sr={!networkReady ? "Network unavailable" : `${h.people ?? 0} people in your network`}
+                muted={!networkReady}
+              />
+              <Cell href={`/questions?c=${sym}`} close={close} on={q > 0} label={q ? `${q}` : "–"} sr={`${q} questions you follow`} />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function Cell({ href, close, on, fresh, label, sr, muted }: { href: string; close: () => void; on: boolean; fresh?: boolean; label: string; sr: string; muted?: boolean }) {
+  return (
+    <Link href={href} onClick={close} role="cell" aria-label={sr} className="flex min-h-[36px] items-center gap-1.5 rounded-md px-1 hover:bg-tint">
+      <span aria-hidden className={`size-2 shrink-0 rounded-full ${muted ? "border border-dashed border-ink-3" : on ? (fresh ? "bg-accent" : "bg-ink-3") : "border border-ink-3"}`} />
+      <span className={`num truncate ${fresh ? "font-medium text-accent" : on ? "text-ink-2" : "text-ink-3"}`}>{label}</span>
+    </Link>
+  );
+}
+
+/** Announced events ahead (company-filed dates) and your own revisit dates, kept apart (visual review §11). */
+function Agenda({ events, today, close }: { events: Event[]; today?: string; close: () => void }) {
+  const mine = useSyncExternalStore(
+    subscribe,
+    () =>
+      JSON.stringify(
+        readQuestions()
+          .filter((q) => q.revisit === "date" && q.date && (!today || q.date >= today))
+          .map((q) => ({ symbol: q.symbol, date: q.date!, label: q.question, href: q.href })),
+      ),
+    () => "[]",
+  );
+  const reminders = JSON.parse(mine) as { symbol: string; date: string; label: string; href: string }[];
+  const all = [
+    ...events.map((e) => ({ symbol: e.symbol, date: e.date, label: e.label, href: e.link, kind: "announced" as const })),
+    ...reminders.map((r) => ({ ...r, kind: "reminder" as const })),
+  ].sort((a, b) => a.date.localeCompare(b.date));
+  const days = [...new Set(all.map((e) => e.date))];
+  const fmt = (d: string) => new Date(`${d}T12:00:00+05:30`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Kolkata" });
+  if (!all.length)
+    return (
+      <p className="mt-4 rounded-lg bg-tint px-4 py-3 text-small text-ink-2">
+        No announced events ahead for these companies in the filings FINN has read. Results dates aren&apos;t guessed.
+      </p>
+    );
+  return (
+    <div className="mt-4">
+      <ol className="relative ml-1.5 border-l border-rule">
+        {days.map((d) => (
+          <li key={d} className="relative pb-3 pl-5">
+            <span aria-hidden className="absolute -left-[5px] top-1.5 size-2.5 rounded-full bg-ink-3" />
+            <p className="num text-caption font-medium text-ink">{fmt(d)}</p>
+            <ul className="mt-1 space-y-1.5">
+              {all
+                .filter((e) => e.date === d)
+                .map((e, i) => (
+                  <li key={i} className="flex items-start gap-2 text-small">
+                    <span className="chip shrink-0">{e.symbol}</span>
+                    <span className="min-w-0">
+                      {e.kind === "reminder" ? (
+                        <Link href={e.href!} onClick={close} className="line-clamp-2 text-ink hover:underline">
+                          {e.label}
+                        </Link>
+                      ) : e.href ? (
+                        <a href={e.href} target="_blank" rel="noopener noreferrer" className="text-ink hover:underline">
+                          {e.label} <span className="text-accent">↗</span>
+                        </a>
+                      ) : (
+                        <span className="text-ink">{e.label}</span>
+                      )}
+                      <span className="block text-caption text-ink-3">{e.kind === "reminder" ? "Your revisit date" : "Announced by the company"}</span>
+                    </span>
+                  </li>
+                ))}
+            </ul>
+          </li>
+        ))}
+      </ol>
+      <p className="text-caption text-ink-3">Dates the companies filed, plus the revisit dates you set. Results dates aren&apos;t guessed.</p>
+    </div>
   );
 }

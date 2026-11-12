@@ -123,10 +123,10 @@ export function ResultsVisual({ r, question }: { r: ResultsFacts; question?: { t
             })}
           </ul>
           <p className="mt-2 flex items-center gap-3 text-caption text-ink-3">
-            <span className="inline-flex items-center gap-1">
+            <span className="inline-flex items-center gap-1 whitespace-nowrap">
               <span aria-hidden className="inline-block h-2 w-3 rounded-sm bg-ink-3/40" /> {thenQ}
             </span>
-            <span className="inline-flex items-center gap-1">
+            <span className="inline-flex items-center gap-1 whitespace-nowrap">
               <span aria-hidden className="inline-block h-2 w-3 rounded-sm bg-ink" /> {nowQ}
             </span>
             <span>Each metric on its own scale, from zero.</span>

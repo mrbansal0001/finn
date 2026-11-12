@@ -50,21 +50,35 @@ export async function getLedger(symbol: string): Promise<Ledger | null> {
   }
 }
 
-/** Which companies have a promises ledger (coverage, for "where do I lack context?"). */
-export async function getLedgerSymbols(): Promise<string[]> {
+/** Which companies have a promises ledger, when it was built and the latest call it reads (coverage). */
+export type LedgerInfo = { built: string | null; lastCall: string | null };
+
+export async function getLedgerIndex(): Promise<Record<string, LedgerInfo>> {
   "use cache";
   cacheLife("minutes");
+  const info = (prov?: string | null, calls?: { label: string }[] | null): LedgerInfo => ({
+    built: prov?.match(/Built (\d{1,2} \w{3} \d{4})/)?.[1] ?? null,
+    lastCall: calls?.length ? calls[calls.length - 1].label : null,
+  });
   if (supabaseEnabled) {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/ledgers?select=symbol`, {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/ledgers?select=symbol,prov:payload->>provenance,calls:payload->calls`, {
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
     });
-    return r.ok ? ((await r.json()) as { symbol: string }[]).map((x) => x.symbol) : [];
+    if (!r.ok) return {};
+    const rows = (await r.json()) as { symbol: string; prov: string | null; calls: { label: string }[] | null }[];
+    return Object.fromEntries(rows.map((x) => [x.symbol, info(x.prov, x.calls)]));
   }
   const { readdir } = await import("node:fs/promises");
   try {
-    return (await readdir(path.join(DATA_DIR, "ledgers"))).filter((f) => f.endsWith(".json")).map((f) => f.slice(0, -5));
+    const files = (await readdir(path.join(DATA_DIR, "ledgers"))).filter((f) => f.endsWith(".json"));
+    const out: Record<string, LedgerInfo> = {};
+    for (const f of files) {
+      const L = JSON.parse(await readFile(path.join(DATA_DIR, "ledgers", f), "utf8")) as Ledger;
+      out[f.slice(0, -5)] = info(L.provenance, L.calls);
+    }
+    return out;
   } catch {
-    return [];
+    return {};
   }
 }
 

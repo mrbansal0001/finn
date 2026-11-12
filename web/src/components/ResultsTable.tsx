@@ -63,7 +63,7 @@ export function ResultsTable({ r }: { r: ResultsFacts }) {
           {margin != null && (
             <tr className="h-10 border-t border-rule">
               <td className="text-ink-2">EBITDA margin</td>
-              <td className="num text-right font-medium">{margin.toFixed(1)}%</td>
+              <td className="num text-right font-medium">{margin.toFixed(2)}%</td>
               <td className={`num text-right font-medium ${dirClass(c?.yoy?.ebitda_margin_bp)}`}>{bp(c?.yoy?.ebitda_margin_bp)}</td>
               <td className={`num text-right font-medium ${dirClass(c?.qoq?.ebitda_margin_bp)}`}>{bp(c?.qoq?.ebitda_margin_bp)}</td>
             </tr>

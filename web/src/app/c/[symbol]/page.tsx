@@ -141,7 +141,9 @@ async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] 
                   </li>
                 ))}
               </ul>
-              {ledger.snapshot.segments.length > 0 && (
+              {ledger.snapshot.segments.filter((g) => g.share_of_revenue_pct != null).length >= 2 ? (
+                <SegmentBars segments={ledger.snapshot.segments} url={ledger.snapshot.url} year={ledger.snapshot.year} />
+              ) : ledger.snapshot.segments.length > 0 && (
                 <p className="mt-2 text-small text-ink-2">
                   Segments:{" "}
                   {ledger.snapshot.segments
@@ -279,4 +281,34 @@ function resultsLink(symbol: string, snap: Snapshot): { text: string; href: stri
     .filter((c) => c.symbol === symbol && c.kind === "results" && c.facts.results?.period_end === r.period_end)
     .sort((a, b) => b.at.localeCompare(a.at))[0];
   return { text: q.q, href: card ? `/investigate?card=${card.id}` : `/investigate?c=${encodeURIComponent(symbol)}&r=1` };
+}
+
+/** Business mix, ranked, from the shares the annual report itself states (visual review §9). Drawn only
+ *  when at least two segments carry a disclosed share; nothing is split evenly or estimated. */
+function SegmentBars({ segments, url, year }: { segments: { name: string; share_of_revenue_pct?: number | null; page: number }[]; url: string; year: number }) {
+  const rows = segments.filter((g) => g.share_of_revenue_pct != null).sort((a, b) => b.share_of_revenue_pct! - a.share_of_revenue_pct!);
+  const sum = rows.reduce((a, g) => a + g.share_of_revenue_pct!, 0);
+  const undisclosed = segments.filter((g) => g.share_of_revenue_pct == null).map((g) => g.name);
+  return (
+    <figure className="mt-3">
+      <figcaption className="text-caption text-ink-3">Share of revenue by segment, FY{String(year).slice(2)}, as the annual report states it</figcaption>
+      <ul className="mt-2 space-y-1.5">
+        {rows.map((g) => (
+          <li key={g.name} className="grid grid-cols-[minmax(0,9rem)_1fr_3rem] items-center gap-2 text-caption">
+            <span className="truncate text-ink-2" title={g.name}>{g.name}</span>
+            <span className="h-2.5 rounded-sm bg-tint" aria-hidden>
+              <span className="block h-full rounded-sm bg-ink-3" style={{ width: `${Math.min(100, g.share_of_revenue_pct!)}%` }} />
+            </span>
+            <a href={`${url}#page=${g.page}`} target="_blank" rel="noopener noreferrer" className="num text-right text-ink hover:text-accent">
+              {g.share_of_revenue_pct}%
+            </a>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-1.5 text-caption text-ink-3">
+        {Math.abs(sum - 100) > 1.5 ? `The stated shares add up to ${Math.round(sum)}%, not 100%; FINN doesn't fill the gap. ` : ""}
+        {undisclosed.length ? `No share stated for ${undisclosed.join(", ")}. ` : ""}Tap a figure for its page.
+      </p>
+    </figure>
+  );
 }

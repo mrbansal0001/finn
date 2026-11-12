@@ -9,6 +9,7 @@ import { NoteDraft } from "@/components/NoteDraft";
 import { monthYear } from "@/lib/format";
 import { RelationPath, pathFor } from "@/components/RelationPath";
 import { CareerBars } from "@/components/CareerBars";
+import { CompanyBridge } from "@/components/CompanyBridge";
 
 export default function PersonPage({ params, searchParams }: PageProps<"/people/[id]">) {
   return (
@@ -102,6 +103,9 @@ async function Person({ params, searchParams }: { params: PageProps<"/people/[id
           <NoteDraft name={c.name} company={cards[0].company} topic={cards[0].headline ?? cards[0].nse_subject} kind={cards[0].kind} role={role} />
         </section>
       )}
+
+      {/* two covered companies in one career: the bridge, then the list */}
+      <CompanyBridge name={c.name} roles={links} />
 
       {links.length > 0 && (
         <section className="mt-10">

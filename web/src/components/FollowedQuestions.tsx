@@ -53,6 +53,24 @@ export function FollowedQuestions({ symbol }: { symbol?: string }) {
 
   if (!list?.length) return null;
   const today = new Date().toISOString().slice(0, 10);
+  const hasNew = (q: Followed) =>
+    q.revisit === "date"
+      ? !!q.date && q.date <= today
+      : updates.some((u) => u.symbol === q.symbol && KINDS[q.revisit](u.kind) && ist(u.at) > Date.parse(q.savedAt));
+
+  // the edition keeps it to one line: how many, and how many have something new (visual review §10)
+  if (!symbol) {
+    const n = list.filter((q) => (q.status ?? "open") === "open" && hasNew(q)).length;
+    return (
+      <Link href="/questions" className="mt-4 flex min-h-[48px] items-center justify-between gap-3 rounded-lg border border-rule px-4 text-small">
+        <span className="text-ink">
+          {list.length} question{list.length === 1 ? "" : "s"} you follow
+          {n > 0 ? <span className="font-medium text-accent">: new evidence for {n}</span> : <span className="text-ink-3">, nothing new yet</span>}
+        </span>
+        <span aria-hidden className="text-ink-3">›</span>
+      </Link>
+    );
+  }
 
   return (
     <section className="mt-6 rounded-xl border border-rule px-4 pb-2 pt-3" aria-labelledby="followed-h">
@@ -97,7 +115,9 @@ export function FollowedQuestions({ symbol }: { symbol?: string }) {
           );
         })}
       </ul>
-      {list.length > (symbol ? 5 : 3) && <p className="pb-1 text-caption text-ink-3">And {list.length - (symbol ? 5 : 3)} more.</p>}
+      <Link href={`/questions?c=${encodeURIComponent(symbol)}`} className="flex min-h-[44px] items-center text-caption text-accent">
+        Evidence trail for {list.length === 1 ? "this question" : `these ${list.length} questions`} ›
+      </Link>
       <p className="pb-1 pt-1 text-caption text-ink-3">On this device only. Checked when you open FINN; no notifications.</p>
     </section>
   );

@@ -90,6 +90,11 @@
   }
 }
 
+/* a focused field or jumped-to heading never sits under the fixed search dock (visual review §12) */
+html {
+  scroll-padding-bottom: 6rem;
+}
+
 @theme inline {
   --color-paper: var(--paper);
   --color-paper-raised: var(--paper-raised);
