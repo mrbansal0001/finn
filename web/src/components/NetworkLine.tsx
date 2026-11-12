@@ -16,7 +16,9 @@ export function NetworkLine({
   from,
   oneLine = false,
   reason,
+  lens,
 }: {
+  lens?: string; // what this person is good for, from their recorded role (three-pillars N5)
   line: Line;
   compact?: boolean;
   asOf?: string;
@@ -53,6 +55,7 @@ export function NetworkLine({
           )}{" "}
           {line.relation}
           {compact && line.via ? <span className="text-ink-3">, through {line.via}</span> : null}
+          {lens && <span className="tag ml-1.5 align-[1px]">{lens}</span>}
         </span>
       </p>
       {(meta.length > 0 || (line.insider && !compact) || best) && (

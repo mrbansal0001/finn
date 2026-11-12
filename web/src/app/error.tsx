@@ -6,7 +6,7 @@ import Link from "next/link";
 export default function Error({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
     <main className="pt-10">
-      <h1 className="font-serif text-title">This edition didn&apos;t load</h1>
+      <h1 className="font-serif text-title">This page didn&apos;t load</h1>
       <p className="mt-2 text-body text-ink-2">
         The data service didn&apos;t answer in time. It usually does on a second try.
       </p>

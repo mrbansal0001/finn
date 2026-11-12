@@ -3,7 +3,7 @@ import { BackLink } from "@/components/BackLink";
 import { Dock } from "@/components/Dock";
 import { QuestionTrail } from "@/components/QuestionTrail";
 
-export const metadata = { title: "Questions you follow · FINN" };
+export const metadata = { title: "Questions you follow" };
 
 export default function QuestionsPage() {
   return (

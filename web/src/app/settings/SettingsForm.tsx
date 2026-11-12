@@ -81,7 +81,8 @@ export function SettingsForm({ prefs, preview }: { prefs: Prefs; preview: Previe
         <button type="submit" className="min-h-12 rounded-lg bg-ink px-5 text-small font-medium text-paper">
           Save and return
         </button>
-        <button type="submit" formAction={resetPrefs} className="min-h-[44px] px-2 text-small text-ink-2">
+        {/* one black button per page; reset is a plain text link (three-pillars S13) */}
+        <button type="submit" formAction={resetPrefs} className="min-h-[44px] px-2 text-small text-accent underline decoration-accent/40 underline-offset-2">
           Reset to defaults
         </button>
       </div>

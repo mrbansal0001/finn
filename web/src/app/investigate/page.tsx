@@ -12,14 +12,19 @@ import { PromiseReplay } from "@/components/PromiseReplay";
 import { pathFor } from "@/components/RelationPath";
 import { SourceChips } from "@/components/SourceChips";
 import { About } from "@/components/About";
-import { findCard, getLedger, getView } from "@/lib/data";
+import { findCard, getLedger, getSnapshot, getView } from "@/lib/data";
 import type React from "react";
 import { dirClass, fyQuarter, pct } from "@/lib/format";
-import { fromCard, fromPromise, type Investigation } from "@/lib/investigate";
+import { fromCard, fromPromise, splitPromise, type Investigation } from "@/lib/investigate";
 import { LENSES, peopleByLens, questionsFor } from "@/lib/lenses";
 import type { Card, NetworkLine } from "@/lib/types";
 
-export const metadata = { title: "Investigate · FINN" };
+export async function generateMetadata({ searchParams }: PageProps<"/investigate">) {
+  const sp = await searchParams;
+  const sym = typeof sp.c === "string" ? sp.c.toUpperCase() : null;
+  const card = typeof sp.card === "string" ? findCard(await getSnapshot(), sp.card) : undefined;
+  return { title: `Investigate ${card?.symbol ?? sym ?? ""}`.trim() };
+}
 
 export default function InvestigatePage({ searchParams }: PageProps<"/investigate">) {
   return (
@@ -148,10 +153,12 @@ async function Investigate({ searchParams }: { searchParams: PageProps<"/investi
               <p className="text-caption text-ink-3">{p.label}</p>
               {p.open ? (
                 <Link href={p.open} className="mt-0.5 block text-small font-medium text-ink hover:underline">
-                  {p.title} <span className="text-accent">›</span>
+                  <TitleText t={p.title} /> <span aria-hidden className="go">›</span>
                 </Link>
               ) : (
-                <p className="mt-0.5 text-small font-medium text-ink">{p.title}</p>
+                <p className="mt-0.5 text-small font-medium text-ink">
+                  <TitleText t={p.title} />
+                </p>
               )}
               {p.quote &&
                 (p.quote.length <= 160 ? (
@@ -208,7 +215,7 @@ async function Investigate({ searchParams }: { searchParams: PageProps<"/investi
             {inv.title} <span className="text-ink-3">›</span>
           </Link>
         ) : (
-          inv.title
+          <TitleText t={inv.title} />
         )}
       </p>
       <div className="min-[1100px]:grid min-[1100px]:grid-cols-[minmax(0,1fr)_340px] min-[1100px]:gap-12">
@@ -241,5 +248,16 @@ async function Investigate({ searchParams }: { searchParams: PageProps<"/investi
       </About>
       <Dock />
     </main>
+  );
+}
+
+/** A promise title with a vague target as a tag (three-pillars L4); other titles pass through. */
+function TitleText({ t }: { t: string }) {
+  const { text, tag } = splitPromise(t);
+  return (
+    <>
+      {text}
+      {tag && <span className="tag ml-1.5 align-[1px] font-normal">{tag}</span>}
+    </>
   );
 }

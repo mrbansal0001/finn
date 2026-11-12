@@ -64,8 +64,9 @@ export function HoldingsSheet({
 
   return (
     <>
-      <button type="button" onClick={() => ref.current?.showModal()} className="chip tap gap-1" aria-haspopup="dialog">
-        <span className="num">{holdings.length}</span> holdings <span aria-hidden className="text-ink-3">›</span>
+      {/* the Portfolio door (three-pillars plan §2, S7): the sheet keeps its title */}
+      <button type="button" onClick={() => ref.current?.showModal()} className="door" aria-haspopup="dialog" aria-label={`Portfolio: ${holdings.length} holdings`}>
+        Portfolio <span className="num">{holdings.length}</span>
       </button>
       <dialog
         ref={ref}
@@ -227,7 +228,7 @@ function Matrix({ rows, qs, close, max, networkReady, weighted }: { rows: Row[];
     <div className="mt-2" role="table" aria-label="Coverage by company">
       <div role="row" className="grid grid-cols-4 gap-1 border-b border-rule pb-1 text-label text-ink-3">
         <span role="columnheader">Updates, 7 days</span>
-        <span role="columnheader">Research</span>
+        <span role="columnheader">Research, latest call</span>
         <span role="columnheader">People</span>
         <span role="columnheader">Your questions</span>
       </div>

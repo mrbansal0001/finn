@@ -71,7 +71,7 @@ export function alertsFor(moveCards: Card[], since: string, until: string, prefs
 /** Re-rank an edition with the investor's thresholds. Pure; runs on the server.
  *  Rules are applied to every qualifying session first, then grouped: one move card per company (its most
  *  important matching session), with the others counted -- never the other way round (audit F05). */
-export function applyPrefs(ed: Edition, prefs: Prefs, moveCards: Card[] = []): Edition {
+export function applyPrefs(ed: Edition, prefs: Prefs, moveCards: Card[] = [], holdings?: Set<string>): Edition {
   const muted = new Set(prefs.muted.flatMap((k) => KIND_ALIASES[k] ?? [k]));
   const hits = alertsFor(moveCards, ed.since, ed.until, prefs);
   const bySymbol = new Map<string, Alert[]>();
@@ -84,7 +84,8 @@ export function applyPrefs(ed: Edition, prefs: Prefs, moveCards: Card[] = []): E
     const best = [...group].sort((a, b) => rank(b) - rank(a))[0];
     const c: Card = structuredClone(best.card);
     const explained = (c.facts as { explained_by?: string | null }).explained_by;
-    const tier = priceHit(best) && !explained ? "lead" : "notable";
+    // a research-list company is shown, never a lead: the edition is about the holdings first (three-pillars P1)
+    const tier = priceHit(best) && !explained && (!holdings || holdings.has(c.symbol)) ? "lead" : "notable";
     c.score = c.score - TIER_WEIGHT[c.tier] + TIER_WEIGHT[tier];   // the score follows the re-tiering
     c.tier = tier;
     c.facts = { ...c.facts, matched: best.rules, other_sessions: group.length - 1 };

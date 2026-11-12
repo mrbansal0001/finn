@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { Dock } from "@/components/Dock";
 import { CompanySkeleton } from "@/components/Skeletons";
 import { Suspense } from "react";
-import { getLedger, getRequest, getUniverse, getView } from "@/lib/data";
+import { getLedger, getRequest, getSnapshot, getUniverse, getView } from "@/lib/data";
 import { RequestButton } from "./RequestButton";
 import { day, dirClass, fyQuarter, KIND_LABEL, pct, price as fmtPrice, when } from "@/lib/format";
 import { SectionNav } from "@/components/SectionNav";
@@ -14,12 +14,24 @@ import { ResultsVisual } from "@/components/ResultsVisual";
 import { QuestionCard, QuestionRow } from "@/components/QuestionCard";
 import { About, AboutPart } from "@/components/About";
 import { filingMarkers } from "@/lib/markers";
+import { LENSES, lensesFor } from "@/lib/lenses";
 import { MoveSpark } from "@/components/MoveSpark";
 import { Mark } from "@/components/StatusIcon";
 import { NetworkLine } from "@/components/NetworkLine";
 import { FollowedQuestions } from "@/components/FollowedQuestions";
 import { fromPromise, promiseHref, resultsQuestion } from "@/lib/investigate";
 import type { Ledger, Snapshot } from "@/lib/types";
+
+export async function generateMetadata({ params }: PageProps<"/c/[symbol]">) {
+  const { symbol } = await params;
+  let sym = symbol;
+  try {
+    sym = decodeURIComponent(symbol).toUpperCase();
+  } catch {}
+  const [snap, uni] = await Promise.all([getSnapshot(), getUniverse()]);
+  const name = snap.names[sym] ?? uni.find(([s]) => s === sym)?.[1] ?? sym;
+  return { title: name.replace(/ Limited$/i, "") };
+}
 
 export default function CompanyPage({ params }: PageProps<"/c/[symbol]">) {
   return (
@@ -84,7 +96,7 @@ async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] 
     results && ["results", "Results"],
     ["promises", "Promises"],
     people.length > 0 && ["people", "People"],
-    (filings.length > 0 || moves.length > 0) && ["filings", "Filings"],
+    ["filings", "Filings"],
   ].filter(Boolean) as [string, string][];
 
   return (
@@ -122,6 +134,22 @@ async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] 
           </div>
         )}
       </header>
+
+      {/* no annual-report description: say what FINN does hold, as tags (three-pillars L2) */}
+      {!(ledger?.snapshot && ledger.snapshot.what_they_do.length > 0) && (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {results && <span className="tag">Results {fyQuarter(results.period_end)} checked</span>}
+          <span className="tag num">
+            {filings.length} filing{filings.length === 1 ? "" : "s"} in 30 days
+          </span>
+          {snap.network_status !== "unavailable" && (
+            <span className="tag num">
+              {people.length ? `${people.length} ${people.length === 1 ? "person" : "people"} you know` : "No one you know"}
+            </span>
+          )}
+          {!ledger && <span className="tag">No promises ledger yet</span>}
+        </div>
+      )}
 
       {sections.length > 2 && <SectionNav sections={sections} />}
 
@@ -221,17 +249,25 @@ async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] 
         <section id="people" className="mt-12 scroll-mt-16">
           <h2 className="section-h">People who&apos;d know</h2>
           {people.map((l, i) => (
-            <NetworkLine key={l.contact_id} line={l} asOf={snap.data_until} reason={i === 0 && l.best_reason && l.best_reason !== l.relation ? l.best_reason : undefined} />
+            <NetworkLine
+              key={l.contact_id}
+              line={l}
+              asOf={snap.data_until}
+              reason={i === 0 && l.best_reason && l.best_reason !== l.relation ? l.best_reason : undefined}
+              lens={lensLabel(snap.contacts.find((c) => c.id === l.contact_id), symbol)}
+            />
           ))}
+          {people.some((l) => l.insider) && <InsiderKey />}
         </section>
       )}
 
-      {(filings.length > 0 || moves.length > 0) && (
+      {(
         <section id="filings" className="mt-12 scroll-mt-16">
           <h2 className="section-h">
             <span>Filings</span>
             <span className="text-caption font-normal normal-case tracking-normal text-ink-3">last 30 days</span>
           </h2>
+          {filings.length === 0 && moves.length === 0 && <p className="py-3 text-small text-ink-2">No filings in the last 30 days.</p>}
           <div className="hair">
             {/* the people above already cover this company: no repeated line under every filing */}
             {filings.map((c) => (
@@ -396,4 +432,19 @@ function FilingRow({ id, kind, at, title, refTime }: { id: string; kind: string;
       </span>
     </Link>
   );
+}
+
+/** The one word that needs explaining, said once wherever an insider appears (three-pillars N2). */
+function InsiderKey() {
+  return (
+    <p className="mt-2 text-caption text-ink-3">
+      <span className="tag mr-1.5">Insider</span>works there now; ask only about what is public.
+    </p>
+  );
+}
+
+/** The first lens a contact's recorded role fits, as a word ("Execution"), or nothing. */
+function lensLabel(c: Snapshot["contacts"][number] | undefined, symbol: string): string | undefined {
+  const k = lensesFor(c, symbol).lenses[0];
+  return k ? LENSES.find((l) => l.key === k)?.label : undefined;
 }

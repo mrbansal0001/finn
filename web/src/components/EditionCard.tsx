@@ -1,8 +1,9 @@
 import Link from "next/link";
-import type { Card, ResultsFacts } from "@/lib/types";
+import type { Card, PromiseRow, ResultsFacts } from "@/lib/types";
+import { promiseHref, promiseTitle } from "@/lib/investigate";
+import { StatusIcon } from "./StatusIcon";
 import { dirClass, pct } from "@/lib/format";
 import { CardMeta } from "./CardMeta";
-import { NetworkLine } from "./NetworkLine";
 import { MoveSpark } from "./MoveSpark";
 import { Avatar } from "./Avatar";
 
@@ -20,7 +21,11 @@ export function EditionCard({
   compact = false,
   showNetwork = true,
   history,
+  research = false,
+  promise,
 }: {
+  research?: boolean;
+  promise?: PromiseRow; // a results lead: the company's tracked promise on the same figures (three-pillars P7)
   card: Card;
   refTime: string;
   compact?: boolean;
@@ -31,7 +36,7 @@ export function EditionCard({
   const isMove = card.kind === "move";
   return (
     <article className={`relative ${compact ? "py-3.5" : "py-4"}`} aria-labelledby={`h-${card.id}`}>
-      <CardMeta kind={card.kind} symbol={card.symbol} at={card.at} refTime={refTime} lead={card.tier === "lead"} overCard />
+      <CardMeta kind={card.kind} symbol={card.symbol} at={card.at} refTime={refTime} lead={card.tier === "lead"} overCard research={research} />
 
       <div className={compact && isMove && history ? "flex items-center justify-between gap-3" : undefined}>
         <h2 id={`h-${card.id}`} className={`mt-2 font-serif text-ink ${compact ? "text-subhead" : "text-headline"}`}>
@@ -68,6 +73,7 @@ export function EditionCard({
               {/* the bars carry the headline figures; the "why" keeps only its first sentence (one number, one place) */}
               <Figures r={results} />
               {card.why && <p className="mt-2 text-small text-ink-2">{firstSentence(card.why)}</p>}
+              {promise?.tracking && <PromiseLine symbol={card.symbol} row={promise} />}
             </>
           ) : (
             card.why && <p className="mt-2 line-clamp-3 text-body text-ink-2">{card.why}</p>
@@ -76,10 +82,24 @@ export function EditionCard({
         </>
       )}
 
+      {/* a compact card says why in one line, so the fold can be read without opening every card (P5) */}
+      {compact && card.why && !isMove && <p className="mt-1 line-clamp-1 text-small text-ink-2">{firstSentence(card.why)}</p>}
+      {/* the person and the first clause of how you know them: no sentence cut mid-word (P4) */}
       {compact && showNetwork && card.network?.length > 0 && (
-        <div className="above-card mt-3">
-          <NetworkLine line={card.network[0]} compact asOf={refTime} from={card.id} oneLine />
-        </div>
+        <p className="above-card mt-2 flex items-center gap-2 text-small">
+          <Avatar name={card.network[0].name} />
+          <Link
+            href={`/people/${card.network[0].contact_id}?from=${encodeURIComponent(card.id)}`}
+            className="tap shrink-0 font-medium text-accent underline-offset-2 hover:underline"
+          >
+            {card.network[0].name}
+          </Link>
+          <span className="min-w-0 text-ink-3">
+            {firstClause(card.network[0].relation)}
+            {/* reached through someone: said on the row (three-pillars N7) */}
+            {card.network[0].via ? `, through ${card.network[0].via}` : ""}
+          </span>
+        </p>
       )}
       {/* a lead: the person by name (the relation never fits a phone; it is on the card page) and the one action */}
       {!compact && (
@@ -178,6 +198,30 @@ function MoveLine({ card }: { card: Card }) {
   return <p className="mt-2 text-small text-ink-2">{f.explained_by ? "A material filing came before it." : "No material filing since the previous close."}</p>;
 }
 
+/** A results lead's promise line (three-pillars plan P7): what the company promised on these figures, and
+ *  where the latest filed quarter stands. Progress, not a verdict: one quarter is not the year. */
+function PromiseLine({ symbol, row }: { symbol: string; row: PromiseRow }) {
+  const t = row.tracking!;
+  const q = t.label.match(/Q[1-4]\s?FY\d{2}/)?.[0] ?? t.label;
+  const word = t.verdict === "on track" ? "within the target" : t.verdict === "below" ? "below the target" : t.verdict === "above" ? "above the target" : "";
+  return (
+    <p className="above-card mt-2">
+      <Link href={promiseHref(symbol, row)} className="inline-flex items-start gap-2 text-small text-ink-2 hover:text-ink">
+        <StatusIcon status={row.latest} size={14} className="mt-[3px]" />
+        <span>
+          Promised {promiseTitle(row.title)}. {q}: <span className="num font-medium text-ink">{t.value}%</span>
+          {word ? `, ${word}` : ""}. <span aria-hidden className="go">›</span>
+        </span>
+      </Link>
+    </p>
+  );
+}
+
+/** "is also an alumnus of PSG College, studied 1998" -> "is also an alumnus of PSG College". */
+function firstClause(s: string): string {
+  return s.split(/[,;(]/)[0].trim();
+}
+
 /** The first sentence of a "why" (the rest restates what a chart already shows). */
 export function firstSentence(s: string): string {
   const m = s.match(/^.*?[.!?](?=\s+[A-Z₹"“]|$)/);
@@ -205,7 +249,7 @@ function PendingHeadline({ card }: { card: Card }) {
   return (
     <span>
       {card.company.replace(/ Limited$/, "")} filed: {card.nse_subject.toLowerCase()}
-      <span className="mt-1 block font-sans text-caption font-normal italic text-ink-3">FINN reads this filing on its next update.</span>
+      <span className="mt-1 block font-sans text-caption font-normal italic text-ink-3">Not read yet: FINN reads it at its next update (every 15 minutes while its reader is online).</span>
     </span>
   );
 }

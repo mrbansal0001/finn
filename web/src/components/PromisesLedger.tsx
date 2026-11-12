@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { Ledger, LedgerCell, NetworkLine as Line, PromiseRow, PromiseStatus } from "@/lib/types";
 import { NetworkLine } from "./NetworkLine";
 import { PromiseReplay } from "./PromiseReplay";
 import { StatusIcon, STATUS_META } from "./StatusIcon";
+import { promiseTitle, splitPromise } from "@/lib/investigate";
 import { promiseHref } from "@/lib/investigate";
 import Link from "next/link";
 
@@ -50,6 +51,7 @@ export function PromisesLedger({ ledger: built, verifiers = {} }: { ledger: Ledg
   const attention = orderRows(ledger.rows.filter(needsAttention));
   const [view, setView] = useState<View>(attention.length ? "attention" : "all");
   const [showAll, setShowAll] = useState(false);
+  const method = useRef<HTMLDetailsElement>(null);
   const counts = countLatest(ledger.rows);
   const toggle = (id: string) => setOpen(open === id ? null : id);
   const verifier = (r: PromiseRow) => verifiers[`${ledger.symbol}:${r.id}`];
@@ -78,6 +80,21 @@ export function PromisesLedger({ ledger: built, verifiers = {} }: { ledger: Ledg
           </li>
         ))}
       </ul>
+
+      {built.reference && (
+        <button
+          type="button"
+          onClick={() => {
+            if (method.current) {
+              method.current.open = true;
+              method.current.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+          }}
+          className="mt-2 inline-flex min-h-[36px] items-center gap-1 text-caption font-medium text-accent"
+        >
+          <span className="tag !text-accent">Hand-checked reference available</span> <span aria-hidden>›</span>
+        </button>
+      )}
 
       <div className="seg mt-4" role="group" aria-label="Which view">
         {(
@@ -137,7 +154,7 @@ export function PromisesLedger({ ledger: built, verifiers = {} }: { ledger: Ledg
       )}
 
       {/* reference, not reading matter: how the ledger was built, and the hand-checked comparison (layout plan §5) */}
-      <details className="group mt-6 border-t border-rule">
+      <details ref={method} className="group mt-6 scroll-mt-16 border-t border-rule">
         <summary className="flex min-h-[48px] cursor-pointer list-none items-center justify-between text-small text-ink-2">
           Methodology and provenance
           <span aria-hidden className="text-ink-3 transition-transform duration-200 group-open:rotate-90">›</span>
@@ -186,7 +203,7 @@ function Item({ row, ledger, open, onToggle, verifier, hideTag }: { row: Promise
       <button onClick={onToggle} aria-expanded={open} className="block w-full py-3 text-left">
         <span className="flex items-start justify-between gap-3">
           <span className="text-small font-medium text-ink">
-            {promiseTitle(row.title)}
+            <PromiseTitleText title={row.title} />
             {/* opens here: a grey chevron that turns down (13 Nov tap language) */}
             <span aria-hidden className="fold ml-1.5">›</span>
           </span>
@@ -256,7 +273,7 @@ function MatrixRow({ row, ledger, verifier, open, onToggle }: { row: PromiseRow;
         <td className="pr-2">
           <button onClick={onToggle} aria-expanded={open} className="flex min-h-[48px] w-full items-center py-1.5 text-left text-ink">
             <span>
-              {promiseTitle(row.title)}
+              <PromiseTitleText title={row.title} />
               <span aria-hidden className="fold ml-1.5">›</span>
             </span>
           </button>
@@ -300,6 +317,7 @@ function Detail({ row, ledger, verifier }: { row: PromiseRow; ledger: Ledger; ve
       {/* for a settled promise, the comparison comes first, in one sentence */}
       {settled?.note && <p className="mb-2 text-small font-medium text-ink">{sentence(settled.note)}</p>}
       <p className="text-caption text-ink-3">{lastLine(row, ledger)}</p>
+      <ChangePath row={row} ledger={ledger} />
       {/* the promise replayed call by call, with each call's own words (creative review §2) */}
       <PromiseReplay row={row} calls={ledger.calls} />
       {ledger.calls.map((c) => {
@@ -371,10 +389,8 @@ function MoreButton({ n, onClick }: { n: number; onClick: () => void }) {
   );
 }
 
-/** "NGC order inflow · FY27: ~₹20,000 cr" (worker format) -> "NGC order inflow (FY27): ~₹20,000 cr". */
-export function promiseTitle(t: string): string {
-  return t.replace(/^(.*?) · ([^:]+): /, "$1 ($2): ").replace(/ · /g, ", ");
-}
+/** Titles come from the shared helpers (capitalised; vague targets as tags). Kept as a re-export for callers. */
+export { promiseTitle } from "@/lib/investigate";
 
 /** What changed, in one line, built from the cells' own notes (never from management's framing). */
 function changeLine(row: PromiseRow, ledger: Ledger): string {
@@ -484,5 +500,44 @@ function CallStrip({ row, ledger }: { row: PromiseRow; ledger: Ledger }) {
         ),
       )}
     </span>
+  );
+}
+
+/** A promise's title, with a vague target shown as a tag rather than as part of the promise (L4). */
+function PromiseTitleText({ title }: { title: string }) {
+  const { text, tag } = splitPromise(title);
+  return (
+    <>
+      {text}
+      {tag && <span className="tag ml-1.5 align-[1px] font-normal">{tag}</span>}
+    </>
+  );
+}
+
+/** The target as it moved, each step with its call (three-pillars L8): "₹1,000 cr (Jan 2026) → >₹1,200 cr
+ *  (May 2026) → ~₹1,200 cr (Nov 2026)". Only when it changed at least once. */
+function ChangePath({ row, ledger }: { row: PromiseRow; ledger: Ledger }) {
+  const steps: { target: string; call: string }[] = [];
+  for (const c of ledger.calls) {
+    const cell = row.calls[c.label];
+    const note = cell?.note ?? "";
+    if (!cell?.status) continue;
+    if (/^(new|quantified):/i.test(note)) steps.push({ target: clean(note), call: c.label });
+    else if (cell.status === "revised") {
+      const [a, b] = note.includes("→") ? note.split("→").map((x) => x.replace(/↻/g, "").trim()) : ["", note.replace(/↻/g, "").trim()];
+      if (!steps.length && a) steps.push({ target: a, call: "earlier" });
+      steps.push({ target: b, call: c.label });
+    }
+  }
+  if (steps.length < 2) return null;
+  return (
+    <p className="mt-1 text-small text-ink">
+      {steps.map((s, i) => (
+        <span key={i}>
+          {i > 0 && <span className="text-ink-3"> → </span>}
+          {s.target} <span className="num text-caption text-ink-3">({s.call})</span>
+        </span>
+      ))}
+    </p>
   );
 }

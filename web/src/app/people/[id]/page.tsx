@@ -13,6 +13,8 @@ import { CareerBars } from "@/components/CareerBars";
 import { CompanyBridge } from "@/components/CompanyBridge";
 import { About, AboutPart } from "@/components/About";
 
+export const metadata = { title: "Your network" };
+
 export default function PersonPage({ params, searchParams }: PageProps<"/people/[id]">) {
   return (
     <Suspense fallback={<PersonSkeleton />}>
@@ -70,6 +72,35 @@ async function Person({ params, searchParams }: { params: PageProps<"/people/[id
         <span className="font-medium text-ink-2">{label(s.total)[0].toUpperCase() + label(s.total).slice(1)} tie</span>
         {c.last_contact ? <>, last spoke {monthYear(c.last_contact)}</> : null}
       </p>
+
+      {/* others you know at the same companies (three-pillars N3) */}
+      {(() => {
+        const also = links
+          .map((h) => ({ s: h.symbol!, others: (snap.people[h.symbol!] ?? []).filter((l) => l.contact_id !== c.id) }))
+          .filter((x) => x.others.length);
+        if (!also.length) return null;
+        return (
+          <div className="mt-3 space-y-1 text-small text-ink-2">
+            {also.map((x) => (
+              <p key={x.s}>
+                Also linked to{" "}
+                <Link href={`/c/${encodeURIComponent(x.s)}`} className="chip tap align-[1px]">
+                  {x.s}
+                </Link>
+                :{" "}
+                {x.others.map((l, i) => (
+                  <span key={l.contact_id}>
+                    {i > 0 ? ", " : ""}
+                    <Link href={`/people/${l.contact_id}`} className="tap font-medium text-accent hover:underline">
+                      {l.name}
+                    </Link>
+                  </span>
+                ))}
+              </p>
+            ))}
+          </div>
+        );
+      })()}
 
       {/* the path only when someone introduces you; for a direct contact the tie line above already says it */}
       {line && focus && line.via && (

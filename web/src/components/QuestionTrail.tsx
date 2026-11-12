@@ -84,11 +84,14 @@ export function QuestionTrail() {
         </p>
       )}
       <ul className="mt-6 space-y-8">
-        {shown.map((q) => {
+        {(shown.length > 5 ? [...shown].sort((a, b) => a.symbol.localeCompare(b.symbol)) : shown).map((q, qi, arr) => {
+          // more than five: grouped by company, the company named once per group (three-pillars S9)
+          const groupStart = shown.length > 5 && (qi === 0 || arr[qi - 1].symbol !== q.symbol);
           const later = (updates ?? []).filter((u) => u.symbol === q.symbol && ist(u.at) > Date.parse(q.savedAt));
           const today = new Date().toISOString().slice(0, 10);
           return (
-            <li key={q.id} className="border-t border-ink pt-3">
+            <li key={q.id} className={groupStart || shown.length <= 5 ? "border-t border-ink pt-3" : "border-t border-rule pt-3"}>
+              {groupStart && <h2 className="kicker mb-2 text-ink-3">{q.company.replace(/ Limited$/i, "")}</h2>}
               <div className="flex items-center justify-between gap-2">
                 <span className="flex items-center gap-2">
                   <Link href={`/c/${encodeURIComponent(q.symbol)}`} className="chip tap">

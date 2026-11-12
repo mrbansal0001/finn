@@ -5,7 +5,8 @@ import { KIND_LABEL, when } from "@/lib/format";
  * The line above a headline: what kind of news (a label, not tappable), which company (a chip, tappable),
  * and when (at the right edge). Space and shape separate them, not dots.
  */
-export function CardMeta({ kind, symbol, at, refTime, lead, overCard }: {
+export function CardMeta({ kind, symbol, at, refTime, lead, overCard, research }: {
+  research?: boolean; // a research-list company, not a holding: tagged so it is never mistaken for one
   kind: string;
   symbol: string;
   at: string;
@@ -24,9 +25,14 @@ export function CardMeta({ kind, symbol, at, refTime, lead, overCard }: {
         >
           {symbol}
         </Link>
+        {research && <span className="tag shrink-0">Research</span>}
       </div>
       <time dateTime={at} className="num shrink-0 text-caption text-ink-3">
-        {when(at, refTime)}
+        {/* a bare time means today: say so (three-pillars S/P8) */}
+        {(() => {
+          const t = when(at, refTime);
+          return t.includes(",") ? t : `Today, ${t}`;
+        })()}
       </time>
     </div>
   );

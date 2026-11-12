@@ -12,6 +12,8 @@ import { Dock } from "@/components/Dock";
 import { EditionSkeleton } from "@/components/Skeletons";
 import { SYNTHETIC } from "@/components/About";
 import { JumpLink } from "@/components/JumpLink";
+import { FirstVisit } from "@/components/FirstVisit";
+import { StaleNote } from "@/components/StaleNote";
 import { HoldingsSheet } from "@/components/HoldingsSheet";
 import { WindowLink, WindowSwitcher } from "@/components/WindowSwitcher";
 
@@ -49,12 +51,13 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
   const moveCards = snap.move_cards ?? [];
   const until = snap.data_until;
 
+  const holdingSet = new Set(snap.portfolio.map((h) => h.symbol));
   // every window is prepared now, so switching between them needs no trip to the server
   const prepared: Record<string, { ed: Edition; alerts: Alert[] }> = {};
   const keys: string[] = [...WINDOWS.map((x) => x.key), ...(sinceVisit ? ["since"] : [])];
   for (const key of keys) {
     const base = key === "since" ? sinceEdition(snap.editions["30d"], sinceVisit!) : snap.editions[key as WindowKey];
-    const ed = applyPrefs(structuredClone(base), prefs, moveCards);
+    const ed = applyPrefs(structuredClone(base), prefs, moveCards, holdingSet);
     prepared[key] = { ed, alerts: moveCards.length ? alertsFor(moveCards, ed.since, ed.until, prefs) : legacyAlerts(ed, prefs) };
   }
   const week = [...snap.editions["7d"].leads, ...snap.editions["7d"].more];
@@ -67,7 +70,7 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
     .flatMap((it) =>
       (it.facts ?? [])
         .filter(([k]) => /^(date|call date|meeting date)$/i.test(k))
-        .map(([, v]) => ({ symbol: it.symbol, date: isoDate(v), label: it.label, link: it.link })),
+        .map(([, v]) => ({ symbol: it.symbol, date: isoDate(v), label: agendaLabel(it.facts ?? [], it.label), link: it.link })),
     )
     .filter((e): e is { symbol: string; date: string; label: string; link: string | null } => !!e.date && e.date >= today)
     .filter((e) => !seen.has(`${e.symbol}${e.date}${e.label}`) && !!seen.add(`${e.symbol}${e.date}${e.label}`))
@@ -89,18 +92,26 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
         wordmark={<h1 className="font-serif text-display font-semibold tracking-[-0.02em]">FINN</h1>}
         masthead={
           <>
-            {/* the date at the left, the portfolio as a chip at the right: layout separates them, not punctuation */}
-            <div className="mt-1 flex items-center justify-between gap-3">
-              <span className="text-small font-medium text-ink">{fullDate(until)}</span>
+            {/* the map, on a device's first visit only (three-pillars plan §2) */}
+            <FirstVisit />
+            <p className="mt-1 text-small font-medium text-ink">{fullDate(until)}</p>
+            {/* the three doors: the app's three parts, named and counted (three-pillars plan §2) */}
+            <nav aria-label="FINN's three parts" className="mt-3 flex gap-1.5">
               <HoldingsSheet agenda={agenda} today={today} networkReady={snap.network_status !== "unavailable"} holdings={snap.portfolio.map((h) => row(h.symbol, h.weight))} research={snap.research_set.map((s) => row(s))} />
-            </div>
+              <Link href="/research" className="door" aria-label={`Research: ${Object.keys(snap.ledger_index ?? ledgers).length} companies read`}>
+                Research <span className="num">{Object.keys(snap.ledger_index ?? ledgers).length}</span>
+              </Link>
+              <Link href="/people" className="door" aria-label={snap.network_status === "unavailable" ? "People" : `People: ${snap.contacts.length} in your network`}>
+                People {snap.network_status !== "unavailable" && snap.contacts.length > 0 && <span className="num">{snap.contacts.length}</span>}
+              </Link>
+            </nav>
           </>
         }
         sinceSeen={until}
         panels={Object.fromEntries(
           keys.map((k) => [
             k,
-            <Panel key={k} k={k} ed={prepared[k].ed} alerts={prepared[k].alerts} prefs={prefs} until={until} networkDown={snap.network_status === "unavailable"} history={snap.price_history} latest={snap.freshness?.price_session ?? null} />,
+            <Panel key={k} k={k} ed={prepared[k].ed} alerts={prepared[k].alerts} prefs={prefs} until={until} networkDown={snap.network_status === "unavailable"} history={snap.price_history} latest={snap.freshness?.price_session ?? null} holdings={holdingSet} index={snap.ledger_index} lastOk={snap.freshness?.worker_last_ok?.announcements ?? null} />,
           ]),
         )}
       />
@@ -132,8 +143,12 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
 
 /** One window's edition: its start time, alerts, leads, the rest worth a look, and the routine fold. */
 function Panel({
-  k, ed, alerts, prefs, until, networkDown, history, latest,
-}: { k: string; ed: Edition; alerts: Alert[]; prefs: Prefs; until: string; networkDown: boolean; history?: Snapshot["price_history"]; latest: string | null }) {
+  k, ed, alerts, prefs, until, networkDown, history, latest, holdings, index, lastOk,
+}: {
+  lastOk: string | null;
+  k: string; ed: Edition; alerts: Alert[]; prefs: Prefs; until: string; networkDown: boolean; history?: Snapshot["price_history"]; latest: string | null;
+  holdings?: Set<string>; index?: Snapshot["ledger_index"];
+}) {
   const wider = WIDER[k];
   const lead = LEAD_COUNT_WORDS[ed.leads.length];
   // the edition in one sentence: how big today is, each part a jump to its section (layout plan §3)
@@ -159,6 +174,7 @@ function Panel({
         . <span className="text-ink-3">Filings since <span className="num">{since(ed.since)}</span>.</span>
         <FollowedQuestions variant="inline" />
       </p>
+      <StaleNote lastOk={lastOk} />
 
       {networkDown && (
         <p className="mt-4 rounded-lg bg-tint px-4 py-3 text-small text-ink-2">
@@ -191,7 +207,14 @@ function Panel({
         ) : (
           <div className="hair">
             {ed.leads.map((c) => (
-              <EditionCard key={c.id} card={c} refTime={until} history={history?.[c.symbol]} />
+              <EditionCard
+                key={c.id}
+                card={c}
+                refTime={until}
+                history={history?.[c.symbol]}
+                research={!!holdings && !holdings.has(c.symbol)}
+                promise={c.kind === "results" ? index?.[c.symbol]?.tracked ?? undefined : undefined}
+              />
             ))}
           </div>
         )}
@@ -205,7 +228,7 @@ function Panel({
           <SectionSummary label="Worth a look" count={ed.more.length} />
           <div className="hair">
             {ed.more.map((c) => (
-              <EditionCard key={c.id} card={c} refTime={until} compact history={c.kind === "move" ? history?.[c.symbol] : undefined} />
+              <EditionCard key={c.id} card={c} refTime={until} compact history={c.kind === "move" ? history?.[c.symbol] : undefined} research={!!holdings && !holdings.has(c.symbol)} />
             ))}
           </div>
         </details>
@@ -280,7 +303,10 @@ function Alerts({
           <span className={`num text-right text-small ${priceFired ? `font-medium ${dirClass(f.change_pct)}` : "text-ink-2"}`}>
             {pct(f.change_pct)}
           </span>
-          <span className="num text-right text-small text-ink-2">{(f.volume_multiple ?? 0).toFixed(1)}× vol</span>
+          {/* one wording with the headlines ("usual volume"), small enough to stay on one line (S11) */}
+          <span className="num whitespace-nowrap text-right text-small text-ink-2">
+            {(f.volume_multiple ?? 0).toFixed(1)}×<span className="text-caption text-ink-3"> usual</span>
+          </span>
           {/* each row opens its own card */}
           <span aria-hidden className="go text-right">›</span>
         </Link>
@@ -294,10 +320,11 @@ function Alerts({
           <span className="kicker text-ink">Alerts at the close</span>
           <span className="count" aria-label={`${today.length} at the latest close`}>{today.length}</span>
         </h2>
-        <Link href="/settings" className="tap shrink-0 text-caption text-accent">
-          Rules <span className="num">±{prefs.price_pct}%</span>, <span className="num">{prefs.volume_x}×</span> ›
-        </Link>
       </div>
+      {/* the rules, in words, the first time anyone reads them (three-pillars plan P3) */}
+      <Link href="/settings" className="tap mx-4 mb-1.5 inline-flex text-caption text-accent">
+        Your rules: <span className="num ml-1">±{prefs.price_pct}%</span>&nbsp;price, <span className="num ml-1">{prefs.volume_x}×</span>&nbsp;volume ›
+      </Link>
       {shown.length ? (
         <ul>{shown.map(row)}</ul>
       ) : (
@@ -428,4 +455,17 @@ function sinceEdition(ed30: Edition, since: string): Edition {
 function isoDate(v: string): string | null {
   const t = Date.parse(`${v} 12:00 GMT+0530`);
   return Number.isNaN(t) ? null : new Date(t).toISOString().slice(0, 10);
+}
+
+/** What an announced meeting is, from the filing's own facts: the event's name, or the kind of meeting and
+ *  with whom, and where (three-pillars plan S14). The filing's category is the fallback. */
+function agendaLabel(facts: [string, string][], fallback: string): string {
+  const f = Object.fromEntries(facts);
+  const where = f["Place"] ? `, ${f["Place"]}` : "";
+  if (f["Event"] && !/^organi[sz]ed by/i.test(f["Event"])) return `${f["Event"]}${where}`;
+  const kind = (f["Meeting"] ?? "").replace(/^Others$/i, "").trim();
+  const who = f["Investor"] && !/^(multiple|group)/i.test(f["Investor"]) ? ` with ${f["Investor"]}` : "";
+  if (kind) return `${kind.charAt(0).toUpperCase()}${kind.slice(1).toLowerCase()}${who}${where}`;
+  if (f["Event"]) return `Investor meetings ${f["Event"].charAt(0).toLowerCase()}${f["Event"].slice(1)}${where}`;
+  return fallback;
 }

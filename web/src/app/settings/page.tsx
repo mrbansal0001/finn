@@ -5,6 +5,8 @@ import { parsePrefs, PREFS_COOKIE } from "@/lib/prefs";
 import { SettingsForm, type PreviewData } from "./SettingsForm";
 import { getSnapshot } from "@/lib/data";
 
+export const metadata = { title: "What counts" };
+
 export default function SettingsPage() {
   return (
     <main>

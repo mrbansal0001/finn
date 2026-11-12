@@ -463,6 +463,12 @@ function Follow({
           ? "This browser didn't let FINN save it (private browsing or storage full). Nothing was kept."
           : `${saved && !dirty ? `Saved ${new Date(saved.savedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}. ` : ""}Brings it back ${r.hint}; checked when you open FINN; this device only.`}
       </p>
+      {/* saved: the way back to where the reader came from (three-pillars S8) */}
+      {saved && !dirty && (
+        <Link href="/" className="mt-1 inline-flex min-h-[44px] items-center text-small font-medium text-accent">
+          Back to the edition ›
+        </Link>
+      )}
     </Step>
   );
 }

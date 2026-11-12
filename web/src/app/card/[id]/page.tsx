@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { parsePrefs, PREFS_COOKIE } from "@/lib/prefs";
-import { findCard, getLedger, getView } from "@/lib/data";
+import { findCard, getLedger, getSnapshot, getView } from "@/lib/data";
 import { fromCard } from "@/lib/investigate";
 import { fyQuarter, KIND_LABEL } from "@/lib/format";
 import { changeWord } from "@/components/EditionCard";
@@ -26,6 +26,12 @@ const KIND_WEIGHT: Record<string, number> = {
   litigation: 60, management_change: 55, m_and_a: 50, results: 45, move: 40, credit_rating: 35, fund_raise: 30,
   capex: 28, pledging: 27, insider_trading: 26, press_release: 20, earnings_call: 18, dividend: 15, bonus_split: 15, unclassified: 10,
 };
+
+export async function generateMetadata({ params }: PageProps<"/card/[id]">) {
+  const { id } = await params;
+  const card = findCard(await getSnapshot(), id);
+  return { title: card ? `${card.symbol}: ${card.headline ?? card.nse_subject}` : "Not found" };
+}
 
 export default function CardPage({ params }: PageProps<"/card/[id]">) {
   return (
@@ -114,6 +120,11 @@ async function Detail({ params }: { params: PageProps<"/card/[id]">["params"] })
               reason={i === 0 && l.best_reason && l.best_reason !== l.relation ? l.best_reason : undefined}
             />
           ))}
+          {card.network.some((l) => l.insider) && (
+            <p className="mt-2 text-caption text-ink-3">
+              <span className="tag mr-1.5">Insider</span>works there now; ask only about what is public.
+            </p>
+          )}
         </section>
       )}
 

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { CopyLink } from "./CopyLink";
 
 /** The one disclaimer, in the same words everywhere (layout plan §9.6). */
 export const SYNTHETIC = "Filings and prices are real. The people are synthetic profiles for this prototype.";
@@ -18,6 +19,8 @@ export function About({ label, children, disclaimer = true }: { label: string; c
         </span>
       </summary>
       <div className="space-y-4 pb-4 text-caption text-ink-3">
+        {/* investors forward things: the page's address, one tap (three-pillars S1) */}
+        <CopyLink />
         {children}
         {disclaimer && <p>{SYNTHETIC}</p>}
       </div>

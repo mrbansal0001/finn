@@ -167,13 +167,14 @@ export function Dock() {
           {focused && !q && (
             <div className="mb-2 flex items-center gap-1.5 overflow-x-auto" aria-label="Examples">
               <span className="shrink-0 text-caption text-ink-3">Try</span>
-              {["BEL", "specialty chemicals", "Rhea"].map((x) => (
+              {/* the three kinds of search, including the "who knows" phrasing nobody guesses (three-pillars N4) */}
+              {["who knows Titan", "specialty chemicals", "BEL"].map((x) => (
                 <button
                   key={x}
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => setQ(x)}
-                  className="min-h-[36px] shrink-0 rounded-full border border-rule px-3 text-caption text-ink-2 hover:text-ink"
+                  className="chip tap min-h-[36px] shrink-0"
                 >
                   {x}
                 </button>
@@ -211,13 +212,15 @@ export function Dock() {
             <Link
               href="/settings"
               aria-label="What counts: your alert rules and filters"
-              className="inline-flex size-11 shrink-0 items-center justify-center rounded-lg border border-rule text-ink-2 hover:text-ink"
+              className="inline-flex h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-rule px-2.5 text-ink-2 hover:text-ink"
             >
               <svg aria-hidden width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
                 <path d="M3 6h9M15 6h2M3 14h3M9 14h8" />
                 <circle cx="13.5" cy="6" r="1.75" />
                 <circle cx="7.5" cy="14" r="1.75" />
               </svg>
+              {/* the icon gets its word where there's room (three-pillars S5) */}
+              <span className="hidden text-small min-[400px]:inline">Rules</span>
             </Link>
           </div>
         </div>

@@ -223,7 +223,19 @@ const STATUS_WORD: Record<string, string> = {
 };
 
 export function promiseTitle(t: string): string {
-  return t.replace(/^(.*?) · ([^:]+): /, "$1 ($2): ").replace(/ · /g, ", ");
+  const out = t.replace(/^(.*?) · ([^:]+): /, "$1 ($2): ").replace(/ · /g, ", ");
+  // the worker keeps the metric as extracted ("revenue"); the reader sees a sentence-case title (three-pillars L3)
+  return out.charAt(0).toUpperCase() + out.slice(1);
+}
+
+/** A title whose target is vague: the vagueness as a tag, the metric and period as the text (three-pillars L4).
+ *  "Ship repair revenue (FY26): no figure" -> { text: "Ship repair revenue (FY26)", tag: "No figure" } */
+export function splitPromise(t: string): { text: string; tag?: string } {
+  const title = promiseTitle(t);
+  const m = title.match(/^(.*?):\s*(no figure|by unspecified date|direction only)$/i);
+  if (!m) return { text: title };
+  const tag = /no figure/i.test(m[2]) ? "No figure" : /unspecified/i.test(m[2]) ? "No date" : "Direction only";
+  return { text: m[1], tag };
 }
 
 // ---------------------------------------------------------------- builders

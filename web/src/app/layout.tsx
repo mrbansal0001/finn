@@ -10,7 +10,7 @@ const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
 const fraunces = Fraunces({ subsets: ["latin"], variable: "--font-fraunces", style: ["normal", "italic"], axes: ["SOFT", "opsz"] });
 
 export const metadata: Metadata = {
-  title: "FINN",
+  title: { default: "FINN", template: "%s – FINN" },
   description: "Your portfolio, briefed. NSE filings ranked, routine folded, promises tracked.",
   appleWebApp: { capable: true, title: "FINN", statusBarStyle: "default" },
 };

@@ -191,3 +191,21 @@ Real networks come only from your own consented imports.
 ## 11. Acceptance, from the user's chair
 
 A person who has never seen FINN opens it on a phone and, without typing anything, can answer in under a minute: what moved today, what the company had promised about it, and whom they know who can explain it. Then, from the three doors, they can see how much FINN has read and whom their network covers. Nothing on the screen is there that they can't tap or read, and nothing they can tap looks like text.
+
+## 12. Result (implemented 13 Nov 2026)
+
+Every numbered item is built. Measured locally at 390×844 with the live data, then checked on the live site.
+
+| Item | Built | Note |
+|---|---|---|
+| §2 doors, first-visit map | Yes | The map is a compact caption with "Got it" at the end (106px on a first visit; gone after one tap). The first lead headline stays on the first screen either way (721px first visit, 607px returning) |
+| §4 Research page | Yes | Portfolio / Nifty 50 / All read; Most changed / Newest call / Name; search finds any NSE company, with a "Not read yet" list that opens a request |
+| §4 People page | Yes | By company / By theme / Strongest tie; Insiders and Can introduce filters; the Insider key; "Where you lack context" at the foot |
+| P1 research names in Push | Yes (worker) | 27 cards and 46 price sessions in 30 days for Dixon, LG, Persistent and Kokuyo; none leads, in the worker or in the app's re-ranking; tagged "Research" |
+| P2 stale note | Yes | Tested with the browser clock set to a weekday noon ten hours after the last read |
+| P3–P8 | Yes | "Your rules: ±5% price, 2× volume"; compact cards with one line of why and a clause-length person line; Listen shows its length and elapsed time; the promise line on results leads (10 companies have a tracked promise); "Today, 18:19" |
+| L2–L8 | Yes | L9 needed no change |
+| N2–N7 | Yes | N4 uses "who knows Titan" rather than "who knows TCS": no one in the demo network knows TCS, and a first tap answering "no one" teaches less |
+| S1–S14 | Yes | S2 preview images for the site, cards and companies; the investigation's preview falls back to the site image (preview images can't read its query string) |
+
+Heights for a returning visitor: home 7 days 1,851px (was 1,725px before this plan; the doors row, the rules line, the promise line and the research companies in "Worth a look" are the additions). Research 2,694px, People 4,649px (lists, by design). No sideways scroll at 320px or 390px on any screen; no console errors.

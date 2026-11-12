@@ -95,13 +95,16 @@ export type Snapshot = {
   editions: Record<WindowKey, Edition>;
   // every price/volume session over the lowest allowed thresholds; the app keeps those meeting the visitor's rules
   move_cards?: Card[];
-  freshness?: { filings_until: string; price_session: string | null; price_sessions: number };
+  freshness?: { filings_until: string; price_session: string | null; price_sessions: number; worker_last_ok?: Record<string, string> };
   network_status?: "ready" | "unavailable" | "local";
   results: Record<string, ResultsFacts>;
   prices: Record<string, { close: number; change_pct: number; volume_multiple: number; day: string }>;
   // last 30 sessions per holding (worker prices.series): close, exchange previous close, volume, the alert's
   // own baseline (previous 20 sessions, excluding the day) and how many sessions it rests on
   price_history?: Record<string, { d: string; c: number; pc: number; v: number; avg: number | null; n: number; gap?: boolean }[]>;
+  // one small entry per ledger (worker export._index_entry), and NSE's Nifty 50 list
+  ledger_index?: Record<string, LedgerIndexEntry>;
+  nifty50?: string[];
   people: Record<string, NetworkLine[]>;
   verifiers: Record<string, NetworkLine>;
   contacts: Contact[];
@@ -151,4 +154,17 @@ export type Ledger = {
   provenance: string;
   // a hand-checked ledger for the same calls, shown on request to compare the pipeline against
   reference?: { rows: PromiseRow[]; calls: { label: string; date: string; url: string }[]; provenance: string };
+};
+
+/** What the Research page and the edition need from a ledger, without loading it. Rows are trimmed to the
+ *  fields the question rules read (lib/investigate.promiseQuestion). */
+export type LedgerIndexEntry = {
+  built: string | null;
+  last_call: string | null;
+  calls: { label: string; date: string }[];
+  rows: number;
+  counts: Partial<Record<PromiseStatus, number>>;
+  top: PromiseRow | null;
+  tracked: PromiseRow | null;
+  reference: boolean;
 };
