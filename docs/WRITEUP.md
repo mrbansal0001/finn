@@ -4,23 +4,26 @@
 
 ## What I built
 
-FINN has one point of view: **an investor should be briefed, not fed.** Every Indian tool I studied (Tijori, Trendlyne, Screener, broker apps; about 45 products, `docs/research/01-competitors.md`) sends one ping per filing. FINN writes an *edition*. It ranks, shows up to three leads, counts the rest, folds the routine into one line, and ends.
+FINN has one point of view: **an investor should be briefed, not fed.** The Indian tools I studied (Tijori, Trendlyne, Screener, broker apps; about 45 products, `docs/research/01-competitors.md`) mostly alert per filing or per event; some send daily summaries of specific feeds. FINN writes a ranked *edition* of your portfolio. It ranks, shows up to three leads, counts the rest, folds the routine into one line, and ends.
 
 - **Push, "The Edition".** A digest of your 18 holdings' NSE filings and price/volume moves over the last 24 hours, or a window you pick (3d, 7d, 30d, since your last visit).
-  - **Alerts** sit above the digest: each threshold crossing, with the rule that fired (±5% price, 2× the 20-session volume by default). "What counts" lets you change the thresholds, mute announcement types, and set how many leads.
+  - **Rule matches** sit above the digest: every session in the window that met your price or volume rule (±5%, 2× the 20-session volume by default), each opening its own card. "What counts" lets you change the thresholds (down to 1% and 1.2×), mute announcement types, and set how many leads. These are in-app alerts; nothing is pushed to a phone yet.
   - **Results cards:** Revenue, EBITDA, PBT and PAT with QoQ and YoY (margins in bp; banks get NII, operating profit and provisions; lenders get no EBITDA). The headline is written from the computed numbers. When one-offs are a big part of profit, it leads with profit before one-offs (Titan: +114% reported, +53% before a ₹671 cr fair-value gain).
   - **People cards:** the person's background from the filing, ranked by seniority (a new MD & CEO leads; a compliance officer's appointment doesn't).
-  - **Move cards** name the filing that preceded the move ("Follows its results, Tue 10 Nov 17:08"). If nothing explains it, the card says so instead of guessing.
-  - "Brief me · 60s" reads the edition aloud using the phone's own speech engine.
+  - **Move cards** name the filing published between the previous close and this close, on the exchange's full trading calendar ("Filed before this session: results, Tue 10 Nov 17:08"). If there is none, the card says so instead of guessing a cause.
+  - A material filing FINN couldn't read stays in the edition as material, with its link, and is retried; it never drops into housekeeping.
+  - "Listen to brief" reads the edition aloud using the phone's own speech engine.
 - **Pull, the Promises ledger.** For any NSE company, every promise management made on its last four earnings calls, one row per promise:
   - a glyph per call: ● delivered, ◐ partly, ○ missed, ↻ revised, — went silent, ◌ period ended with no outcome stated;
-  - the verbatim quote with its transcript page, and where the evidence comes from;
+  - the verbatim quote with its transcript page; for a settled row, the outcome quote too, with who said it and on which call;
   - for a company-level, full-year revenue, profit or margin target still running, the latest filed quarter beside it, judged against the target (one quarter is not the year, so the status stays open);
   - the latest results table, the annual report's own description of the business, and the people who'd know.
-  - Example, BEL: every FY26 financial target was met, but the QRSAM order date was reset three times and is now "very soon, >99%", with no date.
-  - Ledgers for Nifty 50 companies are pre-built by a batch on the worker (20 companies covered when this was written); any other company is built on request.
+  - Example, BEL (machine-built): FY26 EBITDA margin guided at 27%, and management stated 30% on the May call (delivered); the NGC order target moved from ₹10–12k cr "in H1" to about ₹20k cr for the year, after the first date had passed (revised, not missed). The hand-checked reference also shows the QRSAM order date reset three times.
+  - **Delivered/missed is rare by design.** A later statement settles a promise only when it is comparable: same period as the current target, said by management, the number printed in the quote, comparable units, the programme or segment named, and from a later call that reviewed the period. Across 37 ledgers that leaves 2 settled rows out of about 1,300; the rest are open, revised, silent, or ended without a comparable outcome, and say so. An earlier version settled 53, most of them wrongly (E31).
+  - Ledgers exist for 37 companies when this was written: 31 from the Nifty 50 pre-build plus 6 holdings and research names; any other company is built on request.
 - **Network, inside both, and askable.** A card carries one line, e.g. *"Lakshmi Raghavan is also an alumnus of PSG College of Technology"* on the card for HDFC Bank's new Chief Compliance Officer.
-  - It answers the brief's question directly: has anyone in my network worked with this person, studied with them, or sits one connection away? Overlaps are dated from the filing's own words ("was at HDFC Bank 2009–22, while Kaizad Bharucha was there"). When there is none, it says "no one" rather than padding.
+  - It answers the brief's question directly: has anyone in my network worked with this person, studied with them, or sits one connection away? Overlaps are dated from the filing's own words ("was at HDFC Bank 2009–22, while Kaizad Bharucha was there"). Same employer at the same time is said as exactly that, not as "knows them". When there is none, it says "no verified overlap"; if the network failed to load, it says that instead.
+  - Introductions weigh both links (you to the introducer, the introducer to them) and say how the two know each other.
   - **Best placed, and why:** the first suggestion is the person whose role there or expertise fits the event ("as Head, Legal & Secretarial there (2013–20), the closest to this legal matter; reach them through Imran"). Relevance beats warmth.
   - The search box also searches your own network: a name, a theme ("specialty chemicals"), an employer, a school.
   - It knows when *not* to suggest someone: current employees are marked insiders and never offered for an unexplained price move.
@@ -37,6 +40,8 @@ FINN has one point of view: **an investor should be briefed, not fed.** Every In
   Now a table must satisfy the statement's own identities: half-year = the two quarters; income − expenses ± exceptional = PBT; owners' profit + minority interest = total profit; the bank income and provisions identities. The unit must be the one the document prints, consolidated is preferred, and tables that still fail are withheld, never shown.
   - A second independent audit then checked about 660 results figures, 136 move figures and 717 quotes. Moves, people cards and quotes were clean. It still found about 55 wrong results figures (a unit misread as lakhs instead of millions; owners' profit missed in six layouts), and every one was traced to its cause and fixed.
   - 16 of 18 portfolio results are shown and 2 withheld.
+  - The results badge names only the checks that ran on that table, and a table needs two independent identities (or two lines equal to the exchange XBRL) to be shown.
+  - A third independent audit (E31) found that the ledger turned genuine quotes into wrong verdicts and that a visible alert opened a missing card. Quotes were 1,575/1,575 verbatim, which was the point: **quote fidelity is not verdict correctness**, so they are now measured separately.
   - That loop is the clearest example of how I worked with the AI tools: treat a passing check as a claim to verify, measure, then fix the cause, not the instance.
 - **Cite or drop, for words and numbers.** Every quote shown is the page's own text, and unverifiable statements are dropped (84/84 hand-labelled quotes found, off-by-one pages corrected). A figure in a ledger row must be printed in its quote: the model once turned "grow almost to 2x" into "200%".
 - **Wording follows evidence.** "Worked together" only when dates overlap. Many real bios give employers without years, so FINN says "also worked at X (dates not disclosed)".
@@ -115,7 +120,7 @@ Copy rules are enforced in code: a headline needs a verb and a fact, a "why" lin
   - overlapping 6-page windows find 80%, at 61% strict precision;
   - half of the "false positives" were genuine commitments my labels had missed, so effective precision is near 80%.
 - **Linking.** Deterministic, with pairwise precision 0.88 / recall 0.70 on BEL and 0.75 / 0.67 on Deepak Nitrite. Model-assisted linking was noisier run to run, so it stays off. BEL's ledger shows the machine-built version by default, with the hand-checked reference one tap away.
-- **Cost.** $1.18 of paid model spend for the entire build so far, across 1,041 model calls: $0.72 of it before the pre-build (mostly reading filings that name people, which never go to the free tier), the rest the paid fallback while Gemini's free tier was overloaded. A ledger on the free tier costs $0; reading a filing that names people costs about $0.005, so a day of Push for 18 holdings costs cents.
+- **Cost.** $2.22 of paid model spend for the entire build as of 12 Nov, across 1,438 model calls: most of it reading filings that name people (which never go to the free tier) and the paid fallback while Gemini's free tier was overloaded during the pre-build. Rebuilding every ledger after a logic change costs nothing: identical requests come from the cache (37 ledgers rebuilt, 0 model calls). A ledger on the free tier costs $0; reading a filing that names people costs about $0.005, so a day of Push for 18 holdings costs cents.
 
 ## Cloud
 
@@ -136,7 +141,8 @@ Copy rules are enforced in code: a headline needs a verb and a fact, a "why" lin
 ## What I'd do next
 
 1. A licensed announcements feed and a cloud worker in Mumbai, so Pull builds any company in about a minute without a queue.
-2. Web push for installed PWAs, so an alert reaches the phone the moment a threshold is crossed.
-3. Annual-report promises as ledger rows (capex and capacity targets live there), and segment-level tracking against filed segment results.
-4. A sector-specific fourth metric (volumes for autos, order book for capital goods, NIM/GNPA for banks).
-5. A held-out evaluation refreshed every quarter, with a re-audit of every displayed number against its source.
+2. Web push for installed PWAs, so an alert reaches the phone the moment a threshold is crossed (today's alerts are in-app only).
+3. The rest of the third audit's plan, deliberately left for after submission: a typed evidence store (target versions, outcome observations, comparisons), versioned snapshots switched atomically, a Postgres job queue with leases for on-demand research, refresh when a source changes rather than when a file is missing, reading every event in a results filing, and structured people filings.
+4. Annual-report promises as ledger rows (capex and capacity targets live there), and segment-level tracking against filed segment results.
+5. A sector-specific fourth metric (volumes for autos, order book for capital goods, NIM/GNPA for banks).
+6. A held-out evaluation refreshed every quarter, with a re-audit of every displayed number against its source.

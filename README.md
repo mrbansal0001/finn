@@ -4,7 +4,7 @@ A mobile-first investor agent for Indian equities, built for the ENAM Holdings F
 
 **Live:** https://finn-red.vercel.app (open it on a phone; each visitor gets a private copy of the demo network) · **Writeup:** [`docs/WRITEUP.md`](docs/WRITEUP.md) · **Decision log:** [`docs/DECISIONS.md`](docs/DECISIONS.md)
 
-FINN has one opinion: **an investor should be briefed, not fed.** Every Indian tool sends one ping per filing. FINN writes an *edition* that ranks, folds the routine, and ends.
+FINN has one opinion: **an investor should be briefed, not fed.** Instead of an alert per filing, FINN writes a ranked *edition* of your portfolio that folds the routine and ends.
 
 | Layer | What you see | What's underneath |
 |---|---|---|
@@ -46,10 +46,12 @@ Why a residential worker: NSE and BSE refuse or time out datacenter requests (me
 | Rules classifier, **held-out** (80 later company filings, labelled before running the rules) | **material recall 36/36 = 100%**, category 92%, routine folded 83% (7 routine items over-surfaced, none missed) | `uv run python -m evals.eval_classifier --heldout` |
 | Guidance extraction vs 84 hand-labelled statements (8 transcripts) | recall 80%, precision 61% strict; a hand check of unmatched predictions puts effective precision near 80% | `worker/evals/eval_extraction.py`, E24 |
 | Quote verification | 84/84 gold quotes found on the cited page; 84/84 pages corrected when offset by one; quotes shown are the page's own text | `worker/tests/test_pull.py`, E17, E29 |
+| Ledger verdicts (third audit, E31) | quotes 1,575/1,575 verbatim, yet most of 53 settled rows were not comparable (analyst figures, the reported quarter settled against itself, wrong periods). Now settled only on a comparable, management-stated outcome: 2 of ~1,300 rows; the rest stay open, revised, silent or ended-unproven | E31, `worker/tests/test_pull.py` |
+| Card links (third audit) | the SBI alert opened a missing card; now every move session has its own card: 145 live links checked, 0 broken | E31 |
 | Promise linking without a model | pairwise precision 0.88 / recall 0.70 (BEL), 0.75 / 0.67 (Deepak Nitrite); model-assisted linking was noisier, so it is off | `worker/evals/eval_linking.py`, E26 |
-| Row-level security, live against Supabase | two visitors can't see each other's network; public data read-only; no contact name in the public payload; visitors can't write private rows and can't see who requested coverage (migration 003) | `uv run python -m evals.rls_check` |
+| Row-level security, live against Supabase | 14/14: two visitors can't see each other's network; public data read-only (probed with a no-op write); no contact name in the public payload; visitors can't write private rows and can't see who requested coverage (migration 003) | `uv run python -m evals.rls_check` |
 | Model spend for the whole build | see the writeup; Gemini free tier $0, OpenAI ~$0.005 per filing that names people | `llm_calls` table |
-| Tests | 114 worker tests | `uv run pytest` |
+| Tests | 133 worker tests | `uv run pytest` |
 
 ## Run it
 
