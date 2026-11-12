@@ -7,10 +7,8 @@ import type { Edition, WindowKey } from "@/lib/types";
 import { dirClass, fullDate, pct, shortDay, since, when } from "@/lib/format";
 import { EditionCard } from "@/components/EditionCard";
 import { Dock } from "@/components/Dock";
-import { BriefButton } from "@/components/BriefButton";
 import { HoldingsSheet } from "@/components/HoldingsSheet";
-import { ThemeToggle } from "@/components/ThemeToggle";
-import { SinceLastVisit } from "@/components/SinceLastVisit";
+import { WindowLink, WindowSwitcher } from "@/components/WindowSwitcher";
 
 const WINDOWS: { key: WindowKey; label: string; short: string }[] = [
   { key: "24h", label: "24 hours", short: "24h" },
@@ -48,65 +46,88 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
   const prefs = parsePrefs(jar.get(PREFS_COOKIE)?.value);
   const sinceVisit = sp.w === "since" && typeof sp.t === "string" && !Number.isNaN(Date.parse(sp.t)) ? sp.t : null;
   // the brief: "by default the last 24 hours, but let me pick the period"
-  const w = (sinceVisit ? "30d" : (WINDOWS.find((x) => x.key === sp.w)?.key ?? "24h")) as WindowKey;
-  const base = sinceVisit ? sinceEdition(snap.editions["30d"], sinceVisit) : snap.editions[w];
+  const w = sinceVisit ? "since" : (WINDOWS.find((x) => x.key === sp.w)?.key ?? "24h");
   const moveCards = snap.move_cards ?? [];
-  const ed = applyPrefs(structuredClone(base), prefs, moveCards);
   const until = snap.data_until;
-  const alerts = moveCards.length ? alertsFor(moveCards, ed.since, ed.until, prefs) : legacyAlerts(ed, prefs);
-  const wider = sinceVisit ? undefined : WIDER[w];
+
+  // every window is prepared now, so switching between them needs no trip to the server
+  const prepared: Record<string, { ed: Edition; alerts: Alert[] }> = {};
+  const keys: string[] = [...WINDOWS.map((x) => x.key), ...(sinceVisit ? ["since"] : [])];
+  for (const key of keys) {
+    const base = key === "since" ? sinceEdition(snap.editions["30d"], sinceVisit!) : snap.editions[key as WindowKey];
+    const ed = applyPrefs(structuredClone(base), prefs, moveCards);
+    prepared[key] = { ed, alerts: moveCards.length ? alertsFor(moveCards, ed.since, ed.until, prefs) : legacyAlerts(ed, prefs) };
+  }
   const row = (s: string, weight = 0) => ({ symbol: s, name: (snap.names[s] ?? s).replace(/ Limited$/, ""), sector: snap.portfolio.find((h) => h.symbol === s)?.sector ?? "", weight });
 
   return (
     <main>
-      {/* masthead (plan §8.1) */}
-      <header className="flex items-center justify-between">
-        <h1 className="font-serif text-display font-semibold tracking-[-0.02em]">FINN</h1>
-        <div className="-mr-2 flex items-center">
-          <BriefButton edition={ed} alerts={alerts.length} />
-          <ThemeToggle />
+      <WindowSwitcher
+        initial={w}
+        tabs={WINDOWS.map((x) => ({ ...x, href: x.key === "24h" ? "/" : `/?w=${x.key}` }))}
+        scripts={Object.fromEntries(keys.map((k) => [k, briefScript(prepared[k].ed, prepared[k].alerts.length)]))}
+        wordmark={<h1 className="font-serif text-display font-semibold tracking-[-0.02em]">FINN</h1>}
+        masthead={
+          <>
+            {/* the date at the left, the portfolio as a chip at the right: layout separates them, not punctuation */}
+            <div className="mt-1 flex items-center justify-between gap-3">
+              <span className="text-small font-medium text-ink">{fullDate(until)}</span>
+              <HoldingsSheet holdings={snap.portfolio.map((h) => row(h.symbol, h.weight))} research={snap.research_set.map((s) => row(s))} />
+            </div>
+            <p className="mt-1 text-caption text-ink-3">A demo portfolio. Filings and prices are real; the network is synthetic.</p>
+          </>
+        }
+        sinceSeen={until}
+        panels={Object.fromEntries(
+          keys.map((k) => [
+            k,
+            <Panel key={k} k={k} ed={prepared[k].ed} alerts={prepared[k].alerts} prefs={prefs} until={until} networkDown={snap.network_status === "unavailable"} />,
+          ]),
+        )}
+      />
+
+      <footer className="mt-12 text-center">
+        {/* the end of the edition: a rule either side, not a pair of dots */}
+        <div className="flex items-center gap-3">
+          <span className="h-px flex-1 bg-rule" />
+          <span className="font-serif text-body font-normal italic text-ink-3">End of edition</span>
+          <span className="h-px flex-1 bg-rule" />
         </div>
-      </header>
-      {/* the date at the left, the portfolio as a chip at the right: layout separates them, not punctuation */}
-      <div className="mt-1 flex items-center justify-between gap-3">
-        <span className="text-small font-medium text-ink">{fullDate(until)}</span>
-        <HoldingsSheet holdings={snap.portfolio.map((h) => row(h.symbol, h.weight))} research={snap.research_set.map((s) => row(s))} />
-      </div>
-      <p className="mt-1 text-caption text-ink-3">A demo portfolio. Filings and prices are real; the network is synthetic.</p>
+        <p className="mt-2 text-caption text-ink-3">
+          Filings to <span className="num">{when(snap.freshness?.filings_until ?? until, until)}</span> IST
+          {snap.freshness?.price_session && (
+            <>
+              , prices to the <span className="num">{shortDay(snap.freshness.price_session)}</span> close
+            </>
+          )}
+          .
+        </p>
+      </footer>
 
-      <nav aria-label="Edition window" className="-mx-1 mt-4 flex gap-1 overflow-x-auto">
-        <SinceLastVisit active={!!sinceVisit} seen={until} />
-        {WINDOWS.map((x) => (
-          <Link
-            key={x.key}
-            href={x.key === "24h" ? "/" : `/?w=${x.key}`}
-            aria-current={x.key === w && !sinceVisit ? "page" : undefined}
-            aria-label={x.label}
-            className={`inline-flex min-h-[44px] min-w-[44px] items-center justify-center whitespace-nowrap rounded-full px-4 text-small transition-colors max-[359px]:px-3 ${
-              x.key === w && !sinceVisit ? "bg-ink font-medium text-paper" : "text-ink-2 hover:text-ink"
-            }`}
-          >
-            {/* very narrow phones get the short form so all four fit */}
-            <span className="max-[359px]:hidden">{x.label}</span>
-            <span className="hidden max-[359px]:inline">{x.short}</span>
-          </Link>
-        ))}
-      </nav>
+      <Dock />
+    </main>
+  );
+}
 
+/** One window's edition: its start time, alerts, leads, the rest worth a look, and the routine fold. */
+function Panel({ k, ed, alerts, prefs, until, networkDown }: { k: string; ed: Edition; alerts: Alert[]; prefs: Prefs; until: string; networkDown: boolean }) {
+  const wider = WIDER[k];
+  return (
+    <>
       <p className="mt-1.5 px-1 text-caption text-ink-3">
         Showing filings since <span className="num">{since(ed.since)}</span>
       </p>
 
-      {snap.network_status === "unavailable" && (
+      {networkDown && (
         <p className="mt-4 rounded-lg bg-tint px-4 py-3 text-small text-ink-2">
           Your private demo network didn&apos;t load just now. Reload in a minute; filings and numbers are unaffected.
         </p>
       )}
 
-      <Alerts hits={alerts} prefs={prefs} />
+      <Alerts hits={alerts} prefs={prefs} id={`alerts-${k}`} />
 
-      <section aria-labelledby="leads" className="mt-10">
-        <h2 id="leads" className="section-h text-ink">
+      <section aria-labelledby={`leads-${k}`} className="mt-10">
+        <h2 id={`leads-${k}`} className="section-h text-ink">
           {LEAD_COUNT_WORDS[ed.leads.length]}
         </h2>
         {ed.leads.length === 0 ? (
@@ -119,9 +140,9 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
             {wider && (
               <>
                 {" "}
-                <Link href={`/?w=${wider.key}`} className="tap whitespace-nowrap text-accent">
+                <WindowLink to={wider.key} href={`/?w=${wider.key}`} className="tap whitespace-nowrap text-accent">
                   See {wider.label} ›
-                </Link>
+                </WindowLink>
               </>
             )}
           </p>
@@ -146,28 +167,22 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
       )}
 
       {ed.routine_total > 0 && <Routine ed={ed} refTime={until} />}
-
-      <footer className="mt-12 text-center">
-        {/* the end of the edition: a rule either side, not a pair of dots */}
-        <div className="flex items-center gap-3" aria-hidden={false}>
-          <span className="h-px flex-1 bg-rule" />
-          <span className="font-serif text-body font-normal italic text-ink-3">End of edition</span>
-          <span className="h-px flex-1 bg-rule" />
-        </div>
-        <p className="mt-2 text-caption text-ink-3">
-          Filings to <span className="num">{when(snap.freshness?.filings_until ?? until, until)}</span> IST
-          {snap.freshness?.price_session && (
-            <>
-              , prices to the <span className="num">{shortDay(snap.freshness.price_session)}</span> close
-            </>
-          )}
-          .
-        </p>
-      </footer>
-
-      <Dock />
-    </main>
+    </>
   );
+}
+
+/** What "Listen" reads for a window: the leads, the alert count, what's left. Prepared on the server. */
+function briefScript(ed: Edition, alerts: number): string {
+  const n = ed.leads.length;
+  return [
+    n ? `${n} ${n === 1 ? "thing matters" : "things matter"}.` : "No single item leads this window.",
+    alerts ? `${alerts} price or volume ${alerts === 1 ? "alert" : "alerts"} at the close.` : "",
+    ...ed.leads.map((c) => `${c.company.replace(/ Limited$/, "").replace(/ Ltd\.?$/, "")}. ${c.headline ?? c.nse_subject}. ${c.why ?? ""}`),
+    ed.more.length ? `${ed.more.length} more worth a look, and ${ed.routine_total} routine filings folded.` : "",
+    "End of edition.",
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 /** A section heading that opens and closes: label, count at the right, a chevron that turns. */
@@ -185,7 +200,7 @@ function SectionSummary({ label, count }: { label: string; count: number }) {
 
 /** Price/volume rule matches in this window (plan §8.2): every matching session, each opening its own card.
  *  Columns line up; the price change is always shown, in colour when it fired. In-app only. */
-function Alerts({ hits, prefs }: { hits: Alert[]; prefs: Prefs }) {
+function Alerts({ hits, prefs, id }: { hits: Alert[]; prefs: Prefs; id: string }) {
   if (!hits.length) return null;
   const row = ({ card, rules }: Alert) => {
     const f = card.facts as { change_pct?: number; volume_multiple?: number };
@@ -210,9 +225,9 @@ function Alerts({ hits, prefs }: { hits: Alert[]; prefs: Prefs }) {
     );
   };
   return (
-    <section aria-labelledby="alerts" className="mt-6 overflow-hidden rounded-lg border border-rule bg-tint">
+    <section aria-labelledby={id} className="mt-6 overflow-hidden rounded-lg border border-rule bg-tint">
       <div className="flex items-center justify-between gap-3 px-4 pb-1.5 pt-3">
-        <h2 id="alerts" className="flex items-center gap-2">
+        <h2 id={id} className="flex items-center gap-2">
           <span className="kicker text-ink">Alerts</span>
           <span className="count" aria-label={`${hits.length} at the close`}>{hits.length}</span>
         </h2>
