@@ -3,9 +3,10 @@ import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { alertsFor, applyPrefs, parsePrefs, PREFS_COOKIE, type Alert, type Prefs } from "@/lib/prefs";
 import { getLedgerIndex, getView } from "@/lib/data";
-import type { Edition, WindowKey } from "@/lib/types";
+import type { Edition, Snapshot, WindowKey } from "@/lib/types";
 import { dirClass, fullDate, pct, shortDay, since, when } from "@/lib/format";
 import { EditionCard } from "@/components/EditionCard";
+import { MoveSpark } from "@/components/MoveSpark";
 import { FollowedQuestions } from "@/components/FollowedQuestions";
 import { Dock } from "@/components/Dock";
 import { HoldingsSheet } from "@/components/HoldingsSheet";
@@ -104,7 +105,7 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
         panels={Object.fromEntries(
           keys.map((k) => [
             k,
-            <Panel key={k} k={k} ed={prepared[k].ed} alerts={prepared[k].alerts} prefs={prefs} until={until} networkDown={snap.network_status === "unavailable"} />,
+            <Panel key={k} k={k} ed={prepared[k].ed} alerts={prepared[k].alerts} prefs={prefs} until={until} networkDown={snap.network_status === "unavailable"} history={snap.price_history} />,
           ]),
         )}
       />
@@ -133,7 +134,7 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
 }
 
 /** One window's edition: its start time, alerts, leads, the rest worth a look, and the routine fold. */
-function Panel({ k, ed, alerts, prefs, until, networkDown }: { k: string; ed: Edition; alerts: Alert[]; prefs: Prefs; until: string; networkDown: boolean }) {
+function Panel({ k, ed, alerts, prefs, until, networkDown, history }: { k: string; ed: Edition; alerts: Alert[]; prefs: Prefs; until: string; networkDown: boolean; history?: Snapshot["price_history"] }) {
   const wider = WIDER[k];
   return (
     <>
@@ -147,7 +148,7 @@ function Panel({ k, ed, alerts, prefs, until, networkDown }: { k: string; ed: Ed
         </p>
       )}
 
-      <Alerts hits={alerts} prefs={prefs} id={`alerts-${k}`} />
+      <Alerts hits={alerts} prefs={prefs} id={`alerts-${k}`} history={history} />
 
       <section aria-labelledby={`leads-${k}`} className="mt-10">
         <h2 id={`leads-${k}`} className="section-h text-ink">
@@ -172,7 +173,7 @@ function Panel({ k, ed, alerts, prefs, until, networkDown }: { k: string; ed: Ed
         ) : (
           <div className="hair">
             {ed.leads.map((c) => (
-              <EditionCard key={c.id} card={c} refTime={until} />
+              <EditionCard key={c.id} card={c} refTime={until} history={history?.[c.symbol]} />
             ))}
           </div>
         )}
@@ -223,7 +224,7 @@ function SectionSummary({ label, count }: { label: string; count: number }) {
 
 /** Price/volume rule matches in this window (plan §8.2): every matching session, each opening its own card.
  *  Columns line up; the price change is always shown, in colour when it fired. In-app only. */
-function Alerts({ hits, prefs, id }: { hits: Alert[]; prefs: Prefs; id: string }) {
+function Alerts({ hits, prefs, id, history }: { hits: Alert[]; prefs: Prefs; id: string; history?: Snapshot["price_history"] }) {
   if (!hits.length) return null;
   const row = ({ card, rules }: Alert) => {
     const f = card.facts as { change_pct?: number; volume_multiple?: number };
@@ -232,12 +233,21 @@ function Alerts({ hits, prefs, id }: { hits: Alert[]; prefs: Prefs; id: string }
       <li key={card.id} className="border-t border-rule first:border-t-0">
         <Link
           href={`/card/${card.id}`}
-          className="grid min-h-[52px] grid-cols-[minmax(0,1fr)_4.25rem_5rem] items-center gap-2 px-4 py-1.5 hover:bg-paper-raised/60"
+          className="grid min-h-[52px] grid-cols-[minmax(0,1fr)_3.75rem_3.75rem_4.5rem] items-center gap-1.5 px-4 py-1.5 hover:bg-paper-raised/60 max-[359px]:grid-cols-[minmax(0,1fr)_4.25rem_5rem]"
         >
           {/* the date sits under the ticker, so the ticker keeps its room at larger text sizes */}
           <span className="min-w-0">
             <span className="block truncate text-small font-medium text-ink">{card.symbol}</span>
             <span className="num block text-caption text-ink-3">{shortDay(card.at)}</span>
+          </span>
+          {/* a word-sized picture of the alert: 20 sessions of price, volume bars, the alert day marked */}
+          <span className="max-[359px]:hidden">
+            <MoveSpark
+              width={60}
+              rows={history?.[card.symbol]}
+              day={card.at.slice(0, 10)}
+              label={`${card.symbol}: price over the last 20 sessions and each day's volume, ending on the alert day`}
+            />
           </span>
           <span className={`num text-right text-small ${priceFired ? `font-medium ${dirClass(f.change_pct)}` : "text-ink-2"}`}>
             {pct(f.change_pct)}
@@ -258,6 +268,10 @@ function Alerts({ hits, prefs, id }: { hits: Alert[]; prefs: Prefs; id: string }
           Rules: <span className="num">±{prefs.price_pct}%</span> price, <span className="num">{prefs.volume_x}×</span> volume ›
         </Link>
       </div>
+      {/* the key for the word-sized charts, once */}
+      <p className="px-4 pb-1.5 text-caption text-ink-3 max-[359px]:hidden">
+        Line: the last 20 closes. Bars: each day&apos;s volume, the alert day in <span className="text-accent">blue</span>.
+      </p>
       <ul>{hits.slice(0, 5).map(row)}</ul>
       {hits.length > 5 && (
         <details className="group border-t border-rule">

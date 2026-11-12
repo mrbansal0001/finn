@@ -3,6 +3,7 @@ import type { Card, ResultsFacts } from "@/lib/types";
 import { dirClass, pct, price, times } from "@/lib/format";
 import { CardMeta } from "./CardMeta";
 import { NetworkLine } from "./NetworkLine";
+import { MoveSpark } from "./MoveSpark";
 
 type Person = { name?: string; change?: string; role?: string; effective?: string | null };
 
@@ -17,11 +18,13 @@ export function EditionCard({
   refTime,
   compact = false,
   showNetwork = true,
+  history,
 }: {
   card: Card;
   refTime: string;
   compact?: boolean;
   showNetwork?: boolean;
+  history?: Parameters<typeof MoveSpark>[0]["rows"];
 }) {
   const results = card.facts?.results;
   const isMove = card.kind === "move";
@@ -38,7 +41,16 @@ export function EditionCard({
       {!compact && (
         <>
           {isMove ? (
-            <MoveLine card={card} />
+            <>
+              <MoveLine card={card} />
+              {/* the lead move, drawn: 20 sessions to the alert day (the alert rows carry the small version) */}
+              {history && (
+                <div className="mt-3 flex items-end gap-3">
+                  <MoveSpark rows={history} day={card.at.slice(0, 10)} width={168} height={44} label={`${card.symbol}: price over the last 20 sessions and each day's volume, ending on this session`} />
+                  <span className="pb-0.5 text-caption text-ink-3">Last 20 sessions; bars are volume</span>
+                </div>
+              )}
+            </>
           ) : (
             card.why && <p className="mt-2 line-clamp-3 text-body text-ink-2">{card.why}</p>
           )}
