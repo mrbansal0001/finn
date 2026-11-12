@@ -185,12 +185,15 @@ function Item({ row, ledger, open, onToggle, verifier, hideTag }: { row: Promise
       <button onClick={onToggle} aria-expanded={open} className="block w-full py-3 text-left">
         <span className="flex items-start justify-between gap-3">
           <span className="text-small font-medium text-ink">{promiseTitle(row.title)}</span>
-          {!hideTag && (
-            <span className="flex shrink-0 items-baseline gap-1 whitespace-nowrap text-caption font-medium" style={{ color: st.color }}>
-              <span aria-hidden>{st.g}</span>
-              {st.word}
-            </span>
-          )}
+          <span className="flex shrink-0 flex-col items-end gap-1">
+            {!hideTag && (
+              <span className="flex items-baseline gap-1 whitespace-nowrap text-caption font-medium" style={{ color: st.color }}>
+                <span aria-hidden>{st.g}</span>
+                {st.word}
+              </span>
+            )}
+            <CallStrip row={row} ledger={ledger} />
+          </span>
         </span>
         {change && <span className="mt-1 block text-caption text-ink-2">{change}</span>}
         {row.tracking && (
@@ -453,5 +456,27 @@ function orderRows(rows: PromiseRow[]) {
   const noFigure = (r: PromiseRow) => (/: (no figure|direction only)$/.test(r.title) ? 1 : 0);
   return [...rows].sort(
     (a, b) => ORDER.indexOf(a.latest) - ORDER.indexOf(b.latest) || (b.mentions ?? 1) - (a.mentions ?? 1) || noFigure(a) - noFigure(b),
+  );
+}
+
+/** The promise's path in four marks, oldest first: how it evolved, at a glance (the History matrix in a row).
+ *  An empty ring: not stated yet on that call. */
+function CallStrip({ row, ledger }: { row: PromiseRow; ledger: Ledger }) {
+  const cells = ledger.calls.map((c) => ({ label: c.label, cell: row.calls[c.label] }));
+  const said = cells.map(({ label, cell }) => `${label}: ${cell?.status ? STATUS[cell.status].word.toLowerCase() : "not stated"}`).join(", ");
+  return (
+    <span className="flex items-center gap-1" role="img" aria-label={`Call by call: ${said}`}>
+      {cells.map(({ label, cell }) =>
+        cell?.status ? (
+          <span key={label} aria-hidden className="w-3 text-center text-caption leading-none" style={{ color: STATUS[cell.status].color }}>
+            {STATUS[cell.status].g}
+          </span>
+        ) : (
+          <span key={label} aria-hidden className="flex w-3 justify-center">
+            <span className="size-1.5 rounded-full border border-rule" />
+          </span>
+        ),
+      )}
+    </span>
   );
 }

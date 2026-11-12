@@ -32,11 +32,19 @@ export function EditionCard({
     <article className={`relative ${compact ? "py-3.5" : "py-5"}`} aria-labelledby={`h-${card.id}`}>
       <CardMeta kind={card.kind} symbol={card.symbol} at={card.at} refTime={refTime} lead={card.tier === "lead"} overCard />
 
-      <h2 id={`h-${card.id}`} className={`mt-2 font-serif text-ink ${compact ? "text-subhead" : "text-headline"}`}>
-        <Link href={`/card/${card.id}`} className="card-link decoration-rule underline-offset-4 hover:underline">
-          {card.headline ?? <PendingHeadline card={card} />}
-        </Link>
-      </h2>
+      <div className={compact && isMove && history ? "flex items-center justify-between gap-3" : undefined}>
+        <h2 id={`h-${card.id}`} className={`mt-2 font-serif text-ink ${compact ? "text-subhead" : "text-headline"}`}>
+          <Link href={`/card/${card.id}`} className="card-link decoration-rule underline-offset-4 hover:underline">
+            {card.headline ?? <PendingHeadline card={card} />}
+          </Link>
+        </h2>
+        {/* a compact move keeps its word-sized chart, as in the alerts box */}
+        {compact && isMove && history && (
+          <span className="mt-2 shrink-0 max-[359px]:hidden">
+            <MoveSpark rows={history} day={card.at.slice(0, 10)} width={60} label={`${card.symbol}: price over the last 20 sessions and each day's volume`} />
+          </span>
+        )}
+      </div>
 
       {!compact && (
         <>
@@ -76,24 +84,50 @@ export function EditionCard({
   );
 }
 
-/** Results: label over figure in three columns, "YoY" at the right; the sign carries direction. */
+/**
+ * Results: is growth turning into profit? Each metric's change from a year ago as a bar from one shared
+ * zero line (all three are % changes, so one scale is honest), the figure beside it. Revenue +11.7% against
+ * PAT −50.0% reads at a glance. Bars past ±60% are capped and notched, never stretched off the scale.
+ */
 function Figures({ r }: { r: ResultsFacts }) {
   const c = r.comparatives!;
   const items: [string, number | null | undefined][] = c.is_bank
     ? [["NII", c.yoy?.nii], ["Op. profit", c.yoy?.ppop], ["PAT", c.yoy?.pat]]
     : [["Revenue", c.yoy?.revenue], ...(c.is_lender ? [] : [["EBITDA", c.yoy?.ebitda] as [string, number | null | undefined]]), ["PAT", c.yoy?.pat]];
-  const shown = items.filter(([, v]) => v != null);
+  const shown = items.filter((x): x is [string, number] => x[1] != null);
   if (!shown.length) return null;
+  const CAP = 60;
+  const top = Math.min(CAP, Math.max(10, ...shown.map(([, v]) => Math.abs(v))));
+  // one shared zero: in the middle when signs differ, at the edge when they all agree (no half-empty track)
+  const allUp = shown.every(([, v]) => v >= 0), allDown = shown.every(([, v]) => v <= 0);
+  const zero = allUp ? 0 : allDown ? 100 : 50;
+  const span = allUp || allDown ? 100 : 50;
   return (
-    <dl className="mt-3 grid max-w-[22rem] gap-x-4" style={{ gridTemplateColumns: `repeat(${shown.length}, minmax(0, 1fr)) auto` }}>
-      {shown.map(([label, v]) => (
-        <div key={label} className="min-w-0">
-          <dt className="truncate text-caption text-ink-3">{label}</dt>
-          <dd className={`num text-small font-medium ${dirClass(v)}`}>{pct(v)}</dd>
-        </div>
-      ))}
-      <div className="self-end text-caption text-ink-3">YoY</div>
-    </dl>
+    <figure className="mt-3 max-w-[24rem]">
+      <ul className="space-y-1">
+        {shown.map(([label, v]) => {
+          const w = (Math.min(Math.abs(v), top) / top) * span;
+          const capped = Math.abs(v) > top;
+          return (
+            <li key={label} className="grid grid-cols-[4.5rem_1fr_3.75rem] items-center gap-2">
+              <span className="truncate text-caption text-ink-3">{label}</span>
+              <span className="relative h-3" aria-hidden>
+                <span className="absolute inset-y-0 w-px bg-ink-3" style={{ left: `${zero}%` }} />
+                <span
+                  className={`absolute top-0.5 bottom-0.5 rounded-[2px] ${v >= 0 ? "bg-up/75" : "bg-down/75"}`}
+                  style={v >= 0 ? { left: `${zero}%`, width: `${w}%` } : { right: `${100 - zero}%`, width: `${w}%` }}
+                />
+                {capped && (
+                  <span className={`absolute top-0 bottom-0 w-0.5 bg-paper ${v >= 0 ? "right-[3%]" : "left-[3%]"}`} title="Beyond the scale shown" />
+                )}
+              </span>
+              <span className={`num text-right text-small font-medium ${dirClass(v)}`}>{pct(v)}</span>
+            </li>
+          );
+        })}
+      </ul>
+      <figcaption className="mt-0.5 pl-[5rem] text-label text-ink-3">Change from a year ago, one scale{shown.some(([, v]) => Math.abs(v) > top) ? `; bars capped at ±${top}%` : ""}</figcaption>
+    </figure>
   );
 }
 

@@ -5,12 +5,13 @@ import { Dock } from "@/components/Dock";
 import { Suspense } from "react";
 import { getLedger, getRequest, getUniverse, getView } from "@/lib/data";
 import { RequestButton } from "./RequestButton";
-import { dirClass, pct, price as fmtPrice, when } from "@/lib/format";
+import { day, dirClass, pct, price as fmtPrice, when } from "@/lib/format";
 import { SectionNav } from "@/components/SectionNav";
 import { EditionCard } from "@/components/EditionCard";
 import { PromisesLedger } from "@/components/PromisesLedger";
 import { ResultsTable } from "@/components/ResultsTable";
 import { ResultsVisual } from "@/components/ResultsVisual";
+import { MoveSpark } from "@/components/MoveSpark";
 import { NetworkLine } from "@/components/NetworkLine";
 import { FollowedQuestions } from "@/components/FollowedQuestions";
 import { fromPromise, promiseHref, resultsQuestion } from "@/lib/investigate";
@@ -102,8 +103,15 @@ async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] 
               <span className={`num font-medium ${dirClass(price.change_pct)}`}>{pct(price.change_pct)}</span>
             </p>
             <p className="text-caption text-ink-3">
-              Close on <span className="num">{when(price.day + "T15:30:00", snap.data_until)}</span>
+              Close on <span className="num">{day(price.day + "T15:30:00", snap.data_until)}</span>
             </p>
+            {/* how it has traded lately: the same word-sized chart as the alerts, to the latest session */}
+            {snap.price_history?.[symbol] && (
+              <div className="mt-2 flex items-end gap-3">
+                <MoveSpark rows={snap.price_history[symbol]} day={price.day} width={150} height={40} label={`${symbol}: price over the last 20 sessions and each day's volume`} />
+                <span className="pb-0.5 text-caption text-ink-3">Last 20 sessions; bars are volume</span>
+              </div>
+            )}
           </div>
         )}
       </header>

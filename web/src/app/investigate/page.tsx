@@ -5,7 +5,8 @@ import { BackLink } from "@/components/BackLink";
 import { Dock } from "@/components/Dock";
 import { InvestigateFlow, Step, type FlowPerson } from "@/components/InvestigateFlow";
 import { ResultsVisual } from "@/components/ResultsVisual";
-import { PriceVolumeChart, type Marker } from "@/components/PriceVolumeChart";
+import { PriceVolumeChart } from "@/components/PriceVolumeChart";
+import { filingMarkers } from "@/lib/markers";
 import { PromiseReplay } from "@/components/PromiseReplay";
 import { pathFor } from "@/components/RelationPath";
 import { SourceChips } from "@/components/SourceChips";
@@ -95,20 +96,7 @@ async function Investigate({ searchParams }: { searchParams: PageProps<"/investi
     const rows = snap.price_history?.[theCard.symbol] ?? [];
     const alertDay = theCard.at.slice(0, 10);
     if (rows.length >= 5 && rows.some((r) => r.d === alertDay)) {
-      const days = rows.map((r) => r.d);
-      const ed = snap.editions["30d"];
-      const filings = [
-        ...[...ed.leads, ...ed.more].filter((c) => c.symbol === theCard.symbol && c.kind !== "move").map((c) => ({ at: c.at, title: c.headline ?? c.nse_subject, href: `/card/${c.id}`, external: false })),
-        ...(ed.routine_items ?? []).filter((it) => it.symbol === theCard.symbol).map((it) => ({ at: it.at, title: it.label, href: it.link ?? `/c/${theCard.symbol}`, external: !!it.link })),
-      ];
-      const markers: Marker[] = filings.flatMap((f) => {
-        const d = f.at.slice(0, 10), hm = f.at.slice(11, 16);
-        // a filing on a non-trading day belongs to the next session (it was public before that session opened)
-        const onDay = days.includes(d) ? d : days.find((x) => x > d);
-        if (!onDay) return [];
-        const label = `${new Date(`${d}T12:00:00+05:30`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Kolkata" })}, ${hm}`;
-        return [{ d: onDay, time: label, afterClose: onDay === d && hm > "15:30", title: f.title, href: f.href, external: f.external }];
-      });
+      const markers = filingMarkers(snap, theCard.symbol, rows.map((r) => r.d));
       moveChart = <PriceVolumeChart rows={rows} alertDay={alertDay} markers={markers} symbol={theCard.symbol} />;
     } else {
       // only this session is known: say so, never draw a guessed line

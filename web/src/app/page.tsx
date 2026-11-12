@@ -184,7 +184,7 @@ function Panel({ k, ed, alerts, prefs, until, networkDown, history }: { k: strin
           <SectionSummary label="Worth a look" count={ed.more.length} />
           <div className="hair">
             {ed.more.map((c) => (
-              <EditionCard key={c.id} card={c} refTime={until} compact />
+              <EditionCard key={c.id} card={c} refTime={until} compact history={c.kind === "move" ? history?.[c.symbol] : undefined} />
             ))}
           </div>
         </details>

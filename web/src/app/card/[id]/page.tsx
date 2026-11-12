@@ -13,6 +13,9 @@ import { CardMeta } from "@/components/CardMeta";
 import { NetworkLine } from "@/components/NetworkLine";
 import type { NetworkLine as NetworkLineT } from "@/lib/types";
 import { ResultsTable } from "@/components/ResultsTable";
+import { ResultsVisual } from "@/components/ResultsVisual";
+import { PriceVolumeChart } from "@/components/PriceVolumeChart";
+import { filingMarkers } from "@/lib/markers";
 import { SourceChips } from "@/components/SourceChips";
 
 // Mirrors worker/src/finn_worker/cards.py so the explanation matches the ranking exactly.
@@ -49,6 +52,7 @@ async function Detail({ params }: { params: PageProps<"/card/[id]">["params"] })
   }
   const weight = snap.portfolio.find((h) => h.symbol === card.symbol)?.weight ?? 0;
   const inv = fromCard(card, snap, await getLedger(card.symbol));
+  const moveRows = card.kind === "move" ? snap.price_history?.[card.symbol] : undefined;
   const ageH = (new Date(snap.data_until).getTime() - new Date(card.at).getTime()) / 3_600_000;
   const people = (card.facts.people as { name: string; change: string; role: string; effective?: string | null; orgs: { org: string; start?: string; end?: string }[]; schools: string[] }[] | undefined) ?? [];
 
@@ -59,7 +63,16 @@ async function Detail({ params }: { params: PageProps<"/card/[id]">["params"] })
       <h1 className="mt-2.5 font-serif text-title">{card.headline ?? `${card.company}: ${card.nse_subject}`}</h1>
       <p className="mt-0.5 text-small text-ink-3">{card.company.replace(/ Limited$/, "")}</p>
       {card.why && <p className="mt-3 text-body text-ink-2">{card.why}</p>}
-      {card.facts.results && <ResultsTable r={card.facts.results} />}
+      {card.facts.results && (
+        <>
+          {/* the picture, then the exact table (same chart as the company page) */}
+          <ResultsVisual r={card.facts.results} />
+          <ResultsTable r={card.facts.results} />
+        </>
+      )}
+      {card.kind === "move" && moveRows && moveRows.some((r) => r.d === card.at.slice(0, 10)) && (
+        <PriceVolumeChart rows={moveRows} alertDay={card.at.slice(0, 10)} markers={filingMarkers(snap, card.symbol, moveRows.map((r) => r.d))} symbol={card.symbol} />
+      )}
 
       {/* the question this raises, and the way into it (creative review: Investigate) */}
       <section className="mt-8 rounded-xl bg-tint px-4 py-4" aria-labelledby="q-h">
