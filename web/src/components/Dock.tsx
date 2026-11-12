@@ -6,6 +6,12 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { Edition } from "@/lib/types";
 
 type Person = { id: string; name: string; why: string };
+
+/** "who knows TCS" -> "TCS": the phrasings the network search actually supports, stated as such. */
+export function searchTerm(q: string): { term: string; asked: boolean } {
+  const m = q.trim().match(/^(?:who|anyone|someone|people|experts?)\b.*?\b(?:knows?|at|in|on|from|about|worked at|works at|studied at)\s+(.+?)\??$/i);
+  return m ? { term: m[1].trim(), asked: true } : { term: q.trim(), asked: false };
+}
 const canSpeakNow = () => typeof window !== "undefined" && "speechSynthesis" in window;
 
 /**
@@ -13,16 +19,18 @@ const canSpeakNow = () => typeof window !== "undefined" && "speechSynthesis" in 
  * aloud with the browser's own speech engine -- no cost, no network), and the
  * "What counts" settings. Chat is the escape hatch, not the front door.
  */
-export function Dock({ edition }: { edition?: Edition }) {
+export function Dock({ edition, alerts = 0 }: { edition?: Edition; alerts?: number }) {
   const router = useRouter();
   const [q, setQ] = useState("");
   // results remember the query they answer, so Enter never acts on a stale, shorter query
-  const [res, setRes] = useState<{ q: string; companies: [string, string][]; people: Person[] }>({ q: "", companies: [], people: [] });
+  const [res, setRes] = useState<{ q: string; companies: [string, string][]; people: Person[]; failed?: boolean }>({ q: "", companies: [], people: [] });
   const [speaking, setSpeaking] = useState(false);
   const canSpeak = useSyncExternalStore(() => () => {}, canSpeakNow, () => false);
   const utter = useRef<SpeechSynthesisUtterance | null>(null);
-  const query = q.trim();
-  const current = query.length >= 2 && res.q === query ? res : { q: query, companies: [], people: [] };
+  const { term: query, asked } = searchTerm(q);
+  const ready = query.length >= 2 && res.q === query;
+  const current = ready ? res : { q: query, companies: [] as [string, string][], people: [] as Person[], failed: false };
+  const [note, setNote] = useState("");
 
   useEffect(() => () => window.speechSynthesis?.cancel(), []);
 
@@ -32,11 +40,13 @@ export function Dock({ edition }: { edition?: Edition }) {
     const t = setTimeout(() => {
       const enc = encodeURIComponent(query);
       Promise.all([
-        fetch(`/api/search?q=${enc}`, { signal: ctl.signal }).then((r) => r.json()),
+        fetch(`/api/search?q=${enc}`, { signal: ctl.signal }).then((r) => (r.ok ? r.json() : Promise.reject(r.status))),
         fetch(`/api/network?q=${enc}`, { signal: ctl.signal }).then((r) => (r.ok ? r.json() : [])),
       ])
         .then(([companies, people]) => setRes({ q: query, companies, people }))
-        .catch(() => {});
+        .catch((e) => {
+          if (e?.name !== "AbortError") setRes({ q: query, companies: [], people: [], failed: true });
+        });
     }, 150);
     return () => {
       clearTimeout(t);
@@ -52,7 +62,10 @@ export function Dock({ edition }: { edition?: Edition }) {
       return;
     }
     const lines = [
-      edition.leads.length ? `${edition.leads.length} things matter.` : "Nothing material in this window.",
+      edition.leads.length
+        ? `${edition.leads.length} ${edition.leads.length === 1 ? "thing matters" : "things matter"}.`
+        : "No single item leads this window.",
+      alerts ? `${alerts} price or volume rule ${alerts === 1 ? "match" : "matches"} at the close.` : "",
       ...edition.leads.map((c) => `${spoken(c.company)}. ${c.headline ?? c.nse_subject}. ${c.why ?? ""}`),
       edition.more.length ? `${edition.more.length} more worth a look, and ${edition.routine_total} routine filings folded.` : "",
       "End of edition.",
@@ -68,15 +81,19 @@ export function Dock({ edition }: { edition?: Edition }) {
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    const typed = query.toUpperCase().replace(/[^A-Z0-9&-]/g, "");
+    setNote("");
+    // only a single ticker-shaped word is ever opened as a ticker; a sentence never is (audit F11)
+    const tickerish = /^[A-Za-z0-9&-]{1,20}$/.test(query);
+    const typed = query.toUpperCase();
     const exact = current.companies.find(([s]) => s === typed)?.[0];
-    if (exact || (typed && !current.companies.length && !current.people.length)) {
-      router.push(`/c/${encodeURIComponent(exact ?? typed)}`);
-    } else if (current.companies[0]) {
-      router.push(`/c/${encodeURIComponent(current.companies[0][0])}`);
-    } else if (current.people[0]) {
-      router.push(`/people/${current.people[0].id}`);
-    }
+    if (asked && current.people[0]) router.push(`/people/${current.people[0].id}`);
+    else if (exact) router.push(`/c/${encodeURIComponent(exact)}`);
+    else if (current.people[0] && !current.companies.length) router.push(`/people/${current.people[0].id}`);
+    else if (current.companies[0] && !current.people.length) router.push(`/c/${encodeURIComponent(current.companies[0][0])}`);
+    else if (current.companies.length || current.people.length) setNote("Pick one of the matches above.");
+    else if (tickerish && !ready) setNote("Still searching…");
+    else if (tickerish) router.push(`/c/${encodeURIComponent(typed)}`);   // the company page says if it isn't listed
+    else setNote("No match. Try a company name or ticker, a person, or a theme like “specialty chemicals”.");
   }
 
   return (
@@ -116,6 +133,8 @@ export function Dock({ edition }: { edition?: Edition }) {
             )}
           </div>
         )}
+        {note && <p role="status" className="mb-1 text-[0.8125rem] text-ink-2">{note}</p>}
+        {current.failed && <p role="status" className="mb-1 text-[0.8125rem] text-ink-2">Search is unavailable right now.</p>}
         <form onSubmit={submit} role="search">
           <label htmlFor="ask" className="sr-only">
             Research any NSE company or search your network
@@ -123,8 +142,17 @@ export function Dock({ edition }: { edition?: Edition }) {
           <input
             id="ask"
             value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="A company, or ask your network: “specialty chemicals”"
+            onChange={(e) => {
+              setQ(e.target.value);
+              setNote("");
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                setQ("");
+                setNote("");
+              }
+            }}
+            placeholder="Company, person or theme"
             autoCapitalize="characters"
             autoCorrect="off"
             spellCheck={false}
@@ -134,7 +162,7 @@ export function Dock({ edition }: { edition?: Edition }) {
         <div className="mt-1.5 flex items-center justify-between text-[0.8125rem]">
           {canSpeak && edition ? (
             <button type="button" onClick={brief} className="min-h-[44px] text-ink-2 hover:text-ink" aria-pressed={speaking}>
-              {speaking ? "■ Stop" : "▶ Brief me · 60s"}
+              {speaking ? "■ Stop" : "▶ Listen to brief"}
             </button>
           ) : (
             <span />

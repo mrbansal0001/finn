@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Dock } from "@/components/Dock";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { getView } from "@/lib/data";
+import { findCard, getView } from "@/lib/data";
 import { KIND_LABEL, when } from "@/lib/format";
 import { NetworkLine } from "@/components/NetworkLine";
 import type { NetworkLine as NetworkLineT } from "@/lib/types";
@@ -27,8 +27,7 @@ export default function CardPage({ params }: PageProps<"/card/[id]">) {
 async function Detail({ params }: { params: PageProps<"/card/[id]">["params"] }) {
   const { id } = await params;
   const snap = await getView();
-  const ed = snap.editions["30d"];
-  const card = [...ed.leads, ...ed.more].find((c) => c.id === id);
+  const card = findCard(snap, id);
   if (!card) notFound();
   const weight = snap.portfolio.find((h) => h.symbol === card.symbol)?.weight ?? 0;
   const ageH = (new Date(snap.data_until).getTime() - new Date(card.at).getTime()) / 3_600_000;
@@ -63,7 +62,7 @@ async function Detail({ params }: { params: PageProps<"/card/[id]">["params"] })
               {p.schools.length > 0 && <p className="text-[0.8125rem] text-ink-3">{p.schools.join(" · ")}</p>}
             </div>
           ))}
-          <p className="mt-1 text-[0.875rem] text-ink-2">{overlapLine(card.network, people, snap.contacts.length)}</p>
+          <p className="mt-1 text-[0.875rem] text-ink-2">{overlapLine(card.network, people, snap.contacts.length, snap.network_status)}</p>
         </section>
       )}
 
@@ -76,7 +75,7 @@ async function Detail({ params }: { params: PageProps<"/card/[id]">["params"] })
             </p>
           )}
           {card.network.map((l) => (
-            <NetworkLine key={l.contact_id} line={l} asOf={snap.data_until} />
+            <NetworkLine key={l.contact_id} line={l} asOf={snap.data_until} from={card.id} />
           ))}
         </section>
       )}
@@ -89,28 +88,55 @@ async function Detail({ params }: { params: PageProps<"/card/[id]">["params"] })
       )}
 
       <section className="mt-8">
-        <h2 className="kicker border-b border-ink pb-2">Why this ranked here</h2>
-        <dl className="mt-2 grid grid-cols-[1fr_auto] gap-y-1 text-[0.875rem]">
-          <dt className="text-ink-2">Tier: {card.tier}</dt><dd className="num text-right">+{TIER_WEIGHT[card.tier]}</dd>
-          <dt className="text-ink-2">Event type: {KIND_LABEL[card.kind] ?? card.kind}</dt><dd className="num text-right">+{KIND_WEIGHT[card.kind] ?? 10}</dd>
-          <dt className="text-ink-2">Holding weight: {weight}% × 4</dt><dd className="num text-right">+{4 * weight}</dd>
-          <dt className="text-ink-2">Age: {Math.round(ageH)} h × 0.15</dt><dd className="num text-right">−{Math.round(Math.min(ageH, 720) * 0.15)}</dd>
-        </dl>
-        <p className="mt-2 text-[0.75rem] text-ink-3">
-          NSE category: &ldquo;{card.nse_subject || "price/volume threshold"}&rdquo;. Tiers come from SEBI LODR Reg 30
-          materiality (people, deals, legal: lead) and your settings in What counts.
-        </p>
+        <h2 className="kicker border-b border-ink pb-2">Why this is here</h2>
+        <ul className="mt-2 list-disc pl-5 text-[0.875rem] text-ink-2">
+          {reasons(card, weight, ageH).map((r) => (
+            <li key={r}>{r}</li>
+          ))}
+        </ul>
+        <details className="mt-2 text-[0.75rem] text-ink-3">
+          <summary className="inline-flex min-h-[44px] items-center">How the order is computed</summary>
+          <dl className="grid grid-cols-[1fr_auto] gap-y-1">
+            <dt>Tier: {card.tier}</dt><dd className="num text-right">+{TIER_WEIGHT[card.tier]}</dd>
+            <dt>Event type: {KIND_LABEL[card.kind] ?? card.kind}</dt><dd className="num text-right">+{KIND_WEIGHT[card.kind] ?? 10}</dd>
+            <dt>Holding weight: {weight}% × 4</dt><dd className="num text-right">+{4 * weight}</dd>
+            <dt>Age: {Math.round(ageH)} h × 0.15</dt><dd className="num text-right">−{Math.round(Math.min(ageH, 720) * 0.15)}</dd>
+          </dl>
+          <p className="mt-1">
+            NSE category: &ldquo;{card.nse_subject || "price/volume threshold"}&rdquo;. Tiers follow SEBI LODR Reg 30
+            materiality (people, deals, legal lead) and your settings in What counts.
+          </p>
+        </details>
       </section>
       <Dock />
     </main>
   );
 }
 
+/** Plain reasons first; the arithmetic sits under "How the order is computed". */
+function reasons(card: { kind: string; tier: string; facts: Record<string, unknown> }, weight: number, ageH: number): string[] {
+  const out: string[] = [];
+  const f = card.facts as { matched?: string[]; other_sessions?: number; explained_by?: string | null };
+  if (card.kind === "move") {
+    if (f.matched?.length) out.push(`Meets your rule: ${f.matched.join(" and ")}`);
+    if (f.other_sessions) out.push(`${f.other_sessions} more session${f.other_sessions === 1 ? "" : "s"} matched in this window`);
+    if (f.explained_by) out.push("A filing came before it, so it does not lead on its own");
+  } else {
+    out.push(card.tier === "lead" ? `${KIND_LABEL[card.kind] ?? "Filing"}: a lead-tier event` : `${KIND_LABEL[card.kind] ?? "Filing"}`);
+  }
+  if (weight) out.push(`${weight}% of the portfolio`);
+  out.push(ageH < 24 ? "Filed in the last day" : `${Math.round(ageH / 24)} day${Math.round(ageH / 24) === 1 ? "" : "s"} old`);
+  return out;
+}
+
 /** Answer the brief's question for people cards, from the visitor's own lines: has anyone in my network
- *  worked with them, studied with them, or sits one connection away? Says "no" plainly when that's the answer. */
-function overlapLine(lines: NetworkLineT[], people: { name: string }[], checked: number): string {
-  const person = lines.find((l) => l.confidence === "dates overlap" || /alumnus|same person|while .* was there/.test(l.relation));
+ *  worked at the same place at the same time, studied at the same school, or sits one connection away?
+ *  A shared employer with overlapping dates is not proof two people know each other, and a network that
+ *  failed to load is not "no one" (audit F11). */
+function overlapLine(lines: NetworkLineT[], people: { name: string }[], checked: number, status?: string): string {
   const names = people.slice(0, 2).map((p) => p.name).join(" and ");
+  if (status === "unavailable") return `Your network didn't load, so FINN can't say whether anyone overlapped with ${names}. Reload to check.`;
+  const person = lines.find((l) => l.confidence === "dates overlap" || /alumnus|same person|while .* was there/.test(l.relation));
   if (person) return `${person.name} ${person.relation}${person.via ? `, reachable through ${person.via}` : ""}.`;
-  return `No one in your network has worked or studied with ${names}${checked ? ` (checked ${checked} contacts' employers, schools and dates)` : ""}; the people below know the company.`;
+  return `No verified overlap with ${names}: none of your ${checked || ""} contacts' employers, schools and dates match what the filing states${people.length > 2 ? " for the first two named" : ""}. The people below know the company.`;
 }

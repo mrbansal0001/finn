@@ -14,7 +14,7 @@ export function NoteDraft({ name, company, topic, kind, role }: { name: string; 
           : `${co} filed something I'm trying to read properly: ${topic}.`;
   const why = role ? `You'd know the context better than most, from your time as ${role}.` : "I'd value your read on it.";
   const [text, setText] = useState(`Hi ${first}, ${what} ${why} Could we speak for 15 minutes this week?`);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<"" | "ok" | "failed">("");
   return (
     <div className="mt-4">
       <label htmlFor="note" className="text-[0.75rem] text-ink-3">
@@ -30,14 +30,22 @@ export function NoteDraft({ name, company, topic, kind, role }: { name: string; 
       <button
         type="button"
         onClick={async () => {
-          await navigator.clipboard?.writeText(text);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1500);
+          try {
+            if (!navigator.clipboard) throw new Error("no clipboard");
+            await navigator.clipboard.writeText(text);
+            setCopied("ok");
+          } catch {
+            setCopied("failed");                 // say so; never claim a copy that didn't happen
+          }
+          setTimeout(() => setCopied(""), 2500);
         }}
         className="mt-1 min-h-[40px] rounded-md bg-ink px-4 text-[0.875rem] text-paper"
       >
-        {copied ? "Copied" : "Copy"}
+        {copied === "ok" ? "Copied" : "Copy"}
       </button>
+      <span role="status" className="ml-2 text-[0.75rem] text-ink-3">
+        {copied === "failed" ? "Couldn't copy here; select the text instead." : ""}
+      </span>
     </div>
   );
 }

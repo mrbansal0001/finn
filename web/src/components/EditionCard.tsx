@@ -41,7 +41,7 @@ export function EditionCard({ card, refTime, compact = false }: { card: Card; re
         <p className="mt-1.5 text-[0.8125rem] italic text-ink-3">FINN reads the full filing on its next run.</p>
       )}
 
-      {card.network?.length > 0 && <NetworkLine line={card.network[0]} compact={compact} asOf={refTime} />}
+      {card.network?.length > 0 && <NetworkLine line={card.network[0]} compact={compact} asOf={refTime} from={card.id} />}
 
       {!compact && card.sources.length > 0 && <SourceChips sources={card.sources} />}
     </article>

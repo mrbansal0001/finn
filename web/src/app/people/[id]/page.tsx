@@ -2,20 +2,20 @@ import Link from "next/link";
 import { Dock } from "@/components/Dock";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { getView } from "@/lib/data";
+import { findCard, getView } from "@/lib/data";
 import type { Contact } from "@/lib/types";
 import { NoteDraft } from "@/components/NoteDraft";
 
-export default function PersonPage({ params }: PageProps<"/people/[id]">) {
+export default function PersonPage({ params, searchParams }: PageProps<"/people/[id]">) {
   return (
     <Suspense fallback={<main aria-busy="true" className="pt-12 text-[0.8125rem] text-ink-3">Opening…</main>}>
-      <Person params={params} />
+      <Person params={params} searchParams={searchParams} />
     </Suspense>
   );
 }
 
-async function Person({ params }: { params: PageProps<"/people/[id]">["params"] }) {
-  const { id } = await params;
+async function Person({ params, searchParams }: { params: PageProps<"/people/[id]">["params"]; searchParams: PageProps<"/people/[id]">["searchParams"] }) {
+  const [{ id }, sp] = await Promise.all([params, searchParams]);
   const snap = await getView();
   const c = snap.contacts.find((x) => x.id === id);
   if (!c) notFound();
@@ -27,6 +27,13 @@ async function Person({ params }: { params: PageProps<"/people/[id]">["params"] 
     .filter((card) => card.network?.some((l) => l.contact_id === c.id))
     // items with a real headline first; bare NSE subjects last
     .sort((a, b) => Number(!!b.headline) - Number(!!a.headline) || b.at.localeCompare(a.at));
+  // the item that brought the visitor here leads, so the draft is about it, not the latest card
+  const origin = typeof sp.from === "string" ? findCard(snap, sp.from) : undefined;
+  if (origin) {
+    const i = cards.findIndex((x) => x.id === origin.id);
+    if (i >= 0) cards.splice(i, 1);
+    cards.unshift(origin);
+  }
 
   return (
     <main>
@@ -51,7 +58,7 @@ async function Person({ params }: { params: PageProps<"/people/[id]">["params"] 
           <Part k="Your rating" v={`${c.rating}/5`} w={s.rating} />
         </dl>
         <p className="mt-2 text-[0.75rem] text-ink-3">
-          0.35 × recency + 0.25 × frequency + 0.15 × reciprocity + 0.15 × rating + 0.10 × shared background ={" "}
+          0.40 × recency + 0.25 × frequency + 0.20 × reciprocity + 0.15 × rating ={" "}
           <span className="num">{s.total.toFixed(2)}</span>
         </p>
       </section>
@@ -141,12 +148,12 @@ function Part({ k, v, w }: { k: string; v: string; w: number }) {
 
 function strengthParts(c: Contact, today: Date) {
   const days = c.last_contact ? daysAgo(c.last_contact, today) : 3650;
-  const recency = 0.35 * Math.exp(-Math.max(days, 0) / 180);
+  // mirrors worker network.strength (no "shared background" term: there is no investor profile to share one with)
+  const recency = 0.4 * Math.exp(-Math.max(days, 0) / 180);
   const frequency = 0.25 * Math.min(1, Math.log1p(c.interactions_12m) / Math.log1p(24));
-  const reciprocity = 0.15 * c.reciprocity;
+  const reciprocity = 0.2 * c.reciprocity;
   const rating = 0.15 * (c.rating / 5);
-  const shared = c.education.length ? 0.1 : 0;
-  return { recency, frequency, reciprocity, rating, shared, total: recency + frequency + reciprocity + rating + shared };
+  return { recency, frequency, reciprocity, rating, total: recency + frequency + reciprocity + rating };
 }
 
 const label = (s: number) => (s >= 0.6 ? "strong" : s >= 0.4 ? "medium" : "weak");

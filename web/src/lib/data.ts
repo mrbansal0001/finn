@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { cacheLife } from "next/cache";
 import { connection } from "next/server";
-import type { Contact, Ledger, NetworkLine, Snapshot } from "./types";
+import type { Card, Contact, Ledger, NetworkLine, Snapshot } from "./types";
 import { SUPABASE_KEY, SUPABASE_URL, supabaseEnabled } from "./supabase/config";
 import { supabaseForRequest } from "./supabase/server";
 
@@ -50,7 +50,7 @@ export async function getLedger(symbol: string): Promise<Ledger | null> {
   }
 }
 
-type PrivateNetwork = { lines: Record<string, NetworkLine[]>; contacts: Contact[] };
+type PrivateNetwork = { ok: boolean; lines: Record<string, NetworkLine[]>; contacts: Contact[] };
 
 /** The visitor's own network (never cached across users). Null in local mode. */
 export async function getNetwork(): Promise<PrivateNetwork | null> {
@@ -62,6 +62,8 @@ export async function getNetwork(): Promise<PrivateNetwork | null> {
     sb.from("contacts").select("id, name, profile, interactions_12m, last_contact, reciprocity, rating"),
   ]);
   return {
+    // a failed read is "unavailable", never "you know nobody" (audit F11)
+    ok: !lines.error && !contacts.error,
     lines: Object.fromEntries((lines.data ?? []).map((r) => [r.card_id as string, r.lines as NetworkLine[]])),
     contacts: (contacts.data ?? []).map((c) => ({
       id: c.id, name: c.name, ...(c.profile as object), interactions_12m: c.interactions_12m,
@@ -72,8 +74,9 @@ export async function getNetwork(): Promise<PrivateNetwork | null> {
 
 /** Merge the visitor's network into the public snapshot. Local mode: already merged. */
 export function withNetwork(snap: Snapshot, net: PrivateNetwork | null): Snapshot {
-  if (!net) return snap;
+  if (!net) return withMoveLines({ ...snap, network_status: "local" });
   const s = structuredClone(snap);
+  s.network_status = net.ok && net.contacts.length ? "ready" : "unavailable";
   for (const ed of Object.values(s.editions)) {
     for (const c of [...ed.leads, ...ed.more]) c.network = net.lines[c.id] ?? [];
   }
@@ -84,7 +87,24 @@ export function withNetwork(snap: Snapshot, net: PrivateNetwork | null): Snapsho
     else if (k.startsWith("verify:")) s.verifiers[k.slice(7)] = v[0];
   }
   s.contacts = net.contacts;
-  return s;
+  return withMoveLines(s);
+}
+
+/** Move cards carry the company's own "who knows this company" lines (no per-card private rows). */
+function withMoveLines(s: Snapshot): Snapshot {
+  const move_cards = (s.move_cards ?? []).map((c) => ({ ...c, network: (s.people[c.symbol] ?? []).slice(0, 3) }));
+  return { ...s, move_cards };
+}
+
+/** Any card by its id: every window's edition, then the move registry (audit F01: a 24-hour card need
+ *  not exist in the 30-day edition). */
+export function findCard(s: Snapshot, id: string): Card | undefined {
+  for (const w of ["24h", "3d", "7d", "30d"] as const) {
+    const ed = s.editions[w];
+    const c = [...ed.leads, ...ed.more].find((x) => x.id === id);
+    if (c) return c;
+  }
+  return (s.move_cards ?? []).find((x) => x.id === id);
 }
 
 export async function getView(): Promise<Snapshot> {

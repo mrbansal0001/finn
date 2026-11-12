@@ -12,6 +12,7 @@ export type NetworkLine = {
   last_contact: string | null; // ISO date
   confidence: "certain" | "dates overlap" | "same organisation" | "second degree";
   via?: string | null;
+  via_context?: string | null;   // how the introducer knows them (the edge's own context)
   insider?: boolean;
   best_reason?: string;  // why the first person is the one to call (worker, from the evidence)
 };
@@ -48,6 +49,7 @@ export type ResultsFacts = {
     is_bank?: boolean;
     is_lender?: boolean;
     net_of_excise?: boolean;
+    checks?: string[];      // the identities that actually ran on this table (worker results.check)
   };
 };
 
@@ -88,6 +90,10 @@ export type Snapshot = {
   research_set: string[];
   names: Record<string, string>;
   editions: Record<WindowKey, Edition>;
+  // every price/volume session over the lowest allowed thresholds; the app keeps those meeting the visitor's rules
+  move_cards?: Card[];
+  freshness?: { filings_until: string; price_session: string | null; price_sessions: number };
+  network_status?: "ready" | "unavailable" | "local";
   results: Record<string, ResultsFacts>;
   prices: Record<string, { close: number; change_pct: number; volume_multiple: number; day: string }>;
   people: Record<string, NetworkLine[]>;
@@ -101,7 +107,9 @@ export type WindowKey = "24h" | "3d" | "7d" | "30d";
 
 export type PromiseStatus = "delivered" | "partly" | "missed" | "silent" | "revised" | "early" | "conflict" | "closed";
 
-export type LedgerCell = { status: PromiseStatus | null; note?: string; missed_then_reset?: boolean };
+export type Evidence = { quote: string; page: number; url?: string | null; call?: string | null; speaker?: string | null; period?: string | null };
+
+export type LedgerCell = { status: PromiseStatus | null; note?: string; missed_then_reset?: boolean; evidence?: Evidence };
 
 export type PromiseRow = {
   id: string;

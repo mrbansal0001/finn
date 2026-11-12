@@ -78,13 +78,26 @@ export function ResultsTable({ r }: { r: ResultsFacts }) {
         {" · "}
         {r.check === "xbrl_exact" && !c
           ? "exact from XBRL; QoQ/YoY appear once the comparison table is read"
-          : r.check === "xbrl_match"
-            ? "table checked against XBRL"
-            : r.check === "arithmetic_ok"
-              ? "columns and totals reconciled (half year = two quarters)"
-              : r.check}
+          : c?.checks?.length
+            ? `checked: ${c.checks.join("; ")}`
+            : r.check === "xbrl_match"
+              ? "table checked against the exchange XBRL"
+              : "totals checked against the filing"}
         {c?.net_of_excise ? " · revenue net of excise duty" : ""}
-        {isBank || isLender ? "" : " · EBITDA = PBT before exceptional + finance costs + D&A − other income"}
+        {r.source_url && (
+          <>
+            {" · "}
+            <a href={r.source_url} target="_blank" rel="noopener noreferrer" className="text-accent">
+              {r.source === "xbrl" ? "exchange XBRL" : `results PDF${/#page=(\d+)/.test(r.source_url) ? ` p.${r.source_url.match(/#page=(\d+)/)![1]}` : ""}`} ↗
+            </a>
+          </>
+        )}
+        {!(isBank || isLender) && (
+          <details className="mt-1">
+            <summary className="inline-flex min-h-[32px] items-center">How EBITDA is computed</summary>
+            EBITDA = PBT before exceptional items + finance costs + depreciation − other income.
+          </details>
+        )}
       </figcaption>
     </figure>
   );

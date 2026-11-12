@@ -7,7 +7,10 @@ import type { Contact } from "@/lib/types";
  * Deterministic matching over the visitor's own contacts (row-level security; nothing goes to a model).
  */
 export async function GET(request: Request) {
-  const q = (new URL(request.url).searchParams.get("q") ?? "").trim().toLowerCase().slice(0, 60);
+  // "who knows TCS" / "anyone at Bosch" -> the name; the supported phrasings are deliberately few
+  const raw = (new URL(request.url).searchParams.get("q") ?? "").trim().slice(0, 80);
+  const asked = raw.match(/^(?:who|anyone|someone|people|experts?)\b.*?\b(?:knows?|at|in|on|from|about|worked at|works at|studied at)\s+(.+?)\??$/i);
+  const q = (asked ? asked[1] : raw).trim().toLowerCase().slice(0, 60);
   if (q.length < 2) return Response.json([]);
   const view = await getView();
   const out = view.contacts

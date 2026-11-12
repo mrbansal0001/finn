@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { cookies } from "next/headers";
-import { applyPrefs, parsePrefs, PREFS_COOKIE } from "@/lib/prefs";
+import { alertsFor, applyPrefs, parsePrefs, PREFS_COOKIE, type Alert, type Prefs } from "@/lib/prefs";
 import { getView } from "@/lib/data";
 import type { WindowKey } from "@/lib/types";
 import { longDate, when } from "@/lib/format";
@@ -17,7 +17,7 @@ const WINDOWS: { key: WindowKey; label: string }[] = [
   { key: "30d", label: "30 days" },
 ];
 
-const LEAD_COUNT_WORDS = ["Nothing material", "One thing matters", "Two things matter", "Three things matter", "Four things matter", "Five things matter"];
+const LEAD_COUNT_WORDS = ["No lead story", "One thing matters", "Two things matter", "Three things matter", "Four things matter", "Five things matter"];
 
 export default function EditionPage({ searchParams }: PageProps<"/">) {
   return (
@@ -43,8 +43,10 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
   // the brief: "by default the last 24 hours, but let me pick the period"
   const w = (sinceVisit ? "30d" : (WINDOWS.find((x) => x.key === sp.w)?.key ?? "24h")) as WindowKey;
   const base = sinceVisit ? sinceEdition(snap.editions["30d"], sinceVisit) : snap.editions[w];
-  const ed = applyPrefs(structuredClone(base), prefs);
+  const moveCards = snap.move_cards ?? [];
+  const ed = applyPrefs(structuredClone(base), prefs, moveCards);
   const until = snap.data_until;
+  const alerts = moveCards.length ? alertsFor(moveCards, ed.since, ed.until, prefs) : legacyAlerts(ed, prefs);
 
   return (
     <main>
@@ -76,14 +78,14 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
         ))}
       </nav>
 
-      {snap.contacts.length === 0 && (
+      {snap.network_status === "unavailable" && (
         <p className="mt-4 rounded-md border border-rule px-3 py-2 text-[0.8125rem] text-ink-2">
           Your private demo network didn&apos;t load just now (too many new visitors at once, or cookies blocked). Reload in a
           minute; filings and numbers are unaffected.
         </p>
       )}
 
-      <Alerts edition={ed} prefs={prefs} />
+      <Alerts hits={alerts} prefs={prefs} />
 
       <section aria-labelledby="leads" className="mt-6">
         <h2 id="leads" className="kicker border-b border-ink pb-2 text-ink">
@@ -92,8 +94,10 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
         {ed.leads.length === 0 ? (
           <p className="py-6 font-serif text-[1.25rem] leading-snug">
             {ed.more.length > 0
-              ? `Nothing rises to a lead in this window. ${ed.more.length} worth a look below.`
-              : `Quiet window. ${ed.routine_total} routine filing${ed.routine_total === 1 ? "" : "s"}, nothing material.`}
+              ? `No single item leads this window. ${ed.more.length} update${ed.more.length === 1 ? "" : "s"} worth reviewing below${alerts.length ? `, and ${alerts.length} rule match${alerts.length === 1 ? "" : "es"} above` : ""}.`
+              : alerts.length
+                ? `No filing stands out; ${alerts.length} price/volume rule match${alerts.length === 1 ? "" : "es"} above.`
+                : `Quiet window. ${ed.routine_total} routine filing${ed.routine_total === 1 ? "" : "s"}, nothing else.`}
             {w !== "30d" && (
               <Link href={`/?w=${w === "24h" ? "3d" : w === "3d" ? "7d" : "30d"}`} className="mt-2 block font-sans text-[0.875rem] text-accent">
                 Widen the window ›
@@ -146,54 +150,63 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
 
       <p className="mt-10 text-center font-serif text-[0.9375rem] italic text-ink-3">· end of edition ·</p>
       <p className="mt-2 text-center text-[0.75rem] text-ink-3">
-        Data to <span className="num">{when(until)}</span> IST · NSE filings and bhavcopy
+        Filings to <span className="num">{when(snap.freshness?.filings_until ?? until)}</span> IST
+        {snap.freshness?.price_session && (
+          <>
+            {" "}· prices to the <span className="num">{shortDay(snap.freshness.price_session)}</span> close
+          </>
+        )}
+        {" "}· NSE filings and bhavcopy
       </p>
 
-      <Dock edition={ed} />
+      <Dock edition={ed} alerts={alerts.length} />
     </main>
   );
 }
 
-/** Threshold crossings in this window, by the investor's own rules: the "triggered alerts" half of Push,
- *  shown apart from the ranked digest so it's clear which rule fired. */
-function Alerts({ edition, prefs }: { edition: Edition; prefs: ReturnType<typeof parsePrefs> }) {
-  const hits = [...edition.leads, ...edition.more]
-    .filter((c) => c.kind === "move")
-    .map((c) => {
-      const f = c.facts as { change_pct?: number; volume_multiple?: number };
-      const pct = f.change_pct ?? 0;
-      const vol = f.volume_multiple ?? 0;
-      const rules = [
-        Math.abs(pct) >= prefs.price_pct ? `${pct >= 0 ? "▲" : "▼"}${Math.abs(pct).toFixed(1)}%` : null,
-        vol >= prefs.volume_x ? `${vol.toFixed(1)}× volume` : null,
-      ].filter(Boolean);
-      return { c, rules };
-    })
-    .filter((x) => x.rules.length > 0)
-    .sort((a, b) => Math.abs((b.c.facts as { change_pct?: number }).change_pct ?? 0) - Math.abs((a.c.facts as { change_pct?: number }).change_pct ?? 0));
+/** Threshold crossings in this window, by the investor's own rules: every matching session, each opening its
+ *  own card. In-app only; nothing is sent to a phone or inbox. */
+function Alerts({ hits, prefs }: { hits: Alert[]; prefs: Prefs }) {
   if (!hits.length) return null;
+  const row = ({ card, rules }: Alert) => (
+    <li key={card.id} className="flex min-h-[44px] items-center justify-between gap-2 border-t border-rule first:border-t-0">
+      <Link href={`/card/${card.id}`} className="inline-flex min-h-[44px] items-center gap-2 text-ink">
+        {card.symbol}
+        <span className="num text-[0.75rem] text-ink-3">{shortDay(card.at)}</span>
+      </Link>
+      <span className="num text-ink-2">{rules.join(" · ")}</span>
+    </li>
+  );
   return (
     <section aria-labelledby="alerts" className="mt-5 rounded-md border border-rule px-3 py-2">
       <h2 id="alerts" className="flex items-baseline justify-between text-[0.75rem] uppercase tracking-wider text-ink-3">
         <span>
-          {hits.length} alert{hits.length === 1 ? "" : "s"}
+          {hits.length} rule match{hits.length === 1 ? "" : "es"} · at the close
         </span>
         <Link href="/settings" className="normal-case tracking-normal text-accent">
           your rules: ±{prefs.price_pct}% · {prefs.volume_x}× volume ›
         </Link>
       </h2>
-      <ul className="mt-1 text-[0.875rem]">
-        {hits.slice(0, 5).map(({ c, rules }) => (
-          <li key={c.id} className="flex min-h-[36px] items-center justify-between gap-2 border-t border-rule first:border-t-0">
-            <Link href={`/card/${c.id}`} className="text-ink">
-              {c.symbol}
-            </Link>
-            <span className="num text-ink-2">{rules.join(" · ")}</span>
-          </li>
-        ))}
-      </ul>
+      <ul className="mt-1 text-[0.875rem]">{hits.slice(0, 5).map(row)}</ul>
+      {hits.length > 5 && (
+        <details className="group">
+          <summary className="flex min-h-[44px] items-center text-[0.8125rem] text-accent">
+            View all {hits.length}
+          </summary>
+          <ul className="text-[0.875rem]">{hits.slice(5).map(row)}</ul>
+        </details>
+      )}
     </section>
   );
+}
+
+/** Snapshots exported before the move registry: alerts from the edition's own move cards. */
+function legacyAlerts(ed: Edition, prefs: Prefs): Alert[] {
+  return alertsFor([...ed.leads, ...ed.more].filter((c) => c.kind === "move"), ed.since, ed.until, prefs);
+}
+
+function shortDay(s: string): string {
+  return new Date(`${s.slice(0, 10)}T12:00:00+05:30`).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "Asia/Kolkata" });
 }
 
 /** Cards newer than the data the visitor last saw (from the 30-day edition). `since` is the data_until of

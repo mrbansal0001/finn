@@ -53,35 +53,13 @@ export function PromisesLedger({ ledger: built, verifiers = {} }: { ledger: Ledg
       <h2 id="promises" className="kicker border-b border-ink pb-2">
         Promised vs delivered · last 4 calls
       </h2>
-
-      {built.reference && (
-        <div className="mt-3">
-          <div className="flex gap-1 text-[0.8125rem]" role="tablist" aria-label="Which ledger">
-            {(
-              [
-                ["built", "Built by FINN"],
-                ["reference", "Hand-checked reference"],
-              ] as const
-            ).map(([k, label]) => (
-              <button
-                key={k}
-                role="tab"
-                aria-selected={source === k}
-                onClick={() => {
-                  setSource(k);
-                  setOpen(null);
-                }}
-                className={`min-h-[44px] rounded-full border border-rule px-3 ${source === k ? "bg-ink text-paper" : "text-ink-2"}`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          <p className="mt-1.5 text-[0.75rem] leading-snug text-ink-3">
-            The reference was labelled by hand from the same transcripts and is what the pipeline is graded on: it finds
-            about 80% of the hand-labelled promises, and every quote it shows is checked against its page.
-          </p>
-        </div>
+      {source === "reference" && (
+        <p className="mt-2 rounded-sm border border-rule px-2 py-1 text-[0.75rem] text-ink-2">
+          Showing the hand-checked reference, not FINN&apos;s own ledger.{" "}
+          <button onClick={() => setSource("built")} className="min-h-[32px] text-accent">
+            Back to FINN&apos;s
+          </button>
+        </p>
       )}
 
       <p className="mt-3 text-[0.875rem] text-ink-2">
@@ -98,17 +76,16 @@ export function PromisesLedger({ ledger: built, verifiers = {} }: { ledger: Ledg
           ))}
       </p>
 
-      <div className="mt-3 flex gap-1 text-[0.8125rem]" role="tablist" aria-label="Which promises">
+      <div className="mt-3 flex gap-1 text-[0.8125rem]" role="group" aria-label="Which promises">
         {(
           [
-            ["slipped", `Slipped or reset (${slipped.length})`],
+            ["slipped", `Needs attention (${slipped.length})`],
             ["all", `All ${ledger.rows.length}`],
           ] as const
         ).map(([k, label]) => (
           <button
             key={k}
-            role="tab"
-            aria-selected={filter === k}
+            aria-pressed={filter === k}
             onClick={() => setFilter(k)}
             className={`min-h-[44px] rounded-full px-3 ${filter === k ? "bg-ink text-paper" : "text-ink-2"}`}
           >
@@ -148,6 +125,37 @@ export function PromisesLedger({ ledger: built, verifiers = {} }: { ledger: Ledg
         </button>
       )}
 
+      {built.reference && (
+        <details className="mt-4 border-t border-rule pt-1">
+          <summary className="inline-flex min-h-[44px] items-center text-[0.8125rem] text-ink-2">
+            Methodology: compare with the hand-checked reference
+          </summary>
+          <div className="flex gap-1 text-[0.8125rem]" role="group" aria-label="Which ledger">
+            {(
+              [
+                ["built", "Built by FINN"],
+                ["reference", "Hand-checked reference"],
+              ] as const
+            ).map(([k, label]) => (
+              <button
+                key={k}
+                aria-pressed={source === k}
+                onClick={() => {
+                  setSource(k);
+                  setOpen(null);
+                }}
+                className={`min-h-[44px] rounded-full border border-rule px-3 ${source === k ? "bg-ink text-paper" : "text-ink-2"}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1.5 text-[0.75rem] leading-snug text-ink-3">
+            The reference was labelled by hand from the same transcripts and is what the pipeline is graded on. The
+            ledger above is what FINN builds on its own; switching shows the reference in its place.
+          </p>
+        </details>
+      )}
       <p className="mt-3 text-[0.75rem] leading-snug text-ink-3">{ledger.provenance}</p>
     </section>
   );
@@ -236,6 +244,23 @@ function Detail({ row, ledger, verifier }: { row: PromiseRow; ledger: Ledger; ve
         })}
       </ol>
       {row.latest_quote && <Quote label={`Latest · ${row.latest_quote.call}`} q={row.latest_quote} />}
+      {ledger.calls.map((c) => {
+        const ev = row.calls[c.label]?.evidence;
+        if (!ev) return null;
+        // the outcome side of the comparison, with its own source (audit F03)
+        return (
+          <div key={`ev-${c.label}`}>
+            <Quote
+              label={`Outcome stated · ${ev.call ?? c.label}${ev.speaker ? `, ${ev.speaker}` : ""}${ev.period ? ` · for ${ev.period}` : ""}`}
+              q={{ text: ev.quote, page: ev.page, url: ev.url ?? undefined }}
+            />
+            <p className="mt-1 text-[0.75rem] text-ink-3">
+              Compared only because both sides match: same metric and period, comparable units, a company speaker, and a
+              later call than the promise. This is what management said, not a filed figure.
+            </p>
+          </div>
+        );
+      })}
       {row.verdict && <p className="mt-2 text-ink-2">{row.verdict}</p>}
       {row.tracking && (
         <p className="mt-2 text-ink-2">
@@ -280,8 +305,12 @@ function countLatest(rows: PromiseRow[]) {
   return c;
 }
 
+/** Worth the investor's attention: changed, dropped, settled, or with a filed quarter to compare. */
 function isSlipped(r: PromiseRow) {
-  return Object.values(r.calls).some((c) => c.status && ["missed", "revised", "silent", "partly", "conflict"].includes(c.status));
+  return (
+    !!r.tracking ||
+    Object.values(r.calls).some((c) => c.evidence || (c.status && ["missed", "revised", "silent", "partly", "conflict", "delivered"].includes(c.status)))
+  );
 }
 
 const ORDER: PromiseStatus[] = ["missed", "revised", "conflict", "silent", "partly", "closed", "early", "delivered"];

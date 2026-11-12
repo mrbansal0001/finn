@@ -59,7 +59,12 @@ async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] 
   const name = snap.names[symbol] ?? listed[1];
   const price = snap.prices[symbol];
   const results = snap.results[symbol];
-  const all = [...snap.editions["30d"].leads, ...snap.editions["30d"].more].filter((c) => c.symbol === symbol);
+  // filings plus the sessions that moved at least 2% or 1.5x volume (the full list sits in the move registry)
+  const moves = (snap.move_cards ?? []).filter((c) => {
+    const f = c.facts as { change_pct?: number; volume_multiple?: number };
+    return c.symbol === symbol && (Math.abs(f.change_pct ?? 0) >= 2 || (f.volume_multiple ?? 0) >= 1.5);
+  });
+  const all = [...snap.editions["30d"].leads, ...snap.editions["30d"].more, ...moves].filter((c) => c.symbol === symbol);
   const filings = all.sort((a, b) => b.at.localeCompare(a.at));
 
   return (

@@ -43,29 +43,69 @@ export function parsePrefs(raw: string | undefined): Prefs {
 
 const clamp = (v: number, lo: number, hi: number) => (Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : lo);
 
-/** Re-rank an edition with the investor's thresholds. Pure; runs on the server. */
-export function applyPrefs(ed: Edition, prefs: Prefs): Edition {
-  const all = [...ed.leads, ...ed.more];
+// one settings toggle covers every category it names (audit F05: "Dividends & splits" also mutes bonus/split)
+const KIND_ALIASES: Record<string, string[]> = { dividend: ["dividend", "bonus_split"], insider_trading: ["insider_trading", "pledging"] };
+const TIER_WEIGHT: Record<string, number> = { lead: 300, notable: 200, routine: 0 };
+
+export type Alert = { card: Card; rules: string[] };
+
+/** The sessions that meet the investor's own rules inside the window, newest first. Every one has its own card. */
+export function alertsFor(moveCards: Card[], since: string, until: string, prefs: Prefs): Alert[] {
+  const t0 = ist(since), t1 = ist(until);
+  const out: Alert[] = [];
+  for (const c of moveCards) {
+    const t = ist(c.at);
+    if (!(t > t0 && t <= t1)) continue;
+    const f = c.facts as { change_pct?: number; volume_multiple?: number };
+    const pct = f.change_pct ?? 0, vol = f.volume_multiple ?? 0;
+    const rules = [
+      Math.abs(pct) >= prefs.price_pct ? `${pct >= 0 ? "▲" : "▼"}${Math.abs(pct).toFixed(1)}%` : null,
+      vol >= prefs.volume_x ? `${vol.toFixed(1)}× volume` : null,
+    ].filter((x): x is string => x !== null);
+    if (rules.length) out.push({ card: c, rules });
+  }
+  return out.sort((a, b) => b.card.at.localeCompare(a.card.at) || b.card.score - a.card.score);
+}
+
+/** Re-rank an edition with the investor's thresholds. Pure; runs on the server.
+ *  Rules are applied to every qualifying session first, then grouped: one move card per company (its most
+ *  important matching session), with the others counted -- never the other way round (audit F05). */
+export function applyPrefs(ed: Edition, prefs: Prefs, moveCards: Card[] = []): Edition {
+  const muted = new Set(prefs.muted.flatMap((k) => KIND_ALIASES[k] ?? [k]));
+  const hits = alertsFor(moveCards, ed.since, ed.until, prefs);
+  const bySymbol = new Map<string, Alert[]>();
+  for (const h of hits) bySymbol.set(h.card.symbol, [...(bySymbol.get(h.card.symbol) ?? []), h]);
+  const moves: Card[] = [];
+  for (const group of bySymbol.values()) {
+    const priceHit = (h: Alert) => Math.abs((h.card.facts as { change_pct?: number }).change_pct ?? 0) >= prefs.price_pct;
+    const rank = (h: Alert) => (priceHit(h) ? 1000 : 0) + Math.abs((h.card.facts as { change_pct?: number }).change_pct ?? 0)
+      + ((h.card.facts as { volume_multiple?: number }).volume_multiple ?? 0) / 10;
+    const best = [...group].sort((a, b) => rank(b) - rank(a))[0];
+    const c: Card = structuredClone(best.card);
+    const explained = (c.facts as { explained_by?: string | null }).explained_by;
+    const tier = priceHit(best) && !explained ? "lead" : "notable";
+    c.score = c.score - TIER_WEIGHT[c.tier] + TIER_WEIGHT[tier];   // the score follows the re-tiering
+    c.tier = tier;
+    c.facts = { ...c.facts, matched: best.rules, other_sessions: group.length - 1 };
+    moves.push(c);
+  }
+  // editions exported before the move registry still carry their own move cards
+  const legacy = moveCards.length ? [] : [...ed.leads, ...ed.more].filter((c) => c.kind === "move");
   let folded = 0;
   const kept: Card[] = [];
-  for (const c of all) {
-    if (c.kind === "move") {
-      const f = c.facts as { change_pct?: number; volume_multiple?: number; explained_by?: string | null };
-      const priceHit = Math.abs(f.change_pct ?? 0) >= prefs.price_pct;
-      const volHit = (f.volume_multiple ?? 0) >= prefs.volume_x;
-      if (!priceHit && !volHit) continue; // below the investor's own bar: not news
-      // an explained move is already told on its filing's card; only an unexplained one leads
-      c.tier = priceHit && !f.explained_by ? "lead" : "notable";
-    }
-    if (prefs.muted.includes(c.kind)) {
+  for (const c of [...ed.leads, ...ed.more].filter((c) => c.kind !== "move").concat(moves, legacy)) {
+    if (muted.has(c.kind)) {
       folded++;
       continue;
     }
     kept.push(c);
   }
-  kept.sort((a, b) => b.score - a.score || (a.tier === "lead" ? -1 : 1));
+  kept.sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
   const leads = kept.filter((c) => c.tier === "lead").slice(0, prefs.leads);
   const more = kept.filter((c) => !leads.includes(c));
   const routine: [string, number][] = folded ? [...ed.routine, ["Muted by you", folded]] : ed.routine;
   return { ...ed, leads, more, routine, routine_total: ed.routine_total + folded };
 }
+
+/** Export timestamps carry no offset and are IST. */
+export const ist = (s: string) => Date.parse(/[+Z]/.test(s.slice(10)) ? s : `${s}+05:30`);
