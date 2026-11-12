@@ -9,10 +9,10 @@ export function RequestButton({ symbol }: { symbol: string }) {
   return (
     <form action={action} className="mt-4">
       <input type="hidden" name="symbol" value={symbol} />
-      <button type="submit" disabled={pending} className="min-h-[44px] rounded-md bg-ink px-4 text-[0.9375rem] text-paper disabled:opacity-60">
+      <button type="submit" disabled={pending} className="min-h-[44px] rounded-md bg-ink px-4 text-body text-paper disabled:opacity-60">
         {pending ? "Requesting…" : "Build this ledger"}
       </button>
-      <p className="mt-2 text-[0.8125rem] text-ink-3" role="status">
+      <p className="mt-2 text-small text-ink-3" role="status">
         {state?.message ??
           "Not covered yet. Built from the last four transcripts only, on the research worker's next run."}
       </p>

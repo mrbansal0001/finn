@@ -42,10 +42,10 @@ export function ResultsTable({ r }: { r: ResultsFacts }) {
 
   return (
     <figure className="mt-3">
-      <table className="w-full text-[0.875rem]">
+      <table className="w-full text-small">
         <caption className="sr-only">Results {fyQuarter(r.period_end)}</caption>
         <thead>
-          <tr className="text-[0.6875rem] uppercase tracking-wider text-ink-3">
+          <tr className="text-meta uppercase tracking-wider text-ink-3">
             <th className="pb-1 text-left font-medium">{fyQuarter(r.period_end)}</th>
             <th className="pb-1 text-right font-medium" />
             <th className="pb-1 text-right font-medium">YoY</th>
@@ -55,49 +55,54 @@ export function ResultsTable({ r }: { r: ResultsFacts }) {
         <tbody>
           {rows.map((row) => (
             <tr key={row.label} className="border-t border-rule">
-              <td className="py-1 text-ink-2">{row.label}</td>
-              <td className="num py-1 text-right text-ink">{row.value}</td>
+              <td className="py-1.5 text-ink-2">{row.label}</td>
+              <td className="num py-1.5 text-right text-ink">{row.value}</td>
               <Delta v={row.yoy} pending={!c} />
               <Delta v={row.qoq} pending={!c} />
             </tr>
           ))}
           {margin != null && (
             <tr className="border-t border-rule">
-              <td className="py-1 text-ink-2">EBITDA m.</td>
-              <td className="num py-1 text-right">{margin.toFixed(1)}%</td>
-              <td className={`num py-1 text-right ${dirClass(c?.yoy?.ebitda_margin_bp)}`}>{bp(c?.yoy?.ebitda_margin_bp)}</td>
-              <td className={`num py-1 text-right ${dirClass(c?.qoq?.ebitda_margin_bp)}`}>{bp(c?.qoq?.ebitda_margin_bp)}</td>
+              <td className="py-1.5 text-ink-2">EBITDA margin</td>
+              <td className="num py-1.5 text-right">{margin.toFixed(1)}%</td>
+              <td className={`num py-1.5 text-right ${dirClass(c?.yoy?.ebitda_margin_bp)}`}>{bp(c?.yoy?.ebitda_margin_bp)}</td>
+              <td className={`num py-1.5 text-right ${dirClass(c?.qoq?.ebitda_margin_bp)}`}>{bp(c?.qoq?.ebitda_margin_bp)}</td>
             </tr>
           )}
         </tbody>
       </table>
-      <figcaption className="mt-1.5 text-[0.75rem] leading-snug text-ink-3">
-        {r.nature}
-        {r.reporting === "Half Yearly" ? " · half-yearly reporter, no QoQ" : ""}
-        {exceptionalLabel ? ` · includes exceptional item ${exceptionalLabel}` : ""}
-        {" · "}
-        {r.check === "xbrl_exact" && !c
-          ? "exact from XBRL; QoQ/YoY appear once the comparison table is read"
-          : c?.checks?.length
-            ? `checked: ${c.checks.join("; ")}`
-            : r.check === "xbrl_match"
-              ? "table checked against the exchange XBRL"
-              : "totals checked against the filing"}
-        {c?.net_of_excise ? " · revenue net of excise duty" : ""}
-        {r.source_url && (
-          <>
-            {" · "}
-            <a href={r.source_url} target="_blank" rel="noopener noreferrer" className="text-accent">
-              {r.source === "xbrl" ? "exchange XBRL" : `results PDF${/#page=(\d+)/.test(r.source_url) ? ` p.${r.source_url.match(/#page=(\d+)/)![1]}` : ""}`} ↗
-            </a>
-          </>
-        )}
-        {!(isBank || isLender) && (
-          <details className="mt-1">
-            <summary className="inline-flex min-h-[32px] items-center">How EBITDA is computed</summary>
-            EBITDA = PBT before exceptional items + finance costs + depreciation − other income.
-          </details>
-        )}
+      <figcaption className="mt-2 text-meta text-ink-3">
+        <p>
+          {r.nature}
+          {r.reporting === "Half Yearly" ? " · half-yearly reporter, no QoQ" : ""}
+          {exceptionalLabel ? ` · includes a ${exceptionalLabel} exceptional item` : ""}
+          {c?.net_of_excise ? " · revenue net of excise" : ""}
+          {r.source_url && (
+            <>
+              {" · "}
+              <a href={r.source_url} target="_blank" rel="noopener noreferrer" className="tap text-accent">
+                {r.source === "xbrl" ? "exchange XBRL" : `results PDF${pageOf(r.source_url)}`} ↗
+              </a>
+            </>
+          )}
+        </p>
+        {/* one line says it was checked; the list of what ran is one tap away (audit F07) */}
+        <details className="mt-1">
+          <summary className="inline-flex min-h-[44px] items-center gap-1 text-ink-2">
+            <span aria-hidden className="text-up">✓</span>
+            {r.check === "xbrl_exact" && !c
+              ? "Exact from the exchange XBRL"
+              : `${c?.checks?.filter((x) => !x.startsWith("XBRL")).length ?? 0} checks passed${r.check === "xbrl_match" ? " · matches exchange XBRL" : ""}`}
+            <span aria-hidden className="text-ink-3">›</span>
+          </summary>
+          <ul className="mt-1 list-disc space-y-0.5 pl-4">
+            {(c?.checks ?? []).map((x) => (
+              <li key={x}>{x}</li>
+            ))}
+            {!(isBank || isLender) && <li>EBITDA = PBT before exceptional items + finance costs + depreciation − other income</li>}
+            {r.check === "xbrl_exact" && !c && <li>QoQ and YoY appear once the comparison table is read</li>}
+          </ul>
+        </details>
       </figcaption>
     </figure>
   );
@@ -108,9 +113,14 @@ function Delta({ v, pending }: { v?: number | null; pending: boolean }) {
   return (
     <td className={`num py-1 text-right ${dirClass(v)}`}>
       {pct(v)}
-      <span className="ml-0.5 text-[0.625rem]" aria-hidden>
+      <span className="ml-0.5 text-[0.7em]" aria-hidden>
         {arrow(v)}
       </span>
     </td>
   );
+}
+
+function pageOf(url: string): string {
+  const m = url.match(/#page=(\d+)/);
+  return m ? ` p.${m[1]}` : "";
 }

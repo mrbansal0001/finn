@@ -1,9 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Newsreader } from "next/font/google";
+import { Suspense, ViewTransition } from "react";
+import { Geist, Newsreader } from "next/font/google";
+import { NavTracker } from "@/components/BackLink";
 import "./globals.css";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
-const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
 const newsreader = Newsreader({ subsets: ["latin"], variable: "--font-newsreader", style: ["normal", "italic"] });
 
 export const metadata: Metadata = {
@@ -24,11 +25,15 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en-IN" className={`${geist.variable} ${geistMono.variable} ${newsreader.variable}`}>
+    <html lang="en-IN" className={`${geist.variable} ${newsreader.variable}`}>
       <body>
         {/* Phone-width column everywhere: the product is designed for one thumb. */}
-        <div className="mx-auto min-h-dvh max-w-[480px] px-4 pb-[calc(env(safe-area-inset-bottom)+8rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)]">
-          {children}
+        <Suspense fallback={null}>
+          <NavTracker />
+        </Suspense>
+        <div className="mx-auto min-h-dvh max-w-[480px] px-4 pb-[calc(env(safe-area-inset-bottom)+6rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)] md:max-w-[560px]">
+          {/* pages crossfade on navigation (160 ms; off under reduced motion) */}
+          <ViewTransition>{children}</ViewTransition>
         </div>
       </body>
     </html>
