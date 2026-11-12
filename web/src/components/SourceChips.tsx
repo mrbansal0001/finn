@@ -19,6 +19,7 @@ export function SourceChips({ sources }: { sources: Source[] }) {
           className="inline-flex min-h-[40px] items-center rounded-sm border border-rule px-3 text-meta text-ink-2 hover:border-ink-3 hover:text-ink"
         >
           {s.label}
+          {kind(s.url) ? <span className="ml-1 text-ink-3">· {kind(s.url)}</span> : null}
           {s.page ? <span className="num ml-1 text-ink-3">p.{s.page}</span> : null}
           <span aria-hidden className="ml-1 text-ink-3">↗</span>
         </a>
@@ -43,4 +44,12 @@ export function SourceChips({ sources }: { sources: Source[] }) {
       )}
     </div>
   );
+}
+
+/** Say what a link opens when it isn't a readable page: a ZIP downloads, XML is raw data. */
+function kind(url: string | null): string {
+  const u = (url ?? "").toLowerCase().split("#")[0];
+  if (u.endsWith(".zip")) return "ZIP download";
+  if (u.endsWith(".xml")) return "XML data";
+  return "";
 }

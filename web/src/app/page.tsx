@@ -180,7 +180,15 @@ function Alerts({ hits, prefs }: { hits: Alert[]; prefs: Prefs }) {
             <span className="num text-meta text-ink-3">{shortDay(card.at)}</span>
           </span>
           <span className="num flex shrink-0 items-baseline gap-3 text-small">
-            {price && <span className={pct >= 0 ? "text-up" : "text-down"}>{price}</span>}
+            {price ? (
+              <span className={pct >= 0 ? "text-up" : "text-down"}>{price}</span>
+            ) : (
+              // the day's price change, for context, when only the volume rule fired
+              <span className="text-ink-3">
+                {pct >= 0 ? "+" : "−"}
+                {Math.abs(pct).toFixed(1)}%
+              </span>
+            )}
             {vol && <span className="text-ink-2">{vol.replace(" volume", " vol")}</span>}
           </span>
         </Link>
@@ -237,18 +245,31 @@ function Routine({ ed, refTime }: { ed: Edition; refTime: string }) {
                 </summary>
                 <ul className="mb-2 border-l border-rule pl-3">
                   {mine
-                    ? mine.map((x, i) => (
-                        <li key={i} className="py-1.5 text-small">
-                          <span className="font-medium text-ink-2">{x.symbol}</span>{" "}
-                          <span className="text-ink-2">{x.subject}</span>{" "}
-                          <span className="num text-meta text-ink-3">{when(x.at, refTime)}</span>
-                          {x.link && (
-                            <a href={x.link} target="_blank" rel="noopener noreferrer" className="tap ml-1.5 text-meta text-accent">
-                              filing ↗
-                            </a>
-                          )}
-                        </li>
-                      ))
+                    ? mine.map((x, i) => {
+                        const xml = (x.link ?? "").toLowerCase().endsWith(".xml");
+                        return (
+                          <li key={i} className="py-2 text-small">
+                            <span className="font-medium text-ink-2">{x.symbol}</span>{" "}
+                            <span className="text-ink-2">{x.subject.replace(/-XBRL$/i, "")}</span>{" "}
+                            <span className="num text-meta text-ink-3">{when(x.at, refTime)}</span>
+                            {/* an XBRL-only filing has no PDF: say what it holds here, label the raw file honestly */}
+                            {xml && x.facts && x.facts.length > 0 && (
+                              <span className="mt-0.5 block text-meta text-ink-3">
+                                {x.facts
+                                  .filter(([k]) => !/^Purpose|^Stage/.test(k))
+                                  .slice(0, 5)
+                                  .map(([k, v]) => `${k}: ${v}`)
+                                  .join(" · ")}
+                              </span>
+                            )}
+                            {x.link && (
+                              <a href={x.link} target="_blank" rel="noopener noreferrer" className="tap ml-2 text-meta text-accent">
+                                {xml ? "XBRL data (XML) ↗" : "PDF ↗"}
+                              </a>
+                            )}
+                          </li>
+                        );
+                      })
                     : (ed.muted ?? []).map((c) => (
                         <li key={c.id} className="py-1.5 text-small">
                           <Link href={`/card/${c.id}`} className="text-ink-2 hover:text-ink">

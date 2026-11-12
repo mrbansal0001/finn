@@ -3,6 +3,8 @@ import { BackLink } from "@/components/BackLink";
 import { Dock } from "@/components/Dock";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { cookies } from "next/headers";
+import { parsePrefs, PREFS_COOKIE } from "@/lib/prefs";
 import { findCard, getView } from "@/lib/data";
 import { KIND_LABEL, when } from "@/lib/format";
 import { NetworkLine } from "@/components/NetworkLine";
@@ -27,9 +29,21 @@ export default function CardPage({ params }: PageProps<"/card/[id]">) {
 
 async function Detail({ params }: { params: PageProps<"/card/[id]">["params"] }) {
   const { id } = await params;
-  const snap = await getView();
-  const card = findCard(snap, id);
-  if (!card) notFound();
+  const [snap, jar] = await Promise.all([getView(), cookies()]);
+  const found = findCard(snap, id);
+  if (!found) notFound();
+  const card = found;
+  // a move opened from an alert says which of the visitor's own rules it met
+  if (card.kind === "move" && !(card.facts as { matched?: string[] }).matched) {
+    const prefs = parsePrefs(jar.get(PREFS_COOKIE)?.value);
+    const f = card.facts as { change_pct?: number; volume_multiple?: number };
+    const pct = f.change_pct ?? 0, vol = f.volume_multiple ?? 0;
+    const matched = [
+      Math.abs(pct) >= prefs.price_pct ? `a ${Math.abs(pct).toFixed(1)}% move (set at ±${prefs.price_pct}%)` : null,
+      vol >= prefs.volume_x ? `${vol.toFixed(1)}× volume (set at ${prefs.volume_x}×)` : null,
+    ].filter((x): x is string => x !== null);
+    card.facts = { ...card.facts, matched: matched.length ? matched : [`below your rules (±${prefs.price_pct}%, ${prefs.volume_x}×); listed on the company page`] };
+  }
   const weight = snap.portfolio.find((h) => h.symbol === card.symbol)?.weight ?? 0;
   const ageH = (new Date(snap.data_until).getTime() - new Date(card.at).getTime()) / 3_600_000;
   const people = (card.facts.people as { name: string; change: string; role: string; orgs: { org: string; start?: string; end?: string }[]; schools: string[] }[] | undefined) ?? [];
@@ -123,14 +137,17 @@ function reasons(card: { kind: string; tier: string; facts: Record<string, unkno
   const out: string[] = [];
   const f = card.facts as { matched?: string[]; other_sessions?: number; explained_by?: string | null };
   if (card.kind === "move") {
-    if (f.matched?.length) out.push(`Meets your rule: ${f.matched.join(" and ")}`);
+    if (f.matched?.length) out.push(f.matched[0].startsWith("below") ? `Price/volume ${f.matched[0]}` : `Meets your rule: ${f.matched.join(" and ")}`);
     if (f.other_sessions) out.push(`${f.other_sessions} more session${f.other_sessions === 1 ? "" : "s"} matched in this window`);
     if (f.explained_by) out.push("A filing came before it, so it does not lead on its own");
   } else {
     out.push(card.tier === "lead" ? `${KIND_LABEL[card.kind] ?? "Filing"}: a lead-tier event` : `${KIND_LABEL[card.kind] ?? "Filing"}`);
   }
   if (weight) out.push(`${weight}% of the portfolio`);
-  out.push(ageH < 24 ? "Filed in the last day" : `${Math.round(ageH / 24)} day${Math.round(ageH / 24) === 1 ? "" : "s"} old`);
+  const days = Math.round(ageH / 24);
+  out.push(card.kind === "move"
+    ? (ageH < 24 ? "The latest session" : `${days} day${days === 1 ? "" : "s"} ago`)
+    : (ageH < 24 ? "Filed in the last day" : `Filed ${days} day${days === 1 ? "" : "s"} ago`));
   return out;
 }
 

@@ -94,7 +94,8 @@ export function withNetwork(snap: Snapshot, net: PrivateNetwork | null): Snapsho
 
 /** Move cards carry the company's own "who knows this company" lines (no per-card private rows). */
 function withMoveLines(s: Snapshot): Snapshot {
-  const move_cards = (s.move_cards ?? []).map((c) => ({ ...c, network: (s.people[c.symbol] ?? []).slice(0, 3) }));
+  // never a current employee for a price move: asking an insider why a stock moved is where leaks happen (D-031)
+  const move_cards = (s.move_cards ?? []).map((c) => ({ ...c, network: (s.people[c.symbol] ?? []).filter((l) => !l.insider).slice(0, 3) }));
   return { ...s, move_cards };
 }
 

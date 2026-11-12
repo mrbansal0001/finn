@@ -81,7 +81,7 @@ export function ResultsTable({ r }: { r: ResultsFacts }) {
             <>
               {" · "}
               <a href={r.source_url} target="_blank" rel="noopener noreferrer" className="tap text-accent">
-                {r.source === "xbrl" ? "exchange XBRL" : `results PDF${pageOf(r.source_url)}`} ↗
+                {r.source === "xbrl" ? "exchange XBRL data (XML)" : `results PDF${pageOf(r.source_url)}`} ↗
               </a>
             </>
           )}
