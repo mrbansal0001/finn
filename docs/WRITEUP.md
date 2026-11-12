@@ -100,7 +100,7 @@ FINN has one point of view: **an investor should be briefed, not fed.** The Indi
   - Contacts come only from the investor's own consented imports (a LinkedIn `Connections.csv`, Google Contacts, a CRM), each source with its own scope and on/off switch.
   - Email and calendar would give metadata only, opt-in.
   - Access would be per user, with a team role only if the investor shares, and an audit log of every network view behind a share.
-- **Models.** Contact data never goes to a model: matching is deterministic and outreach notes come from templates. Filings that name people go only to a paid API that doesn't train on inputs, never to a free tier.
+- **Models.** Contact data never goes to a model: matching is deterministic and outreach notes come from templates. Filings are public documents and go to Gemini's free tier first, including those that name people (a deliberate choice for this demo; one setting, `FINN_PEOPLE_PAID_ONLY=1`, keeps them on the paid no-training API instead).
 - **Secrets.** The service key lives only on the worker; secrets live only in `.env`.
 - **DPDP.** The Rules were notified in Nov 2025, with their main obligations from about May 2027. The design already follows the essentials: purpose-limited consented sources, deletion by owner, and minimal processor exposure.
 
@@ -114,13 +114,13 @@ FINN is deliberately **not** an autonomous agent. Push and Pull are fixed pipeli
 
 Copy rules are enforced in code: a headline needs a verb and a fact, a "why" line without a number is dropped, and qualifiers like "up to" are kept.
 
-- **Models.** Gemini's light model (free tier) handles public documents. A stronger model was tested and was not better on my labelled set. OpenAI (paid, with a hard cap in code) is the fallback and handles anything naming people. Model names are discovered at runtime; identical requests are answered from a disk cache, so rebuilds are free and reproducible.
+- **Models.** Gemini's light model (free tier) handles public documents. A stronger model was tested and was not better on my labelled set. OpenAI (paid, with a hard cap in code) is used only when Gemini fails. Model names are discovered at runtime; identical requests are answered from a disk cache, so rebuilds are free and reproducible.
 - **Extraction, measured** against 84 statements I hand-labelled from 8 transcripts:
   - a single pass found 55%;
   - overlapping 6-page windows find 80%, at 61% strict precision;
   - half of the "false positives" were genuine commitments my labels had missed, so effective precision is near 80%.
 - **Linking.** Deterministic, with pairwise precision 0.88 / recall 0.70 on BEL and 0.75 / 0.67 on Deepak Nitrite. Model-assisted linking was noisier run to run, so it stays off. BEL's ledger shows the machine-built version by default, with the hand-checked reference one tap away.
-- **Cost.** $2.86 of paid model spend for the entire build as of 12 Nov, across 1,874 model calls: most of it reading filings that name people (which never go to the free tier) and the paid fallback while Gemini's free tier was overloaded during the pre-build. Rebuilding every ledger after a logic change costs nothing: identical requests come from the cache (37 ledgers rebuilt, 0 model calls). A ledger on the free tier costs $0; reading a filing that names people costs about $0.005, so a day of Push for 18 holdings costs cents.
+- **Cost.** $2.86 of paid model spend for the entire build as of 12 Nov, across 1,874 model calls: most of it the paid fallback while Gemini's free tier was overloaded during the pre-build, plus filings that named people, which went to the paid API until 12 Nov (now free tier first). Rebuilding every ledger after a logic change costs nothing: identical requests come from the cache (37 ledgers rebuilt, 0 model calls). A ledger on the free tier costs $0; reading a filing is free unless Gemini fails, when the fallback costs about $0.005, so a day of Push for 18 holdings costs at most cents.
 
 ## Cloud
 

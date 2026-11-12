@@ -50,7 +50,7 @@ Why a residential worker: NSE and BSE refuse or time out datacenter requests (me
 | Card links (third audit) | the SBI alert opened a missing card; now every move session has its own card: 145 live links checked, 0 broken | E31 |
 | Promise linking without a model | pairwise precision 0.88 / recall 0.70 (BEL), 0.75 / 0.67 (Deepak Nitrite); model-assisted linking was noisier, so it is off | `worker/evals/eval_linking.py`, E26 |
 | Row-level security, live against Supabase | 14/14: two visitors can't see each other's network; public data read-only (probed with a no-op write); no contact name in the public payload; visitors can't write private rows and can't see who requested coverage (migration 003) | `uv run python -m evals.rls_check` |
-| Model spend for the whole build | see the writeup; Gemini free tier $0, OpenAI ~$0.005 per filing that names people | `llm_calls` table |
+| Model spend for the whole build | see the writeup; Gemini free tier first for everything ($0); OpenAI ~$0.005 per call only when Gemini fails | `llm_calls` table |
 | Tests | 133 worker tests | `uv run pytest` |
 
 ## Run it

@@ -5,11 +5,13 @@
 
 Copy rules are enforced here in code, not hoped for in the prompt (research 03 §6.2):
 headline = verb + fact, no boilerplate openers; "why" is dropped unless it holds a number.
-Filings about named people go only to the paid, no-training API (personal_data=True).
+Every filing goes to the Gemini free tier first; OpenAI is only the fallback when Gemini fails (D-060).
+FINN_PEOPLE_PAID_ONLY=1 restores the stricter routing (filings naming people never on the free tier, D-030).
 """
 from __future__ import annotations
 
 import json
+import os
 import re
 
 from . import docs, llm, results, store, xbrl
@@ -87,9 +89,10 @@ def read_filing(f: dict) -> list[dict]:
     for p in pages:
         parts.append(llm.Part(text=f"[[page {p.number}]]\n{p.text}") if p.clean
                      else llm.Part(png=docs.page_png(f["link"], p.number)))
-    # anything that can name people (appointments inside board outcomes, press releases, legal orders)
-    # stays off the free tier; only clearly impersonal categories may use it (D-030)
-    personal = f["category"] not in ("capex", "credit_rating", "fund_raise", "dividend", "bonus_split")
+    # free tier first for every filing (D-060, owner's choice: this is a demo on public filings). With
+    # FINN_PEOPLE_PAID_ONLY=1, anything that can name people stays off the free tier again (D-030)
+    strict = os.getenv("FINN_PEOPLE_PAID_ONLY", "0") == "1"
+    personal = strict and f["category"] not in ("capex", "credit_rating", "fund_raise", "dividend", "bonus_split")
     out = llm.structured("read_filing", SYSTEM, parts, EVENT_SCHEMA, tier="fast", personal_data=personal)
     from .cards import scrub_event
     return [lint(scrub_event(e)) for e in out.get("events", []) if e.get("kind") != "routine"]

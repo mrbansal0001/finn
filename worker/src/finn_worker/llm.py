@@ -1,6 +1,6 @@
 """Provider-agnostic structured-output LLM calls (D-025).
 
-Primary: Google Gemini (free tier) for public documents only.
+Primary: Google Gemini (free tier) for every public document, filings that name people included (D-060).
 Fallback: OpenAI (paid, hard budget cap) when Gemini is rate-limited or fails.
 
 Rules enforced here, not left to callers:
@@ -8,7 +8,8 @@ Rules enforced here, not left to callers:
 - every call is logged (tokens, model, estimated cost) to the llm_calls table
 - OpenAI spend stops at OPENAI_BUDGET_USD
 - network/contact data must never be passed in (callers send public filings only);
-  anything that can name people goes with personal_data=True (paid, no-training API only)
+  a caller may still pass personal_data=True to keep a document off the free tier (reader does so only
+  when FINN_PEOPLE_PAID_ONLY=1)
 
 Model names are discovered from each provider's model list at runtime instead
 of being hard-coded, because free-tier model availability changes often.
@@ -177,9 +178,8 @@ def structured(purpose: str, system: str, parts: list[Part], schema: dict, tier:
                personal_data: bool = False) -> dict:
     """Run one structured extraction. Gemini first, OpenAI on failure (within budget).
 
-    personal_data=True (filings about named people, their bios) skips the Gemini free
-    tier, whose terms allow training on inputs and ask users not to send personal
-    information, and goes only to the paid API that does not train on inputs (D-025)."""
+    personal_data=True skips the Gemini free tier (whose terms allow training on inputs) and goes
+    only to the paid API. Off by default since D-060: everything tries the free tier first."""
     key = _cache_key(purpose, system, parts, schema, tier, personal_data)
     hit = _cache_get(key)
     if hit is not None:
