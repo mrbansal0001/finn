@@ -90,16 +90,21 @@ export function QuestionTrail() {
           return (
             <li key={q.id} className="border-t border-ink pt-3">
               <div className="flex items-center justify-between gap-2">
-                <Link href={`/c/${encodeURIComponent(q.symbol)}`} className="chip tap">
-                  {q.symbol}
-                </Link>
-                <div className="flex gap-1" role="group" aria-label="Status">
+                <span className="flex items-center gap-2">
+                  <Link href={`/c/${encodeURIComponent(q.symbol)}`} className="chip tap">
+                    {q.symbol}
+                  </Link>
+                  {/* how many you follow on this company, when more than one (layout plan §8) */}
+                  {shown.filter((x) => x.symbol === q.symbol).length > 1 && (
+                    <span className="text-caption text-ink-3">{shown.filter((x) => x.symbol === q.symbol).length} questions</span>
+                  )}
+                </span>
+                <div className="seg seg-sm" role="group" aria-label="Status">
                   {(["open", "answered"] as const).map((s) => (
                     <button
                       key={s}
                       aria-pressed={(q.status ?? "open") === s}
                       onClick={() => updateQuestion(q.id, { status: s })}
-                      className={`min-h-[36px] rounded-full px-3 text-caption ${(q.status ?? "open") === s ? "bg-ink font-medium text-paper" : "border border-rule text-ink-2"}`}
                     >
                       {s === "open" ? "Still open" : "Answered"}
                     </button>

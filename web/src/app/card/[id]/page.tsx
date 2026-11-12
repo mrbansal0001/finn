@@ -6,8 +6,7 @@ import { cookies } from "next/headers";
 import { parsePrefs, PREFS_COOKIE } from "@/lib/prefs";
 import { findCard, getLedger, getView } from "@/lib/data";
 import { fromCard } from "@/lib/investigate";
-import Link from "next/link";
-import { KIND_LABEL } from "@/lib/format";
+import { fyQuarter, KIND_LABEL } from "@/lib/format";
 import { changeWord } from "@/components/EditionCard";
 import { CardMeta } from "@/components/CardMeta";
 import { NetworkLine } from "@/components/NetworkLine";
@@ -17,6 +16,8 @@ import { ResultsVisual } from "@/components/ResultsVisual";
 import { PriceVolumeChart } from "@/components/PriceVolumeChart";
 import { filingMarkers } from "@/lib/markers";
 import { SourceChips } from "@/components/SourceChips";
+import { About, AboutPart } from "@/components/About";
+import { QuestionCard } from "@/components/QuestionCard";
 
 // Mirrors worker/src/finn_worker/cards.py so the explanation matches the ranking exactly.
 const TIER_WEIGHT: Record<string, number> = { lead: 300, notable: 200, routine: 0 };
@@ -53,6 +54,7 @@ async function Detail({ params }: { params: PageProps<"/card/[id]">["params"] })
   const weight = snap.portfolio.find((h) => h.symbol === card.symbol)?.weight ?? 0;
   const inv = fromCard(card, snap, await getLedger(card.symbol));
   const moveRows = card.kind === "move" ? snap.price_history?.[card.symbol] : undefined;
+  const moveChart = !!moveRows && moveRows.some((r) => r.d === card.at.slice(0, 10));
   const ageH = (new Date(snap.data_until).getTime() - new Date(card.at).getTime()) / 3_600_000;
   const people = (card.facts.people as { name: string; change: string; role: string; effective?: string | null; orgs: { org: string; start?: string; end?: string }[]; schools: string[] }[] | undefined) ?? [];
 
@@ -62,33 +64,18 @@ async function Detail({ params }: { params: PageProps<"/card/[id]">["params"] })
       <CardMeta kind={card.kind} symbol={card.symbol} at={card.at} refTime={snap.data_until} lead={card.tier === "lead"} />
       <h1 className="mt-2.5 font-serif text-title">{card.headline ?? `${card.company}: ${card.nse_subject}`}</h1>
       <p className="mt-0.5 text-small text-ink-3">{card.company.replace(/ Limited$/, "")}</p>
-      {card.why && <p className="mt-3 text-body text-ink-2">{card.why}</p>}
-      {card.facts.results && (
-        <>
-          {/* the picture, then the exact table (same chart as the company page) */}
-          <ResultsVisual r={card.facts.results} />
-          <ResultsTable r={card.facts.results} />
-        </>
-      )}
-      {card.kind === "move" && moveRows && moveRows.some((r) => r.d === card.at.slice(0, 10)) && (
-        <PriceVolumeChart rows={moveRows} alertDay={card.at.slice(0, 10)} markers={filingMarkers(snap, card.symbol, moveRows.map((r) => r.d))} symbol={card.symbol} />
+      {/* a move's figures are in the chart's readout: the "why" keeps only what it adds (one number, one place) */}
+      {card.why && <p className="mt-3 text-body text-ink-2">{card.kind === "move" && moveChart ? afterFirst(card.why) : card.why}</p>}
+      {card.facts.results && <ResultsVisual r={card.facts.results} />}
+      {moveChart && (
+        <PriceVolumeChart rows={moveRows!} alertDay={card.at.slice(0, 10)} markers={filingMarkers(snap, card.symbol, moveRows!.map((r) => r.d))} symbol={card.symbol} />
       )}
 
-      {/* the question this raises, and the way into it (creative review: Investigate) */}
-      <section className="mt-8 rounded-xl bg-tint px-4 py-4" aria-labelledby="q-h">
-        <h2 id="q-h" className="kicker text-ink-3">The question it raises</h2>
-        <p className="mt-1.5 font-serif text-subhead text-ink">{inv.question}</p>
-        <Link
-          href={`/investigate?card=${card.id}`}
-          className="mt-3 inline-flex min-h-12 items-center gap-1.5 rounded-lg bg-ink px-5 text-small font-medium text-paper"
-        >
-          Investigate <span aria-hidden>›</span>
-        </Link>
-        <p className="mt-2 text-caption text-ink-3">The figures, the company&apos;s own words on it, who could help, and a way to follow it up.</p>
-      </section>
+      {/* the page's one action, directly under the picture (layout plan §4) */}
+      <QuestionCard question={inv.question} href={`/investigate?card=${card.id}`} />
 
       {people.length > 0 && (
-        <section className="mt-10">
+        <section className="mt-12">
           <h2 className="section-h">From the filing</h2>
           {people.map((p) => (
             <div key={p.name} className="border-b border-rule py-3 last:border-b-0">
@@ -114,7 +101,7 @@ async function Detail({ params }: { params: PageProps<"/card/[id]">["params"] })
       )}
 
       {card.network.length > 0 && (
-        <section className="mt-10">
+        <section className="mt-12">
           <h2 className="section-h">Who can explain this</h2>
           {/* the first person carries the "best placed" reason under their own line (no repeat above it) */}
           {card.network.map((l, i) => (
@@ -129,34 +116,46 @@ async function Detail({ params }: { params: PageProps<"/card/[id]">["params"] })
         </section>
       )}
 
-      {card.sources.length > 0 && (
-        <section className="mt-10">
-          <h2 className="section-h">Sources</h2>
-          <SourceChips sources={card.sources} />
-        </section>
+      {/* reference, not judgement: the exact table folds on a phone, stays open on a wide screen (layout plan §4) */}
+      {card.facts.results && (
+        <>
+          <details className="group mt-10 border-t border-rule md:hidden">
+            <summary className="flex min-h-[48px] cursor-pointer list-none items-center justify-between text-small text-ink-2">
+              Exact figures, {fyQuarter(card.facts.results.period_end)}
+              <span aria-hidden className="text-ink-3 transition-transform duration-200 group-open:rotate-90">›</span>
+            </summary>
+            <ResultsTable r={card.facts.results} />
+          </details>
+          <section className="mt-8 hidden md:block">
+            <h2 className="minor-h">Exact figures, {fyQuarter(card.facts.results.period_end)}</h2>
+            <ResultsTable r={card.facts.results} />
+          </section>
+        </>
       )}
 
-      <section className="mt-10">
-        <h2 className="section-h">Why this is here</h2>
-        <ul className="mt-2 list-disc space-y-0.5 pl-5 text-small text-ink-2">
-          {reasons(card, weight, ageH).map((r) => (
-            <li key={r}>{r}</li>
-          ))}
-        </ul>
-        <details className="mt-1 text-caption text-ink-3">
-          <summary className="inline-flex min-h-[44px] items-center">How the order is computed</summary>
-          <dl className="grid grid-cols-[1fr_auto] gap-y-1">
-            <dt>Tier: {card.tier}</dt><dd className="num text-right">+{TIER_WEIGHT[card.tier]}</dd>
-            <dt>Event type: {KIND_LABEL[card.kind] ?? card.kind}</dt><dd className="num text-right">+{KIND_WEIGHT[card.kind] ?? 10}</dd>
-            <dt>Holding weight: {weight}% × 4</dt><dd className="num text-right">+{4 * weight}</dd>
-            <dt>Age: {Math.round(ageH)} h × 0.15</dt><dd className="num text-right">−{Math.round(Math.min(ageH, 720) * 0.15)}</dd>
-          </dl>
-          <p className="mt-1">
-            NSE category: &ldquo;{card.nse_subject || "price/volume threshold"}&rdquo;. Tiers follow SEBI LODR Reg 30
-            materiality (people, deals, legal lead) and your settings in What counts.
-          </p>
-        </details>
-      </section>
+      <About label="About this item">
+        {card.sources.length > 0 && (
+          <AboutPart title="Sources">
+            <SourceChips sources={card.sources} />
+          </AboutPart>
+        )}
+        <AboutPart title="Why this is here">
+          <p>{whySentence(reasons(card, weight, ageH))}</p>
+          <details className="mt-1">
+            <summary className="inline-flex min-h-[44px] cursor-pointer items-center text-accent">How the order is computed</summary>
+            <dl className="grid grid-cols-[1fr_auto] gap-y-1">
+              <dt>Tier: {card.tier}</dt><dd className="num text-right">+{TIER_WEIGHT[card.tier]}</dd>
+              <dt>Event type: {KIND_LABEL[card.kind] ?? card.kind}</dt><dd className="num text-right">+{KIND_WEIGHT[card.kind] ?? 10}</dd>
+              <dt>Holding weight: {weight}% × 4</dt><dd className="num text-right">+{4 * weight}</dd>
+              <dt>Age: {Math.round(ageH)} h × 0.15</dt><dd className="num text-right">−{Math.round(Math.min(ageH, 720) * 0.15)}</dd>
+            </dl>
+            <p className="mt-1">
+              NSE category: &ldquo;{card.nse_subject || "price/volume threshold"}&rdquo;. Tiers follow SEBI LODR Reg 30 materiality (people, deals,
+              legal lead) and your settings in What counts.
+            </p>
+          </details>
+        </AboutPart>
+      </About>
       <Dock />
     </main>
   );
@@ -197,4 +196,15 @@ function overlapLine(lines: NetworkLineT[], people: { name: string }[], checked:
   const person = lines.find((l) => l.confidence === "dates overlap" || /alumnus|same person|while .* was there/.test(l.relation));
   if (person) return `${person.name} ${person.relation}${person.via ? `, reachable through ${person.via}` : ""}.`;
   return `No verified overlap with ${names}: none of your ${checked || ""} contacts' employers, schools and dates match what the filing states${people.length > 2 ? " for the first two named" : ""}. The people below know the company.`;
+}
+
+/** "Results: a lead-tier event", "2% of the portfolio", "Filed 2 days ago" -> one sentence. */
+function whySentence(parts: string[]): string {
+  return parts.map((p, i) => (i === 0 ? p : p.charAt(0).toLowerCase() + p.slice(1))).join(", ") + ".";
+}
+
+/** Everything after the first sentence (a move's first sentence restates the chart's readout). */
+function afterFirst(s: string): string {
+  const m = s.match(/^.*?[.!?]\s+(?=[A-Z])/);
+  return m ? s.slice(m[0].length) : s;
 }

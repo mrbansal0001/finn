@@ -10,6 +10,7 @@ import { filingMarkers } from "@/lib/markers";
 import { PromiseReplay } from "@/components/PromiseReplay";
 import { pathFor } from "@/components/RelationPath";
 import { SourceChips } from "@/components/SourceChips";
+import { About } from "@/components/About";
 import { findCard, getLedger, getView } from "@/lib/data";
 import type React from "react";
 import { dirClass, fyQuarter, pct } from "@/lib/format";
@@ -110,7 +111,8 @@ async function Investigate({ searchParams }: { searchParams: PageProps<"/investi
   ) : (
     <>
       {/* the chart's readout carries a move's figures; the grid only when there's no chart */}
-      {inv.observed.length > 0 && !(theCard?.kind === "move" && snap.price_history?.[theCard.symbol]?.length) && (
+      {/* a chart carries these figures when there is one: the grid only when there isn't (one number, one place) */}
+      {inv.observed.length > 0 && !(theCard?.kind === "move" && snap.price_history?.[theCard.symbol]?.length) && !resultsFacts?.comparatives && (
         <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
           {inv.observed.map((o) => (
             <div key={o.label} className="min-w-0">
@@ -123,7 +125,8 @@ async function Investigate({ searchParams }: { searchParams: PageProps<"/investi
           ))}
         </dl>
       )}
-      {inv.observedNote && <p className="mt-2 text-caption text-ink-3">{inv.observedNote}</p>}
+      {/* the chart's legend names the quarters and the basis; the note only when there is no chart */}
+      {inv.observedNote && !resultsFacts?.comparatives && <p className="mt-2 text-caption text-ink-3">{inv.observedNote}</p>}
       {moveChart}
       {resultsFacts && <ResultsVisual r={resultsFacts} />}
       {inv.sources.length > 0 && (
@@ -135,7 +138,7 @@ async function Investigate({ searchParams }: { searchParams: PageProps<"/investi
   );
 
   const check = (
-    <Step n={3} title="Check next" section="s-evidence">
+    <Step n={2} title="What to check next" section="s-evidence">
       <p className="mt-2 text-small text-ink-2">{inv.passagesTitle}, in the company&apos;s own words.</p>
       {inv.passages.length ? (
         <ul className="hair mt-2">
@@ -151,7 +154,14 @@ async function Investigate({ searchParams }: { searchParams: PageProps<"/investi
               )}
               {p.quote &&
                 (p.quote.length <= 160 ? (
-                  <blockquote className="mt-1 font-serif text-small italic text-ink-2">&ldquo;{p.quote}&rdquo;</blockquote>
+                  <blockquote className="mt-1 font-serif text-small italic text-ink-2">
+                    &ldquo;{p.quote}&rdquo;
+                    {p.cite && (
+                      <a href={p.cite.href} target="_blank" rel="noopener noreferrer" className="tap ml-1.5 whitespace-nowrap font-sans text-caption not-italic text-accent">
+                        {p.cite.text} ↗
+                      </a>
+                    )}
+                  </blockquote>
                 ) : (
                   // long quotes fold to an excerpt (visual review §3.4); the full words are one tap away
                   <details className="group mt-1">
@@ -160,9 +170,14 @@ async function Investigate({ searchParams }: { searchParams: PageProps<"/investi
                       <span className="font-sans text-caption not-italic text-accent group-open:hidden">Full quote</span>
                     </summary>
                     <blockquote className="mt-1 font-serif text-small italic text-ink-2">&ldquo;{p.quote}&rdquo;</blockquote>
+                    {p.cite && (
+                      <a href={p.cite.href} target="_blank" rel="noopener noreferrer" className="tap mt-1 inline-flex text-caption text-accent">
+                        {p.cite.text} ↗
+                      </a>
+                    )}
                   </details>
                 ))}
-              {p.cite && (
+              {p.cite && !p.quote && (
                 <a href={p.cite.href} target="_blank" rel="noopener noreferrer" className="tap mt-1 inline-flex text-caption text-accent">
                   {p.cite.text} ↗
                 </a>
@@ -218,7 +233,11 @@ async function Investigate({ searchParams }: { searchParams: PageProps<"/investi
         <div className="sticky top-6 max-h-[calc(100dvh-7rem)] overflow-y-auto pb-6">{check}</div>
       </aside>
       </div>
-      <p className="mt-8 text-caption text-ink-3">People are synthetic profiles for this prototype. Company facts and quotes are from filings.</p>
+      <About label="About this page">
+        <p>
+          The question is written from the figures by fixed rules, never by a model. Quotes are from the company&apos;s filings and transcripts, each with its page.
+        </p>
+      </About>
       <Dock />
     </main>
   );

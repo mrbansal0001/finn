@@ -4,6 +4,7 @@ import { useState } from "react";
 import { KIND_CHOICES, type Prefs } from "@/lib/prefs";
 import { resetPrefs, savePrefs } from "./actions";
 import { ColourToggle } from "./ColourToggle";
+import { ThemeChoice } from "./ThemeChoice";
 
 export type PreviewData = {
   windows: { key: "24h" | "7d"; since: string; until: string }[];
@@ -34,7 +35,18 @@ export function SettingsForm({ prefs, preview }: { prefs: Prefs; preview: Previe
 
       <fieldset className="mt-10">
         <legend className="section-h w-full">Announcement types</legend>
-        <p className="mt-2 text-caption text-ink-3">Switched off: folded into “Routine, folded”, where you can still open them.</p>
+        <div className="mt-2 flex items-start justify-between gap-3">
+          <p className="text-caption text-ink-3">Switched off: folded into “Routine, folded”, where you can still open them.</p>
+          {/* one tap for all twelve (layout plan §8) */}
+          <span className="flex shrink-0 gap-3 text-caption">
+            <button type="button" onClick={(e) => setAll(e.currentTarget, true)} className="tap text-accent">
+              All on
+            </button>
+            <button type="button" onClick={(e) => setAll(e.currentTarget, false)} className="tap text-accent">
+              All off
+            </button>
+          </span>
+        </div>
         <ul className="hair mt-1">
           {KIND_CHOICES.map((k) => (
             <li key={k.kind}>
@@ -61,6 +73,7 @@ export function SettingsForm({ prefs, preview }: { prefs: Prefs; preview: Previe
 
       <fieldset className="mt-10">
         <legend className="section-h w-full">Display</legend>
+        <ThemeChoice />
         <ColourToggle />
       </fieldset>
 
@@ -189,4 +202,9 @@ function Scatter({ data, w, price, vol }: { data: PreviewData; w: PreviewData["w
       </p>
     </details>
   );
+}
+
+/** Tick or untick every announcement type in this form. */
+function setAll(from: HTMLElement, on: boolean) {
+  from.closest("form")?.querySelectorAll<HTMLInputElement>('input[name="kind"]').forEach((i) => (i.checked = on));
 }

@@ -25,7 +25,22 @@ const ist = (s: string) => Date.parse(/[+Z]/.test(s.slice(10)) ? s : `${s}+05:30
  * it was waiting for has arrived since it was saved. Checked when the page opens; nothing runs in the
  * background, and the page says so.
  */
-export function FollowedQuestions({ symbol }: { symbol?: string }) {
+// all four window panels render at once: one request per set of tickers, shared
+const pending = new Map<string, Promise<Update[]>>();
+function updatesFor(symbols: string): Promise<Update[]> {
+  if (!pending.has(symbols))
+    pending.set(
+      symbols,
+      fetch(`/api/updates?s=${encodeURIComponent(symbols)}`)
+        .then((r) => (r.ok ? r.json() : { items: [] }))
+        .then((d) => (d.items ?? []) as Update[])
+        .catch(() => []),
+    );
+  return pending.get(symbols)!;
+}
+
+/** `line`: one row on the edition; `inline`: a clause for the edition's summary sentence; with `symbol`: the list. */
+export function FollowedQuestions({ symbol, variant = "line" }: { symbol?: string; variant?: "line" | "inline" }) {
   const [list, setList] = useState<Followed[] | null>(null);
   const [updates, setUpdates] = useState<Update[]>([]);
 
@@ -43,12 +58,11 @@ export function FollowedQuestions({ symbol }: { symbol?: string }) {
   const symbols = [...new Set((list ?? []).map((q) => q.symbol))].sort().join(",");
   useEffect(() => {
     if (!symbols) return;
-    const ctl = new AbortController();
-    fetch(`/api/updates?s=${encodeURIComponent(symbols)}`, { signal: ctl.signal })
-      .then((r) => (r.ok ? r.json() : { items: [] }))
-      .then((d) => setUpdates(d.items ?? []))
-      .catch(() => {});
-    return () => ctl.abort();
+    let live = true;
+    updatesFor(symbols).then((u) => live && setUpdates(u));
+    return () => {
+      live = false;
+    };
   }, [symbols]);
 
   if (!list?.length) return null;
@@ -61,8 +75,18 @@ export function FollowedQuestions({ symbol }: { symbol?: string }) {
   // the edition keeps it to one line: how many, and how many have something new (visual review §10)
   if (!symbol) {
     const n = list.filter((q) => (q.status ?? "open") === "open" && hasNew(q)).length;
+    if (variant === "inline")
+      return (
+        <>
+          {" "}
+          <Link href="/questions" className="text-ink underline decoration-rule underline-offset-2 hover:decoration-ink">
+            {list.length} question{list.length === 1 ? "" : "s"} you follow
+          </Link>
+          {n > 0 ? <span className="font-medium text-accent">, {n} with new evidence</span> : null}.
+        </>
+      );
     return (
-      <Link href="/questions" className="mt-4 flex min-h-[48px] items-center justify-between gap-3 rounded-lg border border-rule px-4 text-small">
+      <Link href="/questions" className="mt-8 flex min-h-[48px] items-center justify-between gap-3 rounded-lg border border-rule px-4 text-small">
         <span className="text-ink">
           {list.length} question{list.length === 1 ? "" : "s"} you follow
           {n > 0 ? <span className="font-medium text-accent">: new evidence for {n}</span> : <span className="text-ink-3">, nothing new yet</span>}

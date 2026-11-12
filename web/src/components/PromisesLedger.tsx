@@ -66,10 +66,10 @@ export function PromisesLedger({ ledger: built, verifiers = {} }: { ledger: Ledg
       )}
 
       {/* the honest summary: counts by status, no score */}
-      <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-small text-ink-2" aria-label="Promises by status">
+      <ul className="mt-3 flex flex-wrap gap-x-3 gap-y-0.5 text-caption text-ink-2" aria-label="Promises by status">
         {LEGEND.filter((s) => counts[s]).map((s) => (
           <li key={s} className="flex items-baseline gap-1.5 whitespace-nowrap">
-            <span style={{ color: STATUS[s].color }} aria-hidden className="text-body leading-none">
+            <span style={{ color: STATUS[s].color }} aria-hidden className="leading-none">
               {STATUS[s].g}
             </span>
             <span className="num font-medium text-ink">{counts[s]}</span> {LEGEND_WORD[s] ?? STATUS[s].word.toLowerCase()}
@@ -77,7 +77,7 @@ export function PromisesLedger({ ledger: built, verifiers = {} }: { ledger: Ledg
         ))}
       </ul>
 
-      <div className="mt-4 flex flex-wrap gap-1.5" role="group" aria-label="Which view">
+      <div className="seg mt-4" role="group" aria-label="Which view">
         {(
           [
             ["attention", "Needs attention", attention.length],
@@ -92,9 +92,6 @@ export function PromisesLedger({ ledger: built, verifiers = {} }: { ledger: Ledg
               setView(k);
               setShowAll(false);
             }}
-            className={`inline-flex min-h-[44px] items-center gap-2 rounded-full px-4 text-small transition-colors ${
-              view === k ? "bg-ink font-medium text-paper" : "border border-rule text-ink-2 hover:text-ink"
-            }`}
           >
             {label}
             {n != null && <span className={`num text-caption ${view === k ? "text-paper/70" : "text-ink-3"}`}>{n}</span>}
@@ -139,39 +136,42 @@ export function PromisesLedger({ ledger: built, verifiers = {} }: { ledger: Ledg
         </div>
       )}
 
-      {built.reference && (
-        <details className="group mt-6 border-t border-rule">
-          <summary className="flex min-h-[48px] items-center justify-between text-small text-ink-2">
-            Methodology: compare with the hand-checked reference
-            <span aria-hidden className="text-ink-3 transition-transform duration-200 group-open:rotate-90">›</span>
-          </summary>
-          <div className="flex gap-1.5" role="group" aria-label="Which ledger">
-            {(
-              [
-                ["built", "Built by FINN"],
-                ["reference", "Hand-checked reference"],
-              ] as const
-            ).map(([k, label]) => (
-              <button
-                key={k}
-                aria-pressed={source === k}
-                onClick={() => {
-                  setSource(k);
-                  setOpen(null);
-                }}
-                className={`min-h-[44px] rounded-full px-4 text-small ${source === k ? "bg-ink font-medium text-paper" : "border border-rule text-ink-2"}`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          <p className="mb-2 mt-2 text-caption text-ink-3">
-            The reference was labelled by hand from the same transcripts and is what the pipeline is graded on. The ledger above
-            is what FINN builds on its own; switching shows the reference in its place.
-          </p>
-        </details>
-      )}
-      <p className="mt-4 text-caption text-ink-3">{ledger.provenance.replace("Statuses computed in code.", "Statuses follow fixed rules, not a model's judgement.")}</p>
+      {/* reference, not reading matter: how the ledger was built, and the hand-checked comparison (layout plan §5) */}
+      <details className="group mt-6 border-t border-rule">
+        <summary className="flex min-h-[48px] cursor-pointer list-none items-center justify-between text-small text-ink-2">
+          Methodology and provenance
+          <span aria-hidden className="text-ink-3 transition-transform duration-200 group-open:rotate-90">›</span>
+        </summary>
+        <p className="mb-3 text-caption text-ink-3">{ledger.provenance.replace("Statuses computed in code.", "Statuses follow fixed rules, not a model's judgement.")}</p>
+        {built.reference && (
+          <>
+            <p className="text-caption font-medium text-ink-2">Compare with the hand-checked reference</p>
+            <div className="seg seg-sm mt-2" role="group" aria-label="Which ledger">
+              {(
+                [
+                  ["built", "Built by FINN"],
+                  ["reference", "Hand-checked reference"],
+                ] as const
+              ).map(([k, label]) => (
+                <button
+                  key={k}
+                  aria-pressed={source === k}
+                  onClick={() => {
+                    setSource(k);
+                    setOpen(null);
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p className="mb-3 mt-2 text-caption text-ink-3">
+              The reference was labelled by hand from the same transcripts and is what the pipeline is graded on. The ledger above is what FINN
+              builds on its own; switching shows the reference in its place.
+            </p>
+          </>
+        )}
+      </details>
     </section>
   );
 }
@@ -202,7 +202,6 @@ function Item({ row, ledger, open, onToggle, verifier, hideTag }: { row: Promise
             {row.tracking.verdict ? `, ${row.tracking.verdict === "on track" ? "within" : row.tracking.verdict} the full-year target` : ""}
           </span>
         )}
-        <span className="mt-0.5 block text-caption text-ink-3">{lastLine(row, ledger)}</span>
       </button>
       {open && (
         <div className="pb-4">
@@ -294,6 +293,7 @@ function Detail({ row, ledger, verifier }: { row: PromiseRow; ledger: Ledger; ve
     <div className="mt-1 border-l-2 border-rule pl-4 text-small">
       {/* for a settled promise, the comparison comes first, in one sentence */}
       {settled?.note && <p className="mb-2 text-small font-medium text-ink">{sentence(settled.note)}</p>}
+      <p className="text-caption text-ink-3">{lastLine(row, ledger)}</p>
       {/* the promise replayed call by call, with each call's own words (creative review §2) */}
       <PromiseReplay row={row} calls={ledger.calls} />
       {ledger.calls.map((c) => {

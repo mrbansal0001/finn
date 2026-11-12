@@ -360,3 +360,34 @@ Not recommended now: a bottom tab bar (the search dock is the one fixed element 
 Checks before calling any step done, on the live site in one normal-browser session: first lead headline on the first screen of every window; question card on the first screen of every card page; no number stated twice on one screen; page heights at or under the targets above; 320px and 390px with no sideways scroll; dark mode; keyboard reach of every control; the "Last said" and source links still reachable inside their folds.
 
 Targets: home 7d ≤ 1,500px · results card ≤ 1,200px · BEL ≤ 2,700px · results investigation ≤ 2,300px · person ≤ 1,500px.
+
+## 12. Result (implemented 12 Nov 2026)
+
+Measured locally at 390×844 with the same data as the live site, every screen full-page.
+
+| Screen | Before | After | Target |
+|---|---|---|---|
+| Home, 24 hours | 1,090 | 1,042 | |
+| Home, 7 days | 2,154 | 1,725 | 1,500 (not met) |
+| Home, 30 days | 2,080 | 1,673 | |
+| Card, results | 1,736 | 1,149 | 1,200 (met) |
+| Card, move | 1,557 | 1,128 | |
+| Card, people | 1,517 | 1,206 | |
+| Company, BEL | 3,808 | 2,764 | 2,700 (64 over) |
+| Company, Kalyan | 3,540 | 2,212 | |
+| Company, ITC | 2,733 | 2,273 | |
+| Investigate, results | 2,869 | 2,375 | 2,300 (75 over) |
+| Investigate, promise | 3,133 | 2,905 | |
+| Person (Farah) | 2,180 | 1,444 | 1,500 (met) |
+
+Checks: first lead headline on the first screen of every window (7 days: 754px before, ~540px after); the question card on the first screen of every card page (results 574px, move 769px, people 292px); no sideways scroll at 320px or 390px on any screen; no console errors; dark mode; keyboard reaches every control in reading order, folds included; sources reachable inside "About this item".
+
+Where the build differs from the plan, and why:
+- **Home 7 days stays over target.** Its three lead cards are 310, 293 and 267px and hold only what §3 keeps (meta, headline, bars, one sentence, person and action). Meeting 1,500px would mean cutting one of those.
+- **Summary line uses commas, not "·".** Dot separators were removed from the app on 11 Nov; the parts are separated by punctuation, as the separator rules require.
+- **Revisit choices are short segments** ("Results", "Call", "Any filing", "A date", with full names for screen readers) so a segmented control fits one row; the caption spells out what each does.
+- **YoY / QoQ labels** replace "vs a year ago / vs last quarter" so both chart controls fit one row; screen readers hear the full wording.
+- **The "Lack context" pill** is shortened from "Where I lack context" so it fits beside the view control; the full wording is its accessible name and the explanation appears when it is on.
+- **A single lens is stated, not offered.** When only one lens fits anyone, the investigation says "Matched for execution…" instead of showing one pill with nothing to switch to.
+- **The investigation's relationship path is inline** (each link's evidence on its node's line), as the §6 wireframe draws it; the person page keeps the two-line form, shown only with an introducer.
+- **Filings on the company page are dense rows** (kind and time over the headline), as the §5 wireframe draws them.

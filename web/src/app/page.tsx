@@ -9,6 +9,8 @@ import { EditionCard } from "@/components/EditionCard";
 import { MoveSpark } from "@/components/MoveSpark";
 import { FollowedQuestions } from "@/components/FollowedQuestions";
 import { Dock } from "@/components/Dock";
+import { SYNTHETIC } from "@/components/About";
+import { JumpLink } from "@/components/JumpLink";
 import { HoldingsSheet } from "@/components/HoldingsSheet";
 import { WindowLink, WindowSwitcher } from "@/components/WindowSwitcher";
 
@@ -23,6 +25,9 @@ const WIDER: Record<string, { key: string; label: string } | undefined> = {
   "3d": { key: "7d", label: "7 days" },
   "7d": { key: "30d", label: "30 days" },
 };
+
+// how the folded alerts are described in each window
+const SPAN: Record<string, string> = { "24h": "in the last 24 hours", "3d": "in the last 3 days", "7d": "this week", "30d": "in the last 30 days", since: "since your last visit" };
 
 const LEAD_COUNT_WORDS = ["No lead story", "One thing matters", "Two things matter", "Three things matter", "Four things matter", "Five things matter"];
 
@@ -97,20 +102,18 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
               <span className="text-small font-medium text-ink">{fullDate(until)}</span>
               <HoldingsSheet agenda={agenda} today={today} networkReady={snap.network_status !== "unavailable"} holdings={snap.portfolio.map((h) => row(h.symbol, h.weight))} research={snap.research_set.map((s) => row(s))} />
             </div>
-            <p className="mt-1 text-caption text-ink-3">A demo portfolio. Filings and prices are real; the network is synthetic.</p>
-            <FollowedQuestions />
           </>
         }
         sinceSeen={until}
         panels={Object.fromEntries(
           keys.map((k) => [
             k,
-            <Panel key={k} k={k} ed={prepared[k].ed} alerts={prepared[k].alerts} prefs={prefs} until={until} networkDown={snap.network_status === "unavailable"} history={snap.price_history} />,
+            <Panel key={k} k={k} ed={prepared[k].ed} alerts={prepared[k].alerts} prefs={prefs} until={until} networkDown={snap.network_status === "unavailable"} history={snap.price_history} latest={snap.freshness?.price_session ?? null} />,
           ]),
         )}
       />
 
-      <footer className="mt-12 text-center">
+      <footer className="mt-10 text-center">
         {/* the end of the edition: a rule either side, not a pair of dots */}
         <div className="flex items-center gap-3">
           <span className="h-px flex-1 bg-rule" />
@@ -126,6 +129,8 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
           )}
           .
         </p>
+        {/* the demo disclaimer lives here, said once (layout plan §3, §9.6) */}
+        <p className="mt-1 text-caption text-ink-3">A demo portfolio. {SYNTHETIC}</p>
       </footer>
 
       <Dock />
@@ -134,12 +139,33 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
 }
 
 /** One window's edition: its start time, alerts, leads, the rest worth a look, and the routine fold. */
-function Panel({ k, ed, alerts, prefs, until, networkDown, history }: { k: string; ed: Edition; alerts: Alert[]; prefs: Prefs; until: string; networkDown: boolean; history?: Snapshot["price_history"] }) {
+function Panel({
+  k, ed, alerts, prefs, until, networkDown, history, latest,
+}: { k: string; ed: Edition; alerts: Alert[]; prefs: Prefs; until: string; networkDown: boolean; history?: Snapshot["price_history"]; latest: string | null }) {
   const wider = WIDER[k];
+  const lead = LEAD_COUNT_WORDS[ed.leads.length];
+  // the edition in one sentence: how big today is, each part a jump to its section (layout plan §3)
+  const parts: [string, string][] = [
+    ...(ed.leads.length ? [[`leads-${k}`, lead.replace(/^One/, "1").replace(/^Two/, "2").replace(/^Three/, "3").replace(/^Four/, "4").replace(/^Five/, "5")] as [string, string]] : []),
+    ...(alerts.length ? [[`alerts-${k}`, `${alerts.length} alert${alerts.length === 1 ? "" : "s"}`] as [string, string]] : []),
+    ...(ed.more.length ? [[`more-${k}`, `${ed.more.length} worth a look`] as [string, string]] : []),
+    ...(ed.routine_total ? [[`routine-${k}`, `${ed.routine_total} routine`] as [string, string]] : []),
+  ];
   return (
     <>
-      <p className="mt-1.5 px-1 text-caption text-ink-3">
-        Showing filings since <span className="num">{since(ed.since)}</span>
+      <p className="mt-3 text-caption text-ink-2">
+        {parts.length ? (
+          parts.map(([id, label], i) => (
+            <span key={id}>
+              {i > 0 ? ", " : ""}
+              <JumpLink to={id}>{label}</JumpLink>
+            </span>
+          ))
+        ) : (
+          <span>A quiet window</span>
+        )}
+        . <span className="text-ink-3">Filings since <span className="num">{since(ed.since)}</span>.</span>
+        <FollowedQuestions variant="inline" />
       </p>
 
       {networkDown && (
@@ -148,11 +174,11 @@ function Panel({ k, ed, alerts, prefs, until, networkDown, history }: { k: strin
         </p>
       )}
 
-      <Alerts hits={alerts} prefs={prefs} id={`alerts-${k}`} history={history} />
+      <Alerts hits={alerts} prefs={prefs} id={`alerts-${k}`} history={history} latest={latest} span={SPAN[k] ?? "in this window"} />
 
-      <section aria-labelledby={`leads-${k}`} className="mt-10">
+      <section aria-labelledby={`leads-${k}`} className="mt-10 scroll-mt-4">
         <h2 id={`leads-${k}`} className="section-h text-ink">
-          {LEAD_COUNT_WORDS[ed.leads.length]}
+          {lead}
         </h2>
         {ed.leads.length === 0 ? (
           <p className="py-4 text-body text-ink-2">
@@ -179,8 +205,11 @@ function Panel({ k, ed, alerts, prefs, until, networkDown, history }: { k: strin
         )}
       </section>
 
+      {/* the reader's own questions, after today's news and before the long tail */}
+      <FollowedQuestions />
+
       {ed.more.length > 0 && (
-        <details className="group mt-10" open={ed.leads.length === 0}>
+        <details id={`more-${k}`} className="group mt-8 scroll-mt-4" open={ed.leads.length === 0}>
           <SectionSummary label="Worth a look" count={ed.more.length} />
           <div className="hair">
             {ed.more.map((c) => (
@@ -190,7 +219,7 @@ function Panel({ k, ed, alerts, prefs, until, networkDown, history }: { k: strin
         </details>
       )}
 
-      {ed.routine_total > 0 && <Routine ed={ed} refTime={until} />}
+      {ed.routine_total > 0 && <Routine ed={ed} refTime={until} id={`routine-${k}`} />}
     </>
   );
 }
@@ -222,10 +251,16 @@ function SectionSummary({ label, count }: { label: string; count: number }) {
   );
 }
 
-/** Price/volume rule matches in this window (plan §8.2): every matching session, each opening its own card.
- *  Columns line up; the price change is always shown, in colour when it fired. In-app only. */
-function Alerts({ hits, prefs, id, history }: { hits: Alert[]; prefs: Prefs; id: string; history?: Snapshot["price_history"] }) {
+/** Alerts at the close (plan §8.2; layout plan §3): the brief's trigger is end-of-day, so the rows are the
+ *  latest session's matches (at most three); earlier sessions in the window fold under one line. The box is
+ *  never taller than the first lead. Every row opens its own card. In-app only. */
+function Alerts({
+  hits, prefs, id, history, latest, span,
+}: { hits: Alert[]; prefs: Prefs; id: string; history?: Snapshot["price_history"]; latest: string | null; span: string }) {
   if (!hits.length) return null;
+  const today = latest ? hits.filter((h) => h.card.at.slice(0, 10) === latest) : hits;
+  const shown = today.slice(0, 3);
+  const rest = hits.filter((h) => !shown.includes(h));
   const row = ({ card, rules }: Alert) => {
     const f = card.facts as { change_pct?: number; volume_multiple?: number };
     const priceFired = rules.some((r) => r.endsWith("%"));
@@ -246,7 +281,7 @@ function Alerts({ hits, prefs, id, history }: { hits: Alert[]; prefs: Prefs; id:
               width={60}
               rows={history?.[card.symbol]}
               day={card.at.slice(0, 10)}
-              label={`${card.symbol}: price over the last 20 sessions and each day's volume, ending on the alert day`}
+              label={`${card.symbol}: the last 20 closes as a line, each day's volume as a bar, the alert day in blue`}
             />
           </span>
           <span className={`num text-right text-small ${priceFired ? `font-medium ${dirClass(f.change_pct)}` : "text-ink-2"}`}>
@@ -258,28 +293,32 @@ function Alerts({ hits, prefs, id, history }: { hits: Alert[]; prefs: Prefs; id:
     );
   };
   return (
-    <section aria-labelledby={id} className="mt-6 overflow-hidden rounded-lg border border-rule bg-tint">
+    <section aria-labelledby={id} className="mt-6 scroll-mt-4 overflow-hidden rounded-lg border border-rule bg-tint">
       <div className="flex items-center justify-between gap-3 px-4 pb-1.5 pt-3">
         <h2 id={id} className="flex items-center gap-2">
-          <span className="kicker text-ink">Alerts</span>
-          <span className="count" aria-label={`${hits.length} at the close`}>{hits.length}</span>
+          <span className="kicker text-ink">Alerts at the close</span>
+          <span className="count" aria-label={`${today.length} at the latest close`}>{today.length}</span>
         </h2>
         <Link href="/settings" className="tap shrink-0 text-caption text-accent">
-          Rules: <span className="num">±{prefs.price_pct}%</span> price, <span className="num">{prefs.volume_x}×</span> volume ›
+          Rules <span className="num">±{prefs.price_pct}%</span>, <span className="num">{prefs.volume_x}×</span> ›
         </Link>
       </div>
-      {/* the key for the word-sized charts, once */}
-      <p className="px-4 pb-1.5 text-caption text-ink-3 max-[359px]:hidden">
-        Line: the last 20 closes. Bars: each day&apos;s volume, the alert day in <span className="text-accent">blue</span>.
-      </p>
-      <ul>{hits.slice(0, 5).map(row)}</ul>
-      {hits.length > 5 && (
+      {shown.length ? (
+        <ul>{shown.map(row)}</ul>
+      ) : (
+        <p className="border-t border-rule px-4 py-3 text-small text-ink-2">None at the latest close.</p>
+      )}
+      {rest.length > 0 && (
         <details className="group border-t border-rule">
-          <summary className="flex min-h-[48px] items-center justify-between px-4 text-small text-accent">
-            View all {hits.length}
+          <summary className="flex min-h-[48px] cursor-pointer list-none items-center justify-between px-4 text-small text-accent">
+            {rest.length} more {span}
             <span aria-hidden className="transition-transform duration-200 group-open:rotate-90">›</span>
           </summary>
-          <ul className="border-t border-rule">{hits.slice(5).map(row)}</ul>
+          {/* the key for the word-sized charts, said once, where the longer list is */}
+          <p className="px-4 pb-1.5 text-caption text-ink-3 max-[359px]:hidden">
+            Line: the last 20 closes. Bars: each day&apos;s volume, the alert day in <span className="text-accent">blue</span>.
+          </p>
+          <ul className="border-t border-rule">{rest.map(row)}</ul>
         </details>
       )}
     </section>
@@ -287,10 +326,10 @@ function Alerts({ hits, prefs, id, history }: { hits: Alert[]; prefs: Prefs; id:
 }
 
 /** The fold, openable (plan §9.1): each group lists its filings, one row each, with time and a source chip. */
-function Routine({ ed, refTime }: { ed: Edition; refTime: string }) {
+function Routine({ ed, refTime, id }: { ed: Edition; refTime: string; id: string }) {
   const items = ed.routine_items ?? [];
   return (
-    <details className="group mt-10">
+    <details id={id} className="group mt-8 scroll-mt-4">
       <SectionSummary label="Routine, folded" count={ed.routine_total} />
       <ul>
         {ed.routine.map(([label, n]) => {

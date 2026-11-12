@@ -41,7 +41,33 @@ export function pathFor(line: NetworkLine, contacts: Contact[], symbol: string, 
   return { nodes: [{ label: "You" }, person, company], edges: [tie(me, line.strength), relation] };
 }
 
-export function RelationPath({ path, className = "" }: { path: Path; className?: string }) {
+export function RelationPath({ path, className = "", inline = false }: { path: Path; className?: string; inline?: boolean }) {
+  // inline (layout plan §6): each link's evidence on the node's own line, so a three-node path is three lines
+  if (inline)
+    return (
+      <ol className={`relative ${className}`} aria-label="How you reach them">
+        {path.nodes.map((n, i) => (
+          <li key={i} className="relative min-h-[28px] pb-1.5 pl-7">
+            {i < path.nodes.length - 1 && <span aria-hidden className="absolute bottom-0 left-[7px] top-4 w-px bg-rule" />}
+            <span
+              aria-hidden
+              className={`absolute left-0.5 top-[5px] size-3 ${n.company ? "rounded-[3px] bg-ink" : i === 0 ? "rounded-full border-2 border-ink-3 bg-paper" : "rounded-full bg-accent"}`}
+            />
+            <span className="text-small">
+              {n.href ? (
+                <Link href={n.href} className={`tap ${n.company ? "chip align-[1px]" : "font-medium text-accent underline-offset-2 hover:underline"}`}>
+                  {n.label}
+                </Link>
+              ) : (
+                <span className={i === 0 ? "text-ink-3" : "font-medium text-ink"}>{n.label}</span>
+              )}
+              {n.tag && <span className="tag ml-1.5 align-[1px]">{n.tag}</span>}
+              {i < path.edges.length && <span className="text-caption text-ink-3">, {path.edges[i]}</span>}
+            </span>
+          </li>
+        ))}
+      </ol>
+    );
   return (
     <ol className={`relative ${className}`} aria-label="How you reach them">
       {path.nodes.map((n, i) => (

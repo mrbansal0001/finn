@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 /** A short, editable outreach note. Template-based: contact data never goes to a model. */
-export function NoteDraft({ name, company, topic, kind, role }: { name: string; company: string; topic: string; kind?: string; role?: string }) {
+export function NoteDraft({ name, company, topic, kind, role, folded = false }: { name: string; company: string; topic: string; kind?: string; role?: string; folded?: boolean }) {
   const first = name.replace(/^(Col\.|Dr\.|Mr\.|Ms\.)\s*(\(retd\.\)\s*)?/, "").split(" ")[0];
   const co = company.replace(/ Limited$/, "").replace(/ Ltd\.?$/, "");
   const fact = topic.charAt(0).toLowerCase() + topic.slice(1);
@@ -19,6 +19,14 @@ export function NoteDraft({ name, company, topic, kind, role }: { name: string; 
   const why = role ? `You'd know the context better than most, from your time as ${role}.` : "I'd value your read on what it means.";
   const [text, setText] = useState(`Hi ${first}, ${what} ${why} Could we speak for 15 minutes this week?`);
   const [copied, setCopied] = useState<"" | "ok" | "failed">("");
+  const [open, setOpen] = useState(!folded);
+  // folded until asked for: an empty form on arrival was 250px of nothing to read (layout plan §7)
+  if (!open)
+    return (
+      <button type="button" onClick={() => setOpen(true)} className="mt-2 inline-flex min-h-[44px] items-center gap-1 text-small font-medium text-accent">
+        Draft a note to {first} <span aria-hidden>›</span>
+      </button>
+    );
   return (
     <div className="mt-5">
       <label htmlFor="note" className="text-caption text-ink-3">
@@ -26,6 +34,7 @@ export function NoteDraft({ name, company, topic, kind, role }: { name: string; 
       </label>
       <textarea
         id="note"
+        autoFocus={folded}
         value={text}
         onChange={(e) => setText(e.target.value)}
         rows={5}

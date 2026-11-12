@@ -136,11 +136,13 @@ export function InvestigateFlow({
         ))}
       </nav>
 
+      {/* four steps, named as the navigator names them; what remains unclear closes step 1 (layout plan §6) */}
       <Step n={1} title="What changed" section="s-change">
         {observed}
-      </Step>
-      <Step n={2} title="What remains unclear">
-        <p className="mt-2 text-body text-ink-2">{unclear}</p>
+        <p className="mt-4 text-small text-ink-2">
+          <span className="font-medium text-ink">Still unclear: </span>
+          {unclear}
+        </p>
       </Step>
       {/* on wide screens the evidence sits in the side pane instead */}
       <div className="min-[1100px]:hidden">{check}</div>
@@ -152,7 +154,7 @@ export function InvestigateFlow({
 
 export function Step({ n, title, children, aside, section }: { n: number; title: string; children: ReactNode; aside?: ReactNode; section?: string }) {
   return (
-    <section className="mt-10 scroll-mt-4 focus:outline-none" data-section={section} tabIndex={section ? -1 : undefined}>
+    <section className="mt-12 scroll-mt-4 focus:outline-none" data-section={section} tabIndex={section ? -1 : undefined}>
       <h2 className="section-h">
         <span className="flex items-baseline gap-2">
           <span className="num text-ink-3">{n}</span>
@@ -193,7 +195,7 @@ function People({
   const co = company.replace(/ Limited$/, "");
 
   return (
-    <Step n={4} title="Who could help" section="s-people">
+    <Step n={3} title="Who could help" section="s-people">
       {networkDown ? (
         <p className="mt-2 text-small text-ink-2">Your network didn&apos;t load, so FINN can&apos;t suggest anyone. Reload to try again.</p>
       ) : people.length === 0 ? (
@@ -205,11 +207,15 @@ function People({
           {note && <p className="mt-2 text-caption text-ink-3">{note}</p>}
           {anyFit ? (
             <>
+              {/* only lenses someone fits: an empty lens would be a control that does nothing (layout plan §6);
+                  with a single lens there is nothing to choose, so it is said, not offered */}
+              {lenses.filter((l) => count(l.key) > 0).length > 1 && (
+              <>
               <p className="mt-2 text-small text-ink-2">What are you trying to understand?</p>
               <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label="What you want to understand">
-                {lenses.map((l) => {
-                  const n = count(l.key);
-                  return (
+                {lenses
+                  .filter((l) => count(l.key) > 0)
+                  .map((l) => (
                     <button
                       key={l.key}
                       aria-pressed={lens === l.key}
@@ -217,18 +223,23 @@ function People({
                         setLens(l.key);
                         setPick(0);
                       }}
-                      className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-full px-4 text-small transition-colors ${
-                        lens === l.key ? "bg-ink font-medium text-paper" : n ? "border border-rule text-ink-2 hover:text-ink" : "border border-dashed border-rule text-ink-3"
-                      }`}
+                      className="pill"
                     >
                       {l.label}
-                      <span className={`num text-caption ${lens === l.key ? "text-paper/70" : "text-ink-3"}`}>{n}</span>
+                      <span className="num text-caption text-ink-3">{count(l.key)}</span>
                     </button>
-                  );
-                })}
+                  ))}
               </div>
+              </>
+              )}
               <p className="mt-2 text-caption text-ink-3">
-                {L.label}: {L.ask}. Matched on each person&apos;s recorded role.
+                {lenses.filter((l) => count(l.key) > 0).length > 1 ? `${L.label}: ${L.ask}.` : `Matched for ${L.label.toLowerCase()}: ${L.ask}.`} Matched on each person&apos;s recorded role.
+                {(() => {
+                  const empty = lenses.filter((l) => count(l.key) === 0);
+                  if (!empty.length) return null;
+                  const roles = empty.map((l) => l.roles.split(",")[0].replace(/ or .*/, "")).join(", ").replace(/, ([^,]*)$/, " or $1");
+                  return ` No one linked to ${co} has a recorded ${roles} role.`;
+                })()}
               </p>
             </>
           ) : (
@@ -260,11 +271,17 @@ function People({
                 </div>
               )}
               <div className="mt-4">
-                <RelationPath path={person.path} />
-                <p className="mt-1 text-small text-ink-2">
-                  <span className="text-ink-3">Why them for this: </span>
-                  {person.basis}.{person.line.insider ? " Works there now, so public information only." : ""}
-                </p>
+                <RelationPath path={person.path} inline />
+                {/* said only when it adds to the path's own edge text (an introducer, or a different role) */}
+                {(person.line.via || !person.line.relation.toLowerCase().includes(person.basis.split(" at ")[0].toLowerCase())) && (
+                  <p className="mt-1 text-small text-ink-2">
+                    <span className="text-ink-3">Why them for this: </span>
+                    {person.basis}.{person.line.insider ? " Works there now, so public information only." : ""}
+                  </p>
+                )}
+                {!(person.line.via || !person.line.relation.toLowerCase().includes(person.basis.split(" at ")[0].toLowerCase())) && person.line.insider && (
+                  <p className="mt-1 text-small text-ink-2">Works there now, so public information only.</p>
+                )}
               </div>
               <Note key={`${person.line.contact_id}|${lens}|${question}`} person={person} lens={anyFit ? lens : null} question={question} company={company} />
             </>
@@ -343,10 +360,10 @@ function Note({ person, lens, question, company }: { person: FlowPerson; lens: L
 }
 
 const REVISIT: { key: Revisit; label: string; hint: string }[] = [
-  { key: "results", label: "Next results", hint: "when the next quarterly results are filed" },
-  { key: "call", label: "Next earnings call", hint: "when the next call transcript or recording is filed" },
-  { key: "filing", label: "Any new filing", hint: "when the company files anything new" },
-  { key: "date", label: "On a date", hint: "on the day you choose" },
+  { key: "results", label: "Results", hint: "when the next quarterly results are filed" },
+  { key: "call", label: "Call", hint: "when the next earnings-call transcript or recording is filed" },
+  { key: "filing", label: "Any filing", hint: "when the company files anything new" },
+  { key: "date", label: "A date", hint: "on the day you choose" },
 ];
 
 function Follow({
@@ -376,16 +393,16 @@ function Follow({
   const r = REVISIT.find((x) => x.key === revisit)!;
 
   return (
-    <Step n={5} title="Keep following" section="s-follow">
+    <Step n={4} title="Keep following" section="s-follow">
       <p className="mt-2 text-small text-ink-2">Bring this question back</p>
-      <div className="mt-2 flex flex-wrap gap-1.5" role="radiogroup" aria-label="When to bring it back">
+      <div className="seg mt-2" role="radiogroup" aria-label="When to bring it back">
         {REVISIT.map((x) => (
           <button
             key={x.key}
             role="radio"
             aria-checked={revisit === x.key}
             onClick={() => setChoice(x.key)}
-            className={`min-h-[44px] rounded-full px-4 text-small ${revisit === x.key ? "bg-ink font-medium text-paper" : "border border-rule text-ink-2"}`}
+            aria-label={x.key === "date" ? "On a date" : `Next ${x.label.toLowerCase()}`}
           >
             {x.label}
           </button>
@@ -407,7 +424,7 @@ function Follow({
         id="resolve"
         value={resolve}
         onChange={(e) => setResolveIn(e.target.value)}
-        placeholder="e.g. the notes name the exceptional item and say it won't recur"
+        placeholder="e.g. the notes explain it"
         className="mt-1 min-h-[44px] w-full rounded-lg border border-rule bg-paper-raised px-3 text-small placeholder:text-ink-3 focus:border-accent focus:outline-none"
       />
       <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -440,15 +457,11 @@ function Follow({
           </>
         )}
       </div>
+      {/* one caption: what happens, and the honest limits (layout plan §6) */}
       <p role="status" className="mt-2 text-caption text-ink-3">
         {error
           ? "This browser didn't let FINN save it (private browsing or storage full). Nothing was kept."
-          : saved && !dirty
-            ? `Saved on ${new Date(saved.savedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}. It appears at the top of your edition.`
-            : ""}
-      </p>
-      <p className="mt-1 text-caption text-ink-3">
-        FINN brings it back {r.hint}, checking each time you open the edition. Saved on this device only; it doesn&apos;t send notifications.
+          : `${saved && !dirty ? `Saved ${new Date(saved.savedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}. ` : ""}Brings it back ${r.hint}; checked when you open FINN; this device only.`}
       </p>
     </Step>
   );

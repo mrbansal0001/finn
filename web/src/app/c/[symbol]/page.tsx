@@ -5,12 +5,14 @@ import { Dock } from "@/components/Dock";
 import { Suspense } from "react";
 import { getLedger, getRequest, getUniverse, getView } from "@/lib/data";
 import { RequestButton } from "./RequestButton";
-import { day, dirClass, pct, price as fmtPrice, when } from "@/lib/format";
+import { day, dirClass, fyQuarter, KIND_LABEL, pct, price as fmtPrice, when } from "@/lib/format";
 import { SectionNav } from "@/components/SectionNav";
-import { EditionCard } from "@/components/EditionCard";
 import { PromisesLedger } from "@/components/PromisesLedger";
 import { ResultsTable } from "@/components/ResultsTable";
 import { ResultsVisual } from "@/components/ResultsVisual";
+import { QuestionCard, QuestionRow } from "@/components/QuestionCard";
+import { About, AboutPart } from "@/components/About";
+import { filingMarkers } from "@/lib/markers";
 import { MoveSpark } from "@/components/MoveSpark";
 import { NetworkLine } from "@/components/NetworkLine";
 import { FollowedQuestions } from "@/components/FollowedQuestions";
@@ -72,22 +74,29 @@ async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] 
     const f = c.facts as { change_pct?: number; volume_multiple?: number };
     return c.symbol === symbol && (Math.abs(f.change_pct ?? 0) >= 2 || (f.volume_multiple ?? 0) >= 1.5);
   });
-  const all = [...snap.editions["30d"].leads, ...snap.editions["30d"].more, ...moves].filter((c) => c.symbol === symbol);
-  const filings = all.sort((a, b) => b.at.localeCompare(a.at));
+  // filings as rows; price moves as one line that opens the newest (its card has the full chart) (layout plan §5)
+  const filings = [...snap.editions["30d"].leads, ...snap.editions["30d"].more]
+    .filter((c) => c.symbol === symbol && c.kind !== "move")
+    .sort((a, b) => b.at.localeCompare(a.at));
+  const bigMoves = moves.filter((c) => Math.abs((c.facts as { change_pct?: number }).change_pct ?? 0) >= 2).sort((a, b) => b.at.localeCompare(a.at));
+  const volMoves = moves.filter((c) => !bigMoves.includes(c)).sort((a, b) => b.at.localeCompare(a.at));
+  const history = snap.price_history?.[symbol];
+  const marks = history ? [...new Set(filingMarkers(snap, symbol, history.map((r) => r.d)).map((m) => m.d))] : [];
 
   const people = snap.people[symbol] ?? [];
   const sections = [
+    ["overview", "Overview"],
     results && ["results", "Results"],
     ["promises", "Promises"],
     people.length > 0 && ["people", "People"],
-    filings.length > 0 && ["filings", "Filings"],
+    (filings.length > 0 || moves.length > 0) && ["filings", "Filings"],
   ].filter(Boolean) as [string, string][];
 
   return (
     <main>
       <BackLink fallback="/" />
 
-      <header>
+      <header id="overview" className="scroll-mt-16">
         {/* the ticker, then the facts about it as tags: no dot-separated run-on */}
         <div className="flex flex-wrap items-center gap-2">
           <span className="kicker text-ink-3">{symbol}</span>
@@ -106,10 +115,13 @@ async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] 
               Close on <span className="num">{day(price.day + "T15:30:00", snap.data_until)}</span>
             </p>
             {/* how it has traded lately: the same word-sized chart as the alerts, to the latest session */}
-            {snap.price_history?.[symbol] && (
+            {history && (
               <div className="mt-2 flex items-end gap-3">
-                <MoveSpark rows={snap.price_history[symbol]} day={price.day} width={150} height={40} label={`${symbol}: price over the last 20 sessions and each day's volume`} />
-                <span className="pb-0.5 text-caption text-ink-3">Last 20 sessions; bars are volume</span>
+                {/* price and filings in one first glance: a mark above the line on each day the company filed */}
+                <MoveSpark rows={history} day={price.day} width={150} height={44} marks={marks} label={`${symbol}: the last 20 closes, each day's volume, and a mark on each day the company filed`} />
+                <span className="pb-0.5 text-caption text-ink-3">
+                  Last 20 sessions; bars are volume{marks.length ? <>; <span className="text-accent">▼</span> a filing</> : null}
+                </span>
               </div>
             )}
           </div>
@@ -119,7 +131,7 @@ async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] 
       {sections.length > 2 && <SectionNav sections={sections} />}
 
       {ledger?.snapshot && ledger.snapshot.what_they_do.length > 0 && (
-        <section className="mt-8">
+        <section className="mt-10">
           <h2 className="section-h">
             <span>What they do</span>
             <span className="text-caption font-normal normal-case tracking-normal text-ink-3">FY{String(ledger.snapshot.year).slice(2)} annual report</span>
@@ -168,15 +180,31 @@ async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] 
       <Questions symbol={symbol} snap={snap} ledger={ledger} />
 
       {results && (
-        <section id="results" className="mt-10 scroll-mt-4">
-          <h2 className="section-h">Latest results</h2>
-          {/* the picture first, the exact table under it (visual review §8) */}
-          <ResultsVisual r={results} question={resultsLink(symbol, snap)} />
-          <ResultsTable r={results} />
+        <section id="results" className="mt-12 scroll-mt-16">
+          <h2 className="section-h">
+            <span>Latest results</span>
+            <span className="text-caption font-normal normal-case tracking-normal text-ink-3">{fyQuarter(results.period_end)}</span>
+          </h2>
+          {/* the picture, its question, then the exact table folded (layout plan §5) */}
+          <ResultsVisual r={results} />
+          {(() => {
+            const q = resultsLink(symbol, snap);
+            return q ? <QuestionCard question={q.text} href={q.href} /> : null;
+          })()}
+          <details className="group mt-6 border-t border-rule md:hidden">
+            <summary className="flex min-h-[48px] cursor-pointer list-none items-center justify-between text-small text-ink-2">
+              Exact figures, {fyQuarter(results.period_end)}
+              <span aria-hidden className="text-ink-3 transition-transform duration-200 group-open:rotate-90">›</span>
+            </summary>
+            <ResultsTable r={results} />
+          </details>
+          <div className="mt-6 hidden md:block">
+            <ResultsTable r={results} />
+          </div>
         </section>
       )}
 
-      <div id="promises" className="mt-10 scroll-mt-4">
+      <div id="promises" className="mt-12 scroll-mt-16">
         {ledger ? (
           <PromisesLedger ledger={ledger} verifiers={snap.verifiers} />
         ) : (
@@ -195,7 +223,7 @@ async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] 
       </div>
 
       {people.length > 0 && (
-        <section id="people" className="mt-10 scroll-mt-4">
+        <section id="people" className="mt-12 scroll-mt-16">
           <h2 className="section-h">People who&apos;d know</h2>
           {people.map((l, i) => (
             <NetworkLine key={l.contact_id} line={l} asOf={snap.data_until} reason={i === 0 && l.best_reason && l.best_reason !== l.relation ? l.best_reason : undefined} />
@@ -203,20 +231,59 @@ async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] 
         </section>
       )}
 
-      {filings.length > 0 && (
-        <section id="filings" className="mt-10 scroll-mt-4">
+      {(filings.length > 0 || moves.length > 0) && (
+        <section id="filings" className="mt-12 scroll-mt-16">
           <h2 className="section-h">
-            <span>Filings and moves</span>
+            <span>Filings</span>
             <span className="text-caption font-normal normal-case tracking-normal text-ink-3">last 30 days</span>
           </h2>
           <div className="hair">
             {/* the people above already cover this company: no repeated line under every filing */}
             {filings.map((c) => (
-              <EditionCard key={c.id} card={c} refTime={snap.data_until} compact showNetwork={false} />
+              <FilingRow key={c.id} id={c.id} kind={c.kind} at={c.at} title={c.headline ?? c.nse_subject} refTime={snap.data_until} />
             ))}
           </div>
+          {/* near-identical move rows were noise: one line, opening the newest move (its card has the chart) */}
+          {bigMoves.length > 0 ? (
+            <Link href={`/card/${bigMoves[0].id}`} className="flex min-h-[48px] items-center justify-between border-t border-rule text-small text-ink">
+              <span>
+                Price moves: <span className="num">{bigMoves.length}</span> session{bigMoves.length === 1 ? "" : "s"} over 2% this month
+              </span>
+              <span aria-hidden className="text-accent">›</span>
+            </Link>
+          ) : volMoves.length > 0 ? (
+            <Link href={`/card/${volMoves[0].id}`} className="flex min-h-[48px] items-center justify-between border-t border-rule text-small text-ink">
+              <span>
+                Volume: <span className="num">{volMoves.length}</span> session{volMoves.length === 1 ? "" : "s"} at 1.5× usual or more this month
+              </span>
+              <span aria-hidden className="text-accent">›</span>
+            </Link>
+          ) : null}
         </section>
       )}
+
+      <About label="About this company">
+        {ledger?.snapshot && (
+          <AboutPart title="Business description">
+            <p>
+              From the FY{String(ledger.snapshot.year).slice(2)} annual report, pages {ledger.snapshot.pages[0]}–{ledger.snapshot.pages[1]}.{" "}
+              <a href={ledger.snapshot.url} target="_blank" rel="noopener noreferrer" className="text-accent">
+                Annual report ↗
+              </a>
+            </p>
+          </AboutPart>
+        )}
+        {price && (
+          <AboutPart title="Prices">
+            <p>Closing prices and volume from NSE&apos;s daily bhavcopy, as traded (not adjusted for splits or bonuses).</p>
+          </AboutPart>
+        )}
+        {ledger && (
+          <AboutPart title="Promises">
+            <p>{ledger.provenance.replace("Statuses computed in code.", "Statuses follow fixed rules, not a model's judgement.")}</p>
+          </AboutPart>
+        )}
+      </About>
       <Dock />
     </main>
   );
@@ -242,8 +309,9 @@ function Coverage({ symbol, req, dataUntil }: { symbol: string; req: Awaited<Ret
   return <RequestButton symbol={symbol} />;
 }
 
-/** Three questions worth the investor's attention, from the latest results and the promises that changed
- *  (creative review, company hierarchy step 3). Each opens its investigation. None when nothing supports one. */
+/** Up to three questions worth the investor's attention, from the promises that changed (creative review,
+ *  company hierarchy step 3), as compact rows: the serif headline belongs to the investigation itself
+ *  (layout plan §5). A company with no ledger gets the gap itself as the row. */
 function Questions({ symbol, snap, ledger }: { symbol: string; snap: Snapshot; ledger: Ledger | null }) {
   const out: { tag: string; q: string; href: string }[] = [];
   // the results question sits under the results chart, beside its evidence; these are the promise questions
@@ -252,30 +320,27 @@ function Questions({ symbol, snap, ledger }: { symbol: string; snap: Snapshot; l
       ledger.rows
         .filter((r) => st.includes(r.latest) && !/: (no figure|direction only)$/.test(r.title))
         .sort((a, b) => (b.mentions ?? 1) - (a.mentions ?? 1))[0];
-    for (const [r, tag] of [[pick(["revised"]), "Promise revised"], [pick(["silent", "missed", "partly"]), "Promise went quiet"]] as const) {
-      if (r && out.length < 3) out.push({ tag: r.latest === "silent" ? "Promise went quiet" : r.latest === "revised" ? tag : "Promise settled", q: fromPromise(r, ledger, snap).question, href: promiseHref(symbol, r) });
-    }
+    const revised = pick(["revised"]);
+    if (revised) out.push({ tag: "Revised", q: fromPromise(revised, ledger, snap).question, href: promiseHref(symbol, revised) });
+    const quiet = pick(["silent", "missed", "partly"]);
+    if (quiet) out.push({ tag: quiet.latest === "silent" ? "Went quiet" : "Settled", q: fromPromise(quiet, ledger, snap).question, href: promiseHref(symbol, quiet) });
     const tracked = ledger.rows.find((r) => r.tracking);
-    if (tracked && out.length < 3) out.push({ tag: "Promise on course?", q: fromPromise(tracked, ledger, snap).question, href: promiseHref(symbol, tracked) });
+    if (tracked) out.push({ tag: "On course?", q: fromPromise(tracked, ledger, snap).question, href: promiseHref(symbol, tracked) });
+  } else {
+    out.push({ tag: "Gap", q: "No promises ledger yet. Build one from the last four earnings calls", href: "#promises" });
   }
   if (!out.length) return null;
   return (
-    <section className="mt-10" aria-labelledby="questions-h">
+    <section className="mt-12" aria-labelledby="questions-h">
       <h2 id="questions-h" className="section-h">
-        <span>Questions worth your attention</span>
+        <span>Worth your attention</span>
+        {ledger && <span className="text-caption font-normal normal-case tracking-normal text-ink-3">by fixed rules</span>}
       </h2>
-      <ul className="hair mt-1">
-        {out.map((x) => (
-          <li key={x.href}>
-            <Link href={x.href} className="group block py-3">
-              <span className="tag">{x.tag}</span>
-              <span className="mt-1.5 block font-serif text-subhead text-ink group-hover:underline">{x.q}</span>
-              <span className="mt-1 inline-flex text-small font-medium text-accent">Investigate ›</span>
-            </Link>
-          </li>
+      <ul className="hair">
+        {out.slice(0, 3).map((x) => (
+          <QuestionRow key={x.href} tag={x.tag} question={x.q} href={x.href} />
         ))}
       </ul>
-      <p className="mt-1 text-caption text-ink-3">Written from the filed figures and the call-by-call record, by fixed rules.</p>
     </section>
   );
 }
@@ -318,5 +383,19 @@ function SegmentBars({ segments, url, year }: { segments: { name: string; share_
         {undisclosed.length ? `No share stated for ${undisclosed.join(", ")}. ` : ""}Tap a figure for its page.
       </p>
     </figure>
+  );
+}
+
+/** A filing as one dense row (layout plan §5): what kind and when on a small line, the headline under it.
+ *  The whole row opens the card. */
+function FilingRow({ id, kind, at, title, refTime }: { id: string; kind: string; at: string; title: string; refTime: string }) {
+  return (
+    <Link href={`/card/${id}`} className="group block py-2.5">
+      <span className="flex items-baseline justify-between gap-3">
+        <span className="kicker text-ink-3">{KIND_LABEL[kind] ?? "Filing"}</span>
+        <span className="num text-caption text-ink-3">{when(at, refTime)}</span>
+      </span>
+      <span className="mt-0.5 block text-body text-ink group-hover:underline">{title}</span>
+    </Link>
   );
 }

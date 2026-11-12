@@ -85,12 +85,9 @@ export function HoldingsSheet({
               Close
             </button>
           </div>
-          <p className="text-caption text-ink-3">
-            A demo investor&apos;s {holdings.length} NSE holdings (weights add up to <span className="num">{total}%</span>), plus {research.length} research
-            names with no weight.
-          </p>
-
-          <div className="mt-3 flex gap-1" role="tablist" aria-label="View">
+          {/* the view and the filter on one row, so the first holding shows without scrolling (layout plan §8) */}
+          <div className="mt-2 flex items-center gap-2">
+          <div className="seg seg-sm flex-1" role="tablist" aria-label="View">
             {(
               [
                 ["list", "List"],
@@ -103,27 +100,17 @@ export function HoldingsSheet({
                 role="tab"
                 aria-selected={view === k}
                 onClick={() => setView(k)}
-                className={`min-h-[44px] flex-1 rounded-lg text-small ${view === k ? "bg-ink font-medium text-paper" : "bg-tint text-ink-2"}`}
               >
                 {label}
               </button>
             ))}
           </div>
-
           {view !== "agenda" && (
-            <div className="mt-3 flex gap-1.5" role="group" aria-label="Which companies">
-              {([[false, "All", holdings.length + research.length], [true, "Where I lack context", nGaps]] as const).map(([k, label, n]) => (
-                <button
-                  key={label}
-                  aria-pressed={gaps === k}
-                  onClick={() => setGaps(k)}
-                  className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-full px-4 text-small ${gaps === k ? "bg-ink font-medium text-paper" : "border border-rule text-ink-2"}`}
-                >
-                  {label} <span className={`num text-caption ${gaps === k ? "text-paper/70" : "text-ink-3"}`}>{n}</span>
-                </button>
-              ))}
-            </div>
+            <button aria-pressed={gaps} onClick={() => setGaps(!gaps)} className="pill shrink-0 !min-h-[2.25rem] !px-3 text-caption" aria-label={`Where I lack context: ${nGaps}`}>
+              Lack context <span className="num text-ink-3">{nGaps}</span>
+            </button>
           )}
+          </div>
           {gaps && view !== "agenda" && (
             <p className="mt-2 text-caption text-ink-3">No promises ledger yet, or no one in your network linked to the company. A gap in what you know, not a risk.</p>
           )}
@@ -131,6 +118,11 @@ export function HoldingsSheet({
           {view === "list" && (
             <>
               <List rows={show(holdings)} close={close} showWeight networkReady={networkReady} />
+              {!gaps && (
+                <p className="mt-2 text-caption text-ink-3">
+                  Weights add up to <span className="num">{total}%</span>; research names carry none.
+                </p>
+              )}
               {research.length > 0 && show(research).length > 0 && (
                 <>
                   <h3 className="section-h mt-6">Research list</h3>
@@ -196,16 +188,16 @@ function Coverage({ holdings, research, qs, close, networkReady }: { holdings: R
     );
   return (
     <div className="mt-3">
-      <div className="flex flex-wrap items-center gap-1 text-caption" role="group" aria-label="Sort by">
-        <span className="mr-1 text-ink-3">Sort</span>
+      <p className="text-caption text-ink-3">Sort by</p>
+      <div className="seg seg-sm mt-1" role="group" aria-label="Sort by">
         {(
           [
             ["weight", "Weight"],
-            ["newest", "Newest event"],
-            ["gaps", "Missing coverage"],
+            ["newest", "Newest"],
+            ["gaps", "Missing"],
           ] as const
         ).map(([k, label]) => (
-          <button key={k} aria-pressed={sort === k} onClick={() => setSort(k)} className={`min-h-[36px] rounded-full px-2.5 ${sort === k ? "bg-tint font-medium text-ink ring-1 ring-ink-3" : "text-ink-2"}`}>
+          <button key={k} aria-pressed={sort === k} onClick={() => setSort(k)}>
             {label}
           </button>
         ))}

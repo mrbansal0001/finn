@@ -48,31 +48,31 @@ export function ResultsVisual({ r, question }: { r: ResultsFacts; question?: { t
 
   return (
     <figure className="mt-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex gap-1" role="group" aria-label="Chart">
+      {/* both choices on one row: what to show, and what to compare with */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="seg seg-sm" role="group" aria-label="Chart">
           {(["growth", "margins"] as const).map((v) => (
             <button
               key={v}
               aria-pressed={view === v}
               disabled={v === "margins" && !margin}
               onClick={() => setView(v)}
-              className={`min-h-[40px] rounded-full px-3.5 text-small disabled:opacity-40 ${view === v ? "bg-ink font-medium text-paper" : "border border-rule text-ink-2"}`}
             >
               {v === "growth" ? "Growth" : "Margins"}
             </button>
           ))}
         </div>
         {view === "growth" && (
-          <div className="flex gap-1" role="group" aria-label="Compared with">
+          <div className="seg seg-sm" role="group" aria-label="Compared with">
             {(["yoy", "qoq"] as const).map((v) => (
               <button
                 key={v}
                 aria-pressed={cmp === v}
+                aria-label={v === "yoy" ? "Compared with a year ago" : "Compared with last quarter"}
                 disabled={v === "qoq" && (halfYearly || !c.prev_q)}
                 onClick={() => setCmp(v)}
-                className={`min-h-[40px] rounded-full px-3 text-caption disabled:opacity-40 ${cmp === v ? "bg-tint font-medium text-ink ring-1 ring-ink-3" : "text-ink-2"}`}
               >
-                {v === "yoy" ? "vs a year ago" : "vs last quarter"}
+                {v === "yoy" ? "YoY" : "QoQ"}
               </button>
             ))}
           </div>
@@ -129,7 +129,7 @@ export function ResultsVisual({ r, question }: { r: ResultsFacts; question?: { t
             <span className="inline-flex items-center gap-1 whitespace-nowrap">
               <span aria-hidden className="inline-block h-2 w-3 rounded-sm bg-ink" /> {nowQ}
             </span>
-            <span>Each metric on its own scale, from zero.</span>
+            <span>{r.nature}; each metric on its own scale, from zero.</span>
           </p>
           {sel && (
             <p className="mt-2 rounded-lg bg-tint px-3.5 py-2.5 text-small text-ink-2" aria-live="polite">

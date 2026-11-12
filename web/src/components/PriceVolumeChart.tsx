@@ -143,15 +143,9 @@ export function PriceVolumeChart({ rows, alertDay, markers, symbol }: { rows: Se
         ))}
       </svg>
 
-      <figcaption className="mt-1 space-y-1 text-caption text-ink-3">
-        <p>
-          {n} trading sessions; weekends and holidays aren&apos;t on the axis. Change is close against the exchange&apos;s previous close. The
-          average is the previous {r.n === 20 ? "20 sessions" : `${r.n} sessions (fewer were available)`}, excluding the day itself, as the alert
-          uses. ▼ marks a filing that day (hollow: filed after the close). A marker shows timing, not cause.
-        </p>
-        {rows.some((x) => x.gap) && (
-          <p>A dashed break: the exchange&apos;s previous close differs from the prior close shown (a session not loaded, or a corporate action).</p>
-        )}
+      {/* one caption line at most (layout plan §9.5); the definitions sit with the table below */}
+      <figcaption className="mt-1 text-caption text-ink-3">
+        Dashed: the alert&apos;s 20-session average. ▼ a filing (hollow: after the close); timing, not cause.
       </figcaption>
 
       {here.length > 0 && (
@@ -183,7 +177,17 @@ export function PriceVolumeChart({ rows, alertDay, markers, symbol }: { rows: Se
       )}
 
       <details className="mt-1">
-        <summary className="inline-flex min-h-[44px] items-center text-small text-ink-2">Every session as a table</summary>
+        <summary className="inline-flex min-h-[44px] items-center text-small text-ink-2">Every session as a table, and how it&apos;s measured</summary>
+        <div className="mb-2 space-y-1 text-caption text-ink-3">
+          <p>
+            {n} trading sessions; weekends and holidays aren&apos;t on the axis. Change is the close against the exchange&apos;s previous close. The
+            average is the previous {r.n === 20 ? "20 sessions" : `${r.n} sessions (fewer were available)`}, excluding the day itself, as the alert
+            uses. Closes are as traded, not adjusted for splits or bonuses.
+          </p>
+          {rows.some((x) => x.gap) && (
+            <p>A dashed break: the exchange&apos;s previous close differs from the prior close shown (a session not loaded, or a corporate action).</p>
+          )}
+        </div>
         <table className="w-full text-caption">
           <thead>
             <tr className="text-ink-3">

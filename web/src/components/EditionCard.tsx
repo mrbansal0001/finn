@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Card, ResultsFacts } from "@/lib/types";
-import { dirClass, pct, price, times } from "@/lib/format";
+import { dirClass, pct } from "@/lib/format";
 import { CardMeta } from "./CardMeta";
 import { NetworkLine } from "./NetworkLine";
 import { MoveSpark } from "./MoveSpark";
@@ -29,7 +29,7 @@ export function EditionCard({
   const results = card.facts?.results;
   const isMove = card.kind === "move";
   return (
-    <article className={`relative ${compact ? "py-3.5" : "py-5"}`} aria-labelledby={`h-${card.id}`}>
+    <article className={`relative ${compact ? "py-3.5" : "py-4"}`} aria-labelledby={`h-${card.id}`}>
       <CardMeta kind={card.kind} symbol={card.symbol} at={card.at} refTime={refTime} lead={card.tier === "lead"} overCard />
 
       <div className={compact && isMove && history ? "flex items-center justify-between gap-3" : undefined}>
@@ -50,6 +50,7 @@ export function EditionCard({
         <>
           {isMove ? (
             <>
+              {/* the headline carries the move's figures; the line keeps only what it adds (layout plan §3) */}
               <MoveLine card={card} />
               {/* the lead move, drawn: 20 sessions to the alert day (the alert rows carry the small version) */}
               {history && (
@@ -59,23 +60,42 @@ export function EditionCard({
                 </div>
               )}
             </>
+          ) : results?.comparatives ? (
+            <>
+              {/* the bars carry the headline figures; the "why" keeps only its first sentence (one number, one place) */}
+              <Figures r={results} />
+              {card.why && <p className="mt-2 text-small text-ink-2">{firstSentence(card.why)}</p>}
+            </>
           ) : (
             card.why && <p className="mt-2 line-clamp-3 text-body text-ink-2">{card.why}</p>
           )}
-          {results?.comparatives && <Figures r={results} />}
           {card.kind === "management_change" && <PersonLine card={card} />}
         </>
       )}
 
-      {showNetwork && card.network?.length > 0 && (
+      {compact && showNetwork && card.network?.length > 0 && (
         <div className="above-card mt-3">
           <NetworkLine line={card.network[0]} compact asOf={refTime} from={card.id} oneLine />
         </div>
       )}
-      {/* one purposeful action on a lead: carry this event into a question (creative review) */}
+      {/* a lead: the person by name (the relation never fits a phone; it is on the card page) and the one action */}
       {!compact && (
-        <div className="above-card mt-2">
-          <Link href={`/investigate?card=${card.id}`} className="tap inline-flex items-center gap-1 text-small font-medium text-accent">
+        <div className="above-card mt-3 flex min-h-[44px] items-center justify-between gap-3">
+          {showNetwork && card.network?.[0] ? (
+            <span className="flex min-w-0 items-center gap-2 text-small">
+              <span aria-hidden className="text-accent">◦</span>
+              <Link
+                href={`/people/${card.network[0].contact_id}?from=${encodeURIComponent(card.id)}`}
+                className="tap truncate font-medium text-accent underline-offset-2 hover:underline"
+              >
+                {card.network[0].name}
+              </Link>
+              {card.network[0].insider && <span className="tag shrink-0">Insider</span>}
+            </span>
+          ) : (
+            <span />
+          )}
+          <Link href={`/investigate?card=${card.id}`} className="tap inline-flex shrink-0 items-center gap-1 text-small font-medium text-accent">
             Investigate <span aria-hidden>›</span>
           </Link>
         </div>
@@ -109,7 +129,7 @@ function Figures({ r }: { r: ResultsFacts }) {
           const w = (Math.min(Math.abs(v), top) / top) * span;
           const capped = Math.abs(v) > top;
           return (
-            <li key={label} className="grid grid-cols-[4.5rem_1fr_3.75rem] items-center gap-2">
+            <li key={label} className="grid grid-cols-[4.5rem_1fr_3.75rem_1.75rem] items-center gap-2">
               <span className="truncate text-caption text-ink-3">{label}</span>
               <span className="relative h-3" aria-hidden>
                 <span className="absolute inset-y-0 w-px bg-ink-3" style={{ left: `${zero}%` }} />
@@ -122,11 +142,13 @@ function Figures({ r }: { r: ResultsFacts }) {
                 )}
               </span>
               <span className={`num text-right text-small font-medium ${dirClass(v)}`}>{pct(v)}</span>
+              {/* one scale for all three: changes from a year ago */}
+              <span className="text-label text-ink-3">{label === shown[shown.length - 1][0] ? "YoY" : ""}</span>
             </li>
           );
         })}
       </ul>
-      <figcaption className="mt-0.5 pl-[5rem] text-label text-ink-3">Change from a year ago, one scale{shown.some(([, v]) => Math.abs(v) > top) ? `; bars capped at ±${top}%` : ""}</figcaption>
+      {shown.some(([, v]) => Math.abs(v) > top) && <figcaption className="mt-0.5 pl-[5rem] text-label text-ink-3">Bars capped at ±{top}%</figcaption>}
     </figure>
   );
 }
@@ -147,17 +169,16 @@ function PersonLine({ card }: { card: Card }) {
   );
 }
 
-/** A move card: the session in one line, instead of a paragraph. */
+/** A move card: the headline already says the move and the volume; the line says what it adds. */
 function MoveLine({ card }: { card: Card }) {
-  const f = card.facts as { close?: number; change_pct?: number; volume_multiple?: number; explained_by?: string | null };
-  return (
-    <p className="mt-2 text-small text-ink-2">
-      Closed at <span className="num font-medium text-ink">{price(f.close)}</span>,{" "}
-      <span className={`num font-medium ${dirClass(f.change_pct)}`}>{pct(f.change_pct)}</span>, on{" "}
-      <span className="num">{times(f.volume_multiple)}</span> usual volume.{" "}
-      {f.explained_by ? "A material filing came before it." : "No material filing since the previous close."}
-    </p>
-  );
+  const f = card.facts as { explained_by?: string | null };
+  return <p className="mt-2 text-small text-ink-2">{f.explained_by ? "A material filing came before it." : "No material filing since the previous close."}</p>;
+}
+
+/** The first sentence of a "why" (the rest restates what a chart already shows). */
+export function firstSentence(s: string): string {
+  const m = s.match(/^.*?[.!?](?=\s+[A-Z₹"“]|$)/);
+  return m ? m[0] : s;
 }
 
 export function changeWord(change: string): string {

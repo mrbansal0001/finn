@@ -10,6 +10,7 @@ import { monthYear } from "@/lib/format";
 import { RelationPath, pathFor } from "@/components/RelationPath";
 import { CareerBars } from "@/components/CareerBars";
 import { CompanyBridge } from "@/components/CompanyBridge";
+import { About, AboutPart } from "@/components/About";
 
 export default function PersonPage({ params, searchParams }: PageProps<"/people/[id]">) {
   return (
@@ -69,46 +70,52 @@ async function Person({ params, searchParams }: { params: PageProps<"/people/[id
         {c.last_contact ? <>, last spoke {monthYear(c.last_contact)}</> : null}
       </p>
 
-      {line && focus && (
-        <section className="mt-8">
+      {/* the path only when someone introduces you; for a direct contact the tie line above already says it */}
+      {line && focus && line.via && (
+        <section className="mt-10">
           <h2 className="section-h">
             <span>How you reach them</span>
-            {line.via ? <span className="text-caption font-normal normal-case tracking-normal text-ink-3">through {line.via}</span> : null}
+            <span className="text-caption font-normal normal-case tracking-normal text-ink-3">through {line.via}</span>
           </h2>
           <RelationPath path={pathFor(line, snap.contacts, focus, today, origin?.id)} className="mt-3" />
+        </section>
+      )}
+
+      {/* the page's most distinctive thing, first when present (layout plan §7) */}
+      <CompanyBridge name={c.name} roles={links} />
+
+      {cards.length > 0 && (
+        <section className="mt-12">
+          <h2 className="section-h">Why talk to them now</h2>
+          <ul className="hair">
+            {cards.slice(0, 3).map((card) => (
+              <PersonCard key={card.id} id={card.id} symbol={card.symbol} title={card.headline ?? card.nse_subject} />
+            ))}
+          </ul>
+          {cards.length > 3 && (
+            <details className="group">
+              <summary className="flex min-h-[44px] cursor-pointer list-none items-center text-small text-accent">
+                See {Math.min(cards.length, 5) - 3} more <span aria-hidden className="ml-1 transition-transform duration-200 group-open:rotate-90">›</span>
+              </summary>
+              <ul className="hair">
+                {cards.slice(3, 5).map((card) => (
+                  <PersonCard key={card.id} id={card.id} symbol={card.symbol} title={card.headline ?? card.nse_subject} />
+                ))}
+              </ul>
+            </details>
+          )}
           {origin && (
-            <Link
-              href={`/investigate?card=${origin.id}`}
-              className="mt-1 inline-flex min-h-[44px] items-center gap-1 text-small font-medium text-accent"
-            >
+            <Link href={`/investigate?card=${origin.id}`} className="mt-1 flex min-h-[44px] items-center gap-1 text-small font-medium text-accent">
               Investigate {origin.symbol} with {c.name.split(" ")[0]} in mind <span aria-hidden>›</span>
             </Link>
           )}
+          <NoteDraft name={c.name} company={cards[0].company} topic={cards[0].headline ?? cards[0].nse_subject} kind={cards[0].kind} role={role} folded />
         </section>
       )}
 
-      {cards.length > 0 && (
-        <section className="mt-10">
-          <h2 className="section-h">Why talk to them now</h2>
-          <ul className="hair">
-            {cards.slice(0, 5).map((card) => (
-              <li key={card.id}>
-                <Link href={`/card/${card.id}`} className="block py-2.5 hover:bg-paper-raised">
-                  <span className="kicker mr-2 text-ink-3">{card.symbol}</span>
-                  <span className="text-body text-ink">{card.headline ?? card.nse_subject}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-          <NoteDraft name={c.name} company={cards[0].company} topic={cards[0].headline ?? cards[0].nse_subject} kind={cards[0].kind} role={role} />
-        </section>
-      )}
-
-      {/* two covered companies in one career: the bridge, then the list */}
-      <CompanyBridge name={c.name} roles={links} />
-
-      {links.length > 0 && (
-        <section className="mt-10">
+      {/* the list only when the bridge isn't shown: the same two companies twice was repetition */}
+      {links.length > 0 && links.length < 2 && (
+        <section className="mt-12">
           <h2 className="section-h">Connects you to</h2>
           <ul className="hair">
             {links.map((h, i) => (
@@ -126,7 +133,7 @@ async function Person({ params, searchParams }: { params: PageProps<"/people/[id
         </section>
       )}
 
-      <section className="mt-10">
+      <section className="mt-12">
         <h2 className="section-h">Career</h2>
         <CareerBars history={c.history} until={snap.data_until} covered={[...held, ...snap.research_set]} />
         {c.education.length > 0 && (
@@ -143,24 +150,20 @@ async function Person({ params, searchParams }: { params: PageProps<"/people/[id
         )}
       </section>
 
-      <details className="group mt-6 border-t border-rule">
-        <summary className="flex min-h-[48px] items-center justify-between text-small text-ink-2">
-          <span>
-            How strong is this tie: <span className="text-ink">{label(s.total)}</span>
-          </span>
-          <span aria-hidden className="text-ink-3 transition-transform duration-200 group-open:rotate-90">›</span>
-        </summary>
-        <dl className="grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-2 text-small">
-          <Part k="Last spoke" v={c.last_contact ? `${monthYear(c.last_contact)} (${daysAgo(c.last_contact, today)} days)` : "never"} w={s.recency} />
-          <Part k="Interactions, last 12 months" v={String(c.interactions_12m)} w={s.frequency} />
-          <Part k="They reach out too" v={`${Math.round(c.reciprocity * 100)}%`} w={s.reciprocity} />
-          <Part k="Your rating" v={`${c.rating}/5`} w={s.rating} />
-        </dl>
-        <p className="mb-3 mt-2 text-caption text-ink-3">
-          0.40 × recency + 0.25 × frequency + 0.20 × reciprocity + 0.15 × rating = <span className="num">{s.total.toFixed(2)}</span>
-        </p>
-      </details>
-      <p className="mt-6 text-caption text-ink-3">Synthetic profile for this prototype. Real networks come only from your own consented imports.</p>
+      <About label="About this profile">
+        <AboutPart title={`How strong is this tie: ${label(s.total)}`}>
+          <dl className="grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-1.5">
+            <Part k="Last spoke" v={c.last_contact ? `${monthYear(c.last_contact)} (${daysAgo(c.last_contact, today)} days)` : "never"} w={s.recency} />
+            <Part k="Interactions, last 12 months" v={String(c.interactions_12m)} w={s.frequency} />
+            <Part k="They reach out too" v={`${Math.round(c.reciprocity * 100)}%`} w={s.reciprocity} />
+            <Part k="Your rating" v={`${c.rating}/5`} w={s.rating} />
+          </dl>
+          <p className="mt-2">
+            0.40 × recency + 0.25 × frequency + 0.20 × reciprocity + 0.15 × rating = <span className="num">{s.total.toFixed(2)}</span>
+          </p>
+        </AboutPart>
+        <p>Real networks come only from your own consented imports.</p>
+      </About>
       <Dock />
     </main>
   );
@@ -190,4 +193,15 @@ const label = (s: number) => (s >= 0.6 ? "strong" : s >= 0.4 ? "medium" : "weak"
 const yr = (s: string) => s.slice(0, 4);
 function daysAgo(iso: string, today: Date) {
   return Math.round((today.getTime() - new Date(iso).getTime()) / 86_400_000);
+}
+
+function PersonCard({ id, symbol, title }: { id: string; symbol: string; title: string }) {
+  return (
+    <li>
+      <Link href={`/card/${id}`} className="block py-2.5 hover:bg-paper-raised">
+        <span className="kicker mr-2 text-ink-3">{symbol}</span>
+        <span className="text-body text-ink">{title}</span>
+      </Link>
+    </li>
+  );
 }

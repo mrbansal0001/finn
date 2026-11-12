@@ -25,7 +25,7 @@ export function CompanyBridge({ name, roles }: { name: string; roles: Contact["h
     </div>
   );
   return (
-    <section className="mt-10" aria-labelledby="bridge-h">
+    <section className="mt-12" aria-labelledby="bridge-h">
       <h2 id="bridge-h" className="section-h">
         Has seen both
       </h2>

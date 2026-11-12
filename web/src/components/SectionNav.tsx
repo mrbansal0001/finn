@@ -25,19 +25,19 @@ export function SectionNav({ sections }: { sections: [string, string][] }) {
   }, [sections]);
 
   return (
-    <nav aria-label="On this page" className="-mx-1 mt-5 flex gap-1.5 overflow-x-auto">
-      {sections.map(([id, label]) => (
-        <a
-          key={id}
-          href={`#${id}`}
-          aria-current={active === id ? "location" : undefined}
-          className={`inline-flex min-h-[40px] items-center whitespace-nowrap rounded-full border px-4 text-small transition-colors ${
-            active === id ? "border-ink bg-ink text-paper" : "border-rule text-ink-2 hover:text-ink"
-          }`}
-        >
-          {label}
-        </a>
-      ))}
+    // sticky under the top edge once scrolled; the only other fixed element is the search dock, at the bottom.
+    // Equal segments in the app's one view-control style, so all five fit a phone (layout plan §5, §9.2)
+    <nav
+      aria-label="On this page"
+      className="sticky top-0 z-10 -mx-4 mt-5 border-b border-rule bg-paper/95 px-4 py-1.5 backdrop-blur min-[400px]:-mx-5 min-[400px]:px-5"
+    >
+      <div className="seg seg-sm">
+        {sections.map(([id, label]) => (
+          <a key={id} href={`#${id}`} aria-current={active === id ? "location" : undefined} className="!px-1">
+            {label}
+          </a>
+        ))}
+      </div>
     </nav>
   );
 }

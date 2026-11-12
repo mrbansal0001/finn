@@ -58,8 +58,9 @@ export function WindowSwitcher({
       </header>
       {masthead}
 
-      <nav aria-label="Edition window" className="-mx-1 mt-4 flex gap-1 overflow-x-auto">
-        <SinceLastVisit active={active === "since"} seen={sinceSeen} />
+      <SinceLastVisit active={active === "since"} seen={sinceSeen} />
+      {/* one segmented control for the four windows (layout plan §9.2) */}
+      <nav aria-label="Edition window" className="seg mt-4">
         {tabs.map((x) => (
           <a
             key={x.key}
@@ -71,9 +72,7 @@ export function WindowSwitcher({
             }}
             aria-current={x.key === active ? "page" : undefined}
             aria-label={x.label}
-            className={`inline-flex min-h-[44px] min-w-[44px] items-center justify-center whitespace-nowrap rounded-full px-4 text-small transition-colors duration-150 max-[359px]:px-3 ${
-              x.key === active ? "bg-ink font-medium text-paper" : "text-ink-2 hover:text-ink"
-            }`}
+            className="max-[359px]:px-1.5"
           >
             {/* very narrow phones get the short form so all four fit */}
             <span className="max-[359px]:hidden">{x.label}</span>

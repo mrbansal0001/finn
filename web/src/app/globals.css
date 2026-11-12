@@ -186,6 +186,83 @@ body {
   padding-bottom: 0.5rem;
 }
 
+/* Minor heading (layout plan §2): a plain small heading with no rule, for sections that support a major one */
+.minor-h {
+  font-size: var(--text-small);
+  line-height: var(--text-small--line-height);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+/* One control per job (layout plan §9.2).
+   .seg  = mutually exclusive views: equal segments on a tint track, the active one filled with ink.
+           Active state comes from ARIA, so markup and meaning can't drift apart.
+   .pill = a filter with a count: outlined; when on, a tint fill and an ink edge. */
+.seg {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 9999px;
+  background: var(--tint);
+}
+.seg > * {
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  min-height: 2.5rem;
+  padding: 0 0.75rem;
+  border-radius: 9999px;
+  font-size: var(--text-small);
+  line-height: 1.2;
+  color: var(--ink-2);
+  white-space: nowrap;
+  transition: background-color 150ms, color 150ms;
+}
+.seg > *:hover {
+  color: var(--ink);
+}
+.seg > [aria-pressed="true"],
+.seg > [aria-selected="true"],
+.seg > [aria-current="page"],
+.seg > [aria-checked="true"],
+.seg > [aria-current="location"] {
+  background: var(--ink);
+  color: var(--paper);
+  font-weight: 500;
+}
+.seg > *:disabled {
+  opacity: 0.4;
+}
+.seg-sm > * {
+  min-height: 2.25rem;
+  font-size: var(--text-caption);
+  padding: 0 0.625rem;
+}
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 2.75rem;
+  padding: 0 0.875rem;
+  border: 1px solid var(--rule);
+  border-radius: 9999px;
+  font-size: var(--text-small);
+  color: var(--ink-2);
+  white-space: nowrap;
+  transition: border-color 150ms, background-color 150ms, color 150ms;
+}
+.pill:hover {
+  color: var(--ink);
+}
+.pill[aria-pressed="true"] {
+  border-color: var(--ink-2);
+  background: var(--tint);
+  color: var(--ink);
+  font-weight: 500;
+}
+
 /* Separators by job, not by dot (plan addendum, 12 Nov):
    .chip  = an entity you can tap (a ticker): outlined, like a button
    .tag   = a fact you can't tap (sector, weight, "insider"): a soft filled label

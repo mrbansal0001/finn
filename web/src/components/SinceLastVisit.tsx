@@ -34,9 +34,8 @@ export function SinceLastVisit({ active, seen }: { active: boolean; seen: string
     <Link
       href={`/?w=since&t=${encodeURIComponent(since)}`}
       aria-current={active ? "page" : undefined}
-      className={`inline-flex min-h-[44px] items-center whitespace-nowrap rounded-full px-4 text-small ${
-        active ? "bg-ink font-medium text-paper" : "text-ink-2 hover:text-ink"
-      }`}
+      // a filter-like chip above the window control, so the four windows keep equal segments
+      className={`pill mt-4 ${active ? "border-ink-2 bg-tint font-medium text-ink" : ""}`}
     >
       Since last visit
     </Link>
