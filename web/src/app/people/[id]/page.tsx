@@ -45,16 +45,19 @@ async function Person({ params, searchParams }: { params: PageProps<"/people/[id
   return (
     <main>
       <BackLink fallback="/" />
-      <p className="kicker text-ink-3">Your network · private to you</p>
+      <div className="flex items-center gap-2">
+        <span className="kicker text-ink-3">Your network</span>
+        <span className="tag">Private to you</span>
+      </div>
       <h1 className="mt-1 font-serif text-display">{c.name}</h1>
       <p className="mt-1 text-body text-ink-2">
-        {c.current.role}, {c.current.org} · {c.city}
+        {c.current.role} at {c.current.org}, {c.city}
       </p>
       <p className="mt-2 text-small text-ink-3">
         How you know them: {c.how_met}
         <br />
         <span className="font-medium text-ink-2">{label(s.total)[0].toUpperCase() + label(s.total).slice(1)} tie</span>
-        {c.last_contact ? <> · last spoke {monthYear(c.last_contact)}</> : null}
+        {c.last_contact ? <>, last spoke {monthYear(c.last_contact)}</> : null}
       </p>
 
       {cards.length > 0 && (
@@ -80,12 +83,12 @@ async function Person({ params, searchParams }: { params: PageProps<"/people/[id
           <ul className="hair">
             {links.map((h, i) => (
               <li key={i} className="py-2.5 text-body">
-                <Link href={`/c/${h.symbol}`} className="tap font-medium text-accent">
+                <Link href={`/c/${h.symbol}`} className="chip tap mr-2 align-[2px]">
                   {h.symbol}
-                </Link>{" "}
+                </Link>
                 <span className="text-ink-2">
                   {h.role}, <span className="num">{yr(h.start)}–{h.end ? yr(h.end) : "now"}</span>
-                  {h.end === null ? " · current employee: public information only" : ""}
+                  {h.end === null ? ". Works there now: public information only" : ""}
                 </span>
               </li>
             ))}
@@ -124,7 +127,7 @@ async function Person({ params, searchParams }: { params: PageProps<"/people/[id
           </span>
           <span aria-hidden className="text-ink-3 transition-transform duration-200 group-open:rotate-90">›</span>
         </summary>
-        <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-2 text-small">
+        <dl className="grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-2 text-small">
           <Part k="Last spoke" v={c.last_contact ? `${monthYear(c.last_contact)} (${daysAgo(c.last_contact, today)} days)` : "never"} w={s.recency} />
           <Part k="Interactions, last 12 months" v={String(c.interactions_12m)} w={s.frequency} />
           <Part k="They reach out too" v={`${Math.round(c.reciprocity * 100)}%`} w={s.reciprocity} />
@@ -144,9 +147,8 @@ function Part({ k, v, w }: { k: string; v: string; w: number }) {
   return (
     <>
       <dt className="text-ink-2">{k}</dt>
-      <dd className="num text-right">
-        {v} <span className="text-ink-3">· {w.toFixed(2)}</span>
-      </dd>
+      <dd className="num text-right">{v}</dd>
+      <dd className="num w-12 text-right text-ink-3">{w.toFixed(2)}</dd>
     </>
   );
 }

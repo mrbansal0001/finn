@@ -83,19 +83,24 @@ async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] 
       <BackLink fallback="/" />
 
       <header>
-        <p className="kicker text-ink-3">
-          {symbol}
-          {holding ? ` · ${holding.sector} · ${holding.weight}% of portfolio` : snap.research_set.includes(symbol) ? " · research list" : ""}
-        </p>
+        {/* the ticker, then the facts about it as tags: no dot-separated run-on */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="kicker text-ink-3">{symbol}</span>
+          {holding && <span className="tag">{holding.sector}</span>}
+          {holding && <span className="tag num">{holding.weight}% of portfolio</span>}
+          {!holding && snap.research_set.includes(symbol) && <span className="tag">Research list</span>}
+        </div>
         <h1 className="mt-1 font-serif text-display">{name.replace(/ Limited$/, "")}</h1>
         {price && (
-          <p className="mt-2 flex flex-wrap items-baseline gap-x-2 text-body">
-            <span className="num font-medium">{fmtPrice(price.close)}</span>
-            <span className={`num font-medium ${dirClass(price.change_pct)}`}>{pct(price.change_pct)}</span>
-            <span className="text-small text-ink-3">
-              · close <span className="num">{when(price.day + "T15:30:00", snap.data_until)}</span>
-            </span>
-          </p>
+          <div className="mt-2">
+            <p className="flex items-baseline gap-2.5 text-body">
+              <span className="num font-medium">{fmtPrice(price.close)}</span>
+              <span className={`num font-medium ${dirClass(price.change_pct)}`}>{pct(price.change_pct)}</span>
+            </p>
+            <p className="text-caption text-ink-3">
+              Close on <span className="num">{when(price.day + "T15:30:00", snap.data_until)}</span>
+            </p>
+          </div>
         )}
       </header>
 
@@ -103,7 +108,10 @@ async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] 
 
       {ledger?.snapshot && ledger.snapshot.what_they_do.length > 0 && (
         <section className="mt-8">
-          <h2 className="section-h">What they do · FY{String(ledger.snapshot.year).slice(2)} annual report</h2>
+          <h2 className="section-h">
+            <span>What they do</span>
+            <span className="text-caption font-normal normal-case tracking-normal text-ink-3">FY{String(ledger.snapshot.year).slice(2)} annual report</span>
+          </h2>
           <ul className="mt-2.5 space-y-2 text-body">
             {ledger.snapshot.what_they_do.slice(0, 2).map((x, i) => (
               <li key={i}>
@@ -134,7 +142,7 @@ async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] 
                   Segments:{" "}
                   {ledger.snapshot.segments
                     .map((g) => `${g.name}${g.share_of_revenue_pct != null ? ` (${g.share_of_revenue_pct}% of revenue)` : ""}`)
-                    .join(" · ")}
+                    .join(", ")}
                 </p>
               )}
             </details>
@@ -178,7 +186,10 @@ async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] 
 
       {filings.length > 0 && (
         <section id="filings" className="mt-10 scroll-mt-4">
-          <h2 className="section-h">Filings and moves · last 30 days</h2>
+          <h2 className="section-h">
+            <span>Filings and moves</span>
+            <span className="text-caption font-normal normal-case tracking-normal text-ink-3">last 30 days</span>
+          </h2>
           <div className="hair">
             {/* the people above already cover this company: no repeated line under every filing */}
             {filings.map((c) => (

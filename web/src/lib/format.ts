@@ -58,30 +58,36 @@ const ymd = (d: Date) => d.toLocaleDateString("en-GB", { timeZone: IST, year: "n
 /** "Wed 11 Nov" (adding the year when it isn't `ref`'s year). */
 export function day(iso: string, ref?: string): string {
   const d = asDate(iso);
-  const r = ref ? asDate(ref) : new Date();
+  // without a reference, assume the same year: formatting must never read the clock (pre-rendering)
+  const r = ref ? asDate(ref) : d;
   const sameYear = d.toLocaleDateString("en-GB", { timeZone: IST, year: "numeric" }) === r.toLocaleDateString("en-GB", { timeZone: IST, year: "numeric" });
   return d.toLocaleDateString("en-GB", { timeZone: IST, weekday: "short", day: "2-digit", month: "short", ...(sameYear ? {} : { year: "numeric" }) });
 }
 
-/** "15:30" if the same day as `ref`, otherwise "Wed 11 Nov · 15:30". Always absolute, always IST. */
+/** "15:30" if the same day as `ref`, otherwise "Wed 11 Nov, 15:30". Always absolute, always IST. */
 export function when(iso: string, ref?: string): string {
   const d = asDate(iso);
   const time = d.toLocaleTimeString("en-GB", { timeZone: IST, hour: "2-digit", minute: "2-digit" });
   if (ref && ymd(d) === ymd(asDate(ref))) return time;
-  return `${day(iso, ref)} · ${time}`;
+  return `${day(iso, ref)}, ${time}`;
 }
 
-/** "11 Nov 12:07": the start of an edition window. */
+/** "11 Nov, 12:07": the start of an edition window. */
 export function since(iso: string): string {
   const d = asDate(iso);
   const date = d.toLocaleDateString("en-GB", { timeZone: IST, day: "numeric", month: "short" });
   const time = d.toLocaleTimeString("en-GB", { timeZone: IST, hour: "2-digit", minute: "2-digit" });
-  return `${date} ${time}`;
+  return `${date}, ${time}`;
 }
 
 /** "Thu 12 Nov" for the masthead. */
 export function longDate(iso: string): string {
   return asDate(iso).toLocaleDateString("en-GB", { timeZone: IST, weekday: "short", day: "numeric", month: "short" });
+}
+
+/** "Thursday 12 November" for the masthead. */
+export function fullDate(iso: string): string {
+  return asDate(iso).toLocaleDateString("en-GB", { timeZone: IST, weekday: "long", day: "numeric", month: "long" });
 }
 
 /** "11 Nov" for compact rows. */

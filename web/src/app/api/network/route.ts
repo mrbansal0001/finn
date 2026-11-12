@@ -37,7 +37,7 @@ function match(c: Contact, q: string): Hit | null {
   if (c.name.toLowerCase().split(/\s+/).some((t) => t.startsWith(q)) || c.name.toLowerCase().startsWith(q))
     return { id: c.id, name: c.name, score: 100, match: "name", why: `${c.current?.role ?? ""}, ${c.current?.org ?? ""}`.replace(/^, |, $/g, "") };
   const dom = (c.domains ?? []).find((d) => has(d) || (q.length >= 4 && starts(q, d.toLowerCase())));
-  if (dom) return { id: c.id, name: c.name, score: 85, match: "theme", why: `knows ${dom} · ${c.current?.role ?? ""}, ${c.current?.org ?? ""}` };
+  if (dom) return { id: c.id, name: c.name, score: 85, match: "theme", why: `knows ${dom} (${c.current?.role ?? ""}, ${c.current?.org ?? ""})` };
   const job = (c.history ?? []).find((h) => has(h.org) || (h.symbol && h.symbol.toLowerCase() === q));
   if (job)
     return {
@@ -45,13 +45,13 @@ function match(c: Contact, q: string): Hit | null {
       name: c.name,
       score: job.end ? 80 : 75,
       match: "employer",
-      why: job.end ? `was ${job.role} at ${job.org}, ${span(job.start, job.end)}` : `works at ${job.org} now (${job.role}) · insider`,
+      why: job.end ? `was ${job.role} at ${job.org}, ${span(job.start, job.end)}` : `works at ${job.org} now (${job.role}); insider`,
     };
-  if (has(c.current?.org)) return { id: c.id, name: c.name, score: 75, match: "employer", why: `works at ${c.current.org} now (${c.current.role}) · insider` };
+  if (has(c.current?.org)) return { id: c.id, name: c.name, score: 75, match: "employer", why: `works at ${c.current.org} now (${c.current.role}); insider` };
   const school = (c.education ?? []).find((e) => has(e.school));
   if (school) return { id: c.id, name: c.name, score: 60, match: "school", why: `studied at ${school.school} (${school.year})` };
   // nearest theme: a distinctive word in common ("rural lending" -> "consumer lending"), said as such
   const near = (c.domains ?? []).find((d) => words.some((w) => w.length >= 5 && starts(d, w)));
-  if (near) return { id: c.id, name: c.name, score: 40, match: "near", why: `closest match: knows ${near} · ${c.current?.role ?? ""}` };
+  if (near) return { id: c.id, name: c.name, score: 40, match: "near", why: `closest match: knows ${near} (${c.current?.role ?? ""})` };
   return null;
 }

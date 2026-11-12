@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { BackLink } from "@/components/BackLink";
 import { Dock } from "@/components/Dock";
 import { notFound } from "next/navigation";
@@ -6,8 +5,9 @@ import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { parsePrefs, PREFS_COOKIE } from "@/lib/prefs";
 import { findCard, getView } from "@/lib/data";
-import { KIND_LABEL, when } from "@/lib/format";
+import { KIND_LABEL } from "@/lib/format";
 import { changeWord } from "@/components/EditionCard";
+import { CardMeta } from "@/components/CardMeta";
 import { NetworkLine } from "@/components/NetworkLine";
 import type { NetworkLine as NetworkLineT } from "@/lib/types";
 import { ResultsTable } from "@/components/ResultsTable";
@@ -52,14 +52,8 @@ async function Detail({ params }: { params: PageProps<"/card/[id]">["params"] })
   return (
     <main>
       <BackLink fallback="/" label="Edition" />
-      <p className="kicker flex flex-wrap items-baseline gap-x-1.5 text-ink-3">
-        <span>{KIND_LABEL[card.kind] ?? "Filing"}</span>
-        <span aria-hidden>·</span>
-        <Link href={`/c/${card.symbol}`} className="tap text-ink-2 hover:text-ink">{card.symbol}</Link>
-        <span aria-hidden>·</span>
-        <span className="num text-caption font-normal normal-case tracking-normal">{when(card.at, snap.data_until)}</span>
-      </p>
-      <h1 className="mt-1.5 font-serif text-title">{card.headline ?? `${card.company}: ${card.nse_subject}`}</h1>
+      <CardMeta kind={card.kind} symbol={card.symbol} at={card.at} refTime={snap.data_until} lead={card.tier === "lead"} />
+      <h1 className="mt-2.5 font-serif text-title">{card.headline ?? `${card.company}: ${card.nse_subject}`}</h1>
       <p className="mt-0.5 text-small text-ink-3">{card.company.replace(/ Limited$/, "")}</p>
       {card.why && <p className="mt-3 text-body text-ink-2">{card.why}</p>}
       {card.facts.results && <ResultsTable r={card.facts.results} />}
@@ -80,10 +74,10 @@ async function Detail({ params }: { params: PageProps<"/card/[id]">["params"] })
               </p>
               {p.orgs.length > 0 && (
                 <p className="mt-1 text-caption text-ink-2">
-                  {p.orgs.map((o) => `${o.org}${o.start ? ` ${o.start}–${o.end ?? ""}` : ""}`).join(" · ")}
+                  {p.orgs.map((o) => `${o.org}${o.start ? ` ${o.start}–${o.end ?? ""}` : ""}`).join("; ")}
                 </p>
               )}
-              {p.schools.length > 0 && <p className="mt-0.5 text-caption text-ink-3">{p.schools.join(" · ")}</p>}
+              {p.schools.length > 0 && <p className="mt-0.5 text-caption text-ink-3">{p.schools.join(", ")}</p>}
             </div>
           ))}
           <p className="mt-3 rounded-lg bg-tint px-4 py-3 text-small text-ink-2">{overlapLine(card.network, people, snap.contacts.length, snap.network_status)}</p>

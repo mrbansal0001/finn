@@ -17,7 +17,7 @@ const STATUS: Record<PromiseStatus, { g: string; word: string; color: string }> 
   revised: { g: "↻", word: "Revised", color: "var(--s-revised)" },
   silent: { g: "—", word: "Went silent", color: "var(--s-silent)" },
   closed: { g: "◌", word: "Ended", color: "var(--s-silent)" },
-  early: { g: "·", word: "Open", color: "var(--s-early)" },
+  early: { g: "◦", word: "Open", color: "var(--s-early)" },
   conflict: { g: "⚠", word: "Conflicting", color: "var(--s-partly)" },
 };
 const LEGEND: PromiseStatus[] = ["delivered", "partly", "missed", "revised", "silent", "closed", "early"];
@@ -75,11 +75,11 @@ export function PromisesLedger({ ledger: built, verifiers = {} }: { ledger: Ledg
       <div className="mt-4 flex flex-wrap gap-1.5" role="group" aria-label="Which view">
         {(
           [
-            ["attention", `Needs attention · ${attention.length}`],
-            ["all", `All · ${ledger.rows.length}`],
-            ["history", "History"],
+            ["attention", "Needs attention", attention.length],
+            ["all", "All", ledger.rows.length],
+            ["history", "History", null],
           ] as const
-        ).map(([k, label]) => (
+        ).map(([k, label, n]) => (
           <button
             key={k}
             aria-pressed={view === k}
@@ -87,11 +87,12 @@ export function PromisesLedger({ ledger: built, verifiers = {} }: { ledger: Ledg
               setView(k);
               setShowAll(false);
             }}
-            className={`min-h-[44px] rounded-full px-4 text-small transition-colors ${
+            className={`inline-flex min-h-[44px] items-center gap-2 rounded-full px-4 text-small transition-colors ${
               view === k ? "bg-ink font-medium text-paper" : "border border-rule text-ink-2 hover:text-ink"
             }`}
           >
             {label}
+            {n != null && <span className={`num text-caption ${view === k ? "text-paper/70" : "text-ink-3"}`}>{n}</span>}
           </button>
         ))}
       </div>
@@ -178,7 +179,7 @@ function Item({ row, ledger, open, onToggle, verifier, hideTag }: { row: Promise
     <li className="border-b border-rule">
       <button onClick={onToggle} aria-expanded={open} className="block w-full py-3 text-left">
         <span className="flex items-start justify-between gap-3">
-          <span className="text-small font-medium text-ink">{row.title}</span>
+          <span className="text-small font-medium text-ink">{promiseTitle(row.title)}</span>
           {!hideTag && (
             <span className="flex shrink-0 items-baseline gap-1 whitespace-nowrap text-caption font-medium" style={{ color: st.color }}>
               <span aria-hidden>{st.g}</span>
@@ -242,7 +243,7 @@ function MatrixRow({ row, ledger, verifier, open, onToggle }: { row: PromiseRow;
       <tr className="border-t border-rule align-middle">
         <td className="pr-2">
           <button onClick={onToggle} aria-expanded={open} className="flex min-h-[48px] w-full items-center py-1.5 text-left text-ink">
-            {row.title}
+            {promiseTitle(row.title)}
           </button>
         </td>
         {ledger.calls.map((c) => {
@@ -256,7 +257,7 @@ function MatrixRow({ row, ledger, verifier, open, onToggle }: { row: PromiseRow;
                   className="min-h-[48px] min-w-[44px] text-headline leading-none"
                   style={{ color: STATUS[s].color }}
                   title={STATUS[s].word}
-                  aria-label={`${row.title}, ${c.label}: ${cell.missed_then_reset ? "missed, then " : ""}${STATUS[s].word}`}
+                  aria-label={`${promiseTitle(row.title)}, ${c.label}: ${cell.missed_then_reset ? "missed, then " : ""}${STATUS[s].word}`}
                 >
                   {cell.missed_then_reset ? <span style={{ color: STATUS.missed.color }}>○</span> : null}
                   {STATUS[s].g}
@@ -286,7 +287,7 @@ function Detail({ row, ledger, verifier }: { row: PromiseRow; ledger: Ledger; ve
       {/* for a settled promise, the comparison comes first, in one sentence */}
       {settled?.note && <p className="mb-2 text-small font-medium text-ink">{sentence(settled.note)}</p>}
       {row.first_quote && (
-        <Quote label={`Promised · ${row.first_quote.call}${row.first_quote.speaker ? `, ${row.first_quote.speaker}` : ""}`} q={row.first_quote} />
+        <Quote label={`Promised in ${row.first_quote.call}${row.first_quote.speaker ? ` by ${row.first_quote.speaker}` : ""}`} q={row.first_quote} />
       )}
       <ol className="mt-3 space-y-1.5">
         {ledger.calls.map((c) => {
@@ -302,13 +303,13 @@ function Detail({ row, ledger, verifier }: { row: PromiseRow; ledger: Ledger; ve
               <span className="text-ink-2">
                 <span className="sr-only">{STATUS[cell.status].word}: </span>
                 {cell.missed_then_reset ? "Date missed; new date: " : ""}
-                {cell.note}
+                {noteText(cell.note)}
               </span>
             </li>
           );
         })}
       </ol>
-      {row.latest_quote && <Quote label={`Latest · ${row.latest_quote.call}`} q={row.latest_quote} />}
+      {row.latest_quote && <Quote label={`Latest statement, ${row.latest_quote.call}`} q={row.latest_quote} />}
       {ledger.calls.map((c) => {
         const ev = row.calls[c.label]?.evidence;
         if (!ev) return null;
@@ -316,7 +317,7 @@ function Detail({ row, ledger, verifier }: { row: PromiseRow; ledger: Ledger; ve
         return (
           <div key={`ev-${c.label}`}>
             <Quote
-              label={`Outcome stated · ${ev.call ?? c.label}${ev.speaker ? `, ${ev.speaker}` : ""}${ev.period ? ` · for ${ev.period}` : ""}`}
+              label={`Outcome stated in ${ev.call ?? c.label}${ev.speaker ? ` by ${ev.speaker}` : ""}${ev.period ? `, for ${ev.period}` : ""}`}
               q={{ text: ev.quote, page: ev.page, url: ev.url ?? undefined }}
             />
             <p className="mt-1 text-caption text-ink-3">
@@ -372,6 +373,11 @@ function MoreButton({ n, onClick }: { n: number; onClick: () => void }) {
   );
 }
 
+/** "NGC order inflow · FY27: ~₹20,000 cr" (worker format) -> "NGC order inflow (FY27): ~₹20,000 cr". */
+export function promiseTitle(t: string): string {
+  return t.replace(/^(.*?) · ([^:]+): /, "$1 ($2): ").replace(/ · /g, ", ");
+}
+
 /** What changed, in one line, built from the cells' own notes (never from management's framing). */
 function changeLine(row: PromiseRow, ledger: Ledger): string {
   const cells = ledger.calls.map((c) => row.calls[c.label]).filter((c): c is LedgerCell => !!c?.status && !!c.note);
@@ -410,7 +416,7 @@ function changeLine(row: PromiseRow, ledger: Ledger): string {
   return sentence(note);
 }
 
-/** "Last said Nov 2026, Manoj Jain · 3 calls" */
+/** "Last said in Nov 2026 by Manoj Jain, on 3 calls" */
 function lastLine(row: PromiseRow, ledger: Ledger): string {
   const call = row.latest_quote?.call ?? row.first_quote?.call;
   const speaker = row.latest_quote ? null : row.first_quote?.speaker;
@@ -420,11 +426,14 @@ function lastLine(row: PromiseRow, ledger: Ledger): string {
       const cell = row.calls[c.label];
       return cell?.status && !/not revisited|not mentioned|period ended|no outcome/i.test(cell.note ?? "");
     }).length;
-  return [call ? `Last said ${call}${speaker ? `, ${speaker}` : ""}` : null, stated ? `${stated} call${stated === 1 ? "" : "s"}` : null]
-    .filter(Boolean)
-    .join(" · ");
+  const said = call ? `Last said in ${call}${speaker ? ` by ${speaker}` : ""}` : "";
+  const on = stated ? `${said ? ", on" : "On"} ${stated} call${stated === 1 ? "" : "s"}` : "";
+  return `${said}${on}`;
 }
 
+/** a cell note as a sentence: "new: X" -> "Stated: X", "reiterated: X" -> "Restated: X" */
+const noteText = (s?: string) =>
+  !s ? "" : /^new:/i.test(s) ? `Stated: ${clean(s)}` : /^reiterated:/i.test(s) ? `Restated: ${clean(s)}` : /^quantified:/i.test(s) ? `Now quantified: ${clean(s)}` : sentence(s);
 const clean = (s: string) => s.replace(/^(new|reiterated|quantified):\s*/i, "").trim();
 const sentence = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 const monthName = (m: number) => ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][m - 1] ?? "";

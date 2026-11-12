@@ -211,8 +211,9 @@ export function Dock() {
 function Group({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
   return (
     <section>
-      <p className="kicker px-3 pb-1 pt-2.5 text-ink-3">
-        {title} · {count}
+      <p className="flex items-center gap-2 px-3 pb-1 pt-2.5">
+        <span className="kicker text-ink-3">{title}</span>
+        <span className="count bg-ink-3">{count}</span>
       </p>
       <ul aria-label={title}>{children}</ul>
     </section>

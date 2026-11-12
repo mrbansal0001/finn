@@ -1,14 +1,15 @@
 import Link from "next/link";
 import type { Card, ResultsFacts } from "@/lib/types";
-import { KIND_LABEL, dirClass, pct, price, times, when } from "@/lib/format";
+import { dirClass, pct, price, times } from "@/lib/format";
+import { CardMeta } from "./CardMeta";
 import { NetworkLine } from "./NetworkLine";
 
 type Person = { name?: string; change?: string; role?: string; effective?: string | null };
 
 /**
  * One Edition card (plan §8.3, §8.4).
- * Lead: kicker · headline (Fraunces 20) · why (3 lines) · one fact line for its kind · one network line.
- * Compact: kicker · headline (Fraunces 18) · one network line.
+ * Lead: meta line, headline (Fraunces 20), why (3 lines), one fact line for its kind, one network line.
+ * Compact: meta line, headline (Fraunces 18), one network line.
  * The whole card opens the detail; the ticker and the person are their own links.
  */
 export function EditionCard({
@@ -26,19 +27,9 @@ export function EditionCard({
   const isMove = card.kind === "move";
   return (
     <article className={`relative ${compact ? "py-3.5" : "py-5"}`} aria-labelledby={`h-${card.id}`}>
-      <p className="kicker flex flex-wrap items-baseline gap-x-1.5 text-ink-3">
-        <span className={card.tier === "lead" ? "text-ink" : ""}>{KIND_LABEL[card.kind] ?? "Filing"}</span>
-        <span aria-hidden>·</span>
-        <Link href={`/c/${card.symbol}`} className="above-card tap text-ink-2 hover:text-ink">
-          {card.symbol}
-        </Link>
-        <span aria-hidden>·</span>
-        <time dateTime={card.at} className="num text-caption font-normal normal-case tracking-normal">
-          {when(card.at, refTime)}
-        </time>
-      </p>
+      <CardMeta kind={card.kind} symbol={card.symbol} at={card.at} refTime={refTime} lead={card.tier === "lead"} overCard />
 
-      <h2 id={`h-${card.id}`} className={`mt-1 font-serif text-ink ${compact ? "text-subhead" : "text-headline"}`}>
+      <h2 id={`h-${card.id}`} className={`mt-2 font-serif text-ink ${compact ? "text-subhead" : "text-headline"}`}>
         <Link href={`/card/${card.id}`} className="card-link decoration-rule underline-offset-4 hover:underline">
           {card.headline ?? <PendingHeadline card={card} />}
         </Link>
@@ -95,8 +86,8 @@ function PersonLine({ card }: { card: Card }) {
   return (
     <p className="mt-2 truncate text-small text-ink-2">
       <span className="font-medium text-ink">{p.name}</span>
-      {role ? ` · ${role}` : ""}
-      {change ? ` · ${change}` : ""}
+      {role ? `, ${role}` : ""}
+      {change ? `, ${change}` : ""}
       {p.effective ? ` ${shortEffective(p.effective)}` : ""}
     </p>
   );
@@ -107,13 +98,10 @@ function MoveLine({ card }: { card: Card }) {
   const f = card.facts as { close?: number; change_pct?: number; volume_multiple?: number; explained_by?: string | null };
   return (
     <p className="mt-2 text-small text-ink-2">
-      Closed <span className="num font-medium text-ink">{price(f.close)}</span>
-      {" · "}
-      <span className={`num font-medium ${dirClass(f.change_pct)}`}>{pct(f.change_pct)}</span>
-      {" · "}
-      <span className="num">{times(f.volume_multiple)}</span> usual volume
-      {" · "}
-      {f.explained_by ? "a filing came before it" : "no filing before it"}
+      Closed at <span className="num font-medium text-ink">{price(f.close)}</span>,{" "}
+      <span className={`num font-medium ${dirClass(f.change_pct)}`}>{pct(f.change_pct)}</span>, on{" "}
+      <span className="num">{times(f.volume_multiple)}</span> usual volume.{" "}
+      {f.explained_by ? "A filing came before it." : "No filing came before it."}
     </p>
   );
 }

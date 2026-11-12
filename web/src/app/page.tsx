@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { alertsFor, applyPrefs, parsePrefs, PREFS_COOKIE, type Alert, type Prefs } from "@/lib/prefs";
 import { getView } from "@/lib/data";
 import type { Edition, WindowKey } from "@/lib/types";
-import { dirClass, longDate, pct, shortDay, since, when } from "@/lib/format";
+import { dirClass, fullDate, pct, shortDay, since, when } from "@/lib/format";
 import { EditionCard } from "@/components/EditionCard";
 import { Dock } from "@/components/Dock";
 import { BriefButton } from "@/components/BriefButton";
@@ -67,15 +67,12 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
           <ThemeToggle />
         </div>
       </header>
-      {/* a div, not a p: the holdings sheet (a dialog) sits inside this line */}
-      <div className="text-small text-ink-2">
-        <span className="font-medium text-ink">{longDate(until)}</span>
-        {" · "}
+      {/* the date at the left, the portfolio as a chip at the right: layout separates them, not punctuation */}
+      <div className="mt-1 flex items-center justify-between gap-3">
+        <span className="text-small font-medium text-ink">{fullDate(until)}</span>
         <HoldingsSheet holdings={snap.portfolio.map((h) => row(h.symbol, h.weight))} research={snap.research_set.map((s) => row(s))} />
-        {" · since "}
-        <span className="num">{since(ed.since)}</span>
       </div>
-      <p className="mt-0.5 text-caption text-ink-3">Demo portfolio · real filings and prices · synthetic network</p>
+      <p className="mt-1 text-caption text-ink-3">A demo portfolio. Filings and prices are real; the network is synthetic.</p>
 
       <nav aria-label="Edition window" className="-mx-1 mt-4 flex gap-1 overflow-x-auto">
         <SinceLastVisit active={!!sinceVisit} seen={until} />
@@ -95,6 +92,10 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
           </Link>
         ))}
       </nav>
+
+      <p className="mt-1.5 px-1 text-caption text-ink-3">
+        Showing filings since <span className="num">{since(ed.since)}</span>
+      </p>
 
       {snap.network_status === "unavailable" && (
         <p className="mt-4 rounded-lg bg-tint px-4 py-3 text-small text-ink-2">
@@ -147,14 +148,20 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
       {ed.routine_total > 0 && <Routine ed={ed} refTime={until} />}
 
       <footer className="mt-12 text-center">
-        <p className="font-serif text-body font-normal italic text-ink-3">· end of edition ·</p>
+        {/* the end of the edition: a rule either side, not a pair of dots */}
+        <div className="flex items-center gap-3" aria-hidden={false}>
+          <span className="h-px flex-1 bg-rule" />
+          <span className="font-serif text-body font-normal italic text-ink-3">End of edition</span>
+          <span className="h-px flex-1 bg-rule" />
+        </div>
         <p className="mt-2 text-caption text-ink-3">
           Filings to <span className="num">{when(snap.freshness?.filings_until ?? until, until)}</span> IST
           {snap.freshness?.price_session && (
             <>
-              {" "}· prices to the <span className="num">{shortDay(snap.freshness.price_session)}</span> close
+              , prices to the <span className="num">{shortDay(snap.freshness.price_session)}</span> close
             </>
           )}
+          .
         </p>
       </footer>
 
@@ -204,13 +211,13 @@ function Alerts({ hits, prefs }: { hits: Alert[]; prefs: Prefs }) {
   };
   return (
     <section aria-labelledby="alerts" className="mt-6 overflow-hidden rounded-lg border border-rule bg-tint">
-      <div className="flex items-baseline justify-between gap-3 px-4 pb-1 pt-3">
-        <h2 id="alerts" className="kicker text-ink">
-          Alerts · <span className="num">{hits.length}</span>{" "}
-          <span className="text-caption font-normal normal-case tracking-normal text-ink-3">at the close</span>
+      <div className="flex items-center justify-between gap-3 px-4 pb-1.5 pt-3">
+        <h2 id="alerts" className="flex items-center gap-2">
+          <span className="kicker text-ink">Alerts</span>
+          <span className="count" aria-label={`${hits.length} at the close`}>{hits.length}</span>
         </h2>
         <Link href="/settings" className="tap shrink-0 text-caption text-accent">
-          <span className="num">±{prefs.price_pct}% · {prefs.volume_x}×</span> ›
+          Rules: <span className="num">±{prefs.price_pct}%</span> price, <span className="num">{prefs.volume_x}×</span> volume ›
         </Link>
       </div>
       <ul>{hits.slice(0, 5).map(row)}</ul>
@@ -259,13 +266,17 @@ function Routine({ ed, refTime }: { ed: Edition; refTime: string }) {
                             </div>
                             {/* an XBRL-only filing has no PDF: say what it holds here, label the raw file honestly */}
                             {xml && x.facts && x.facts.length > 0 && (
-                              <p className="mt-0.5 text-caption text-ink-3">
+                              <dl className="mt-1 grid grid-cols-[4.5rem_1fr] gap-x-3 gap-y-0.5 text-caption">
                                 {x.facts
                                   .filter(([k]) => !/^Purpose|^Stage/.test(k))
                                   .slice(0, 6)
-                                  .map(([k, v]) => `${k}: ${v}`)
-                                  .join(" · ")}
-                              </p>
+                                  .map(([k, v]) => (
+                                    <div key={k + v} className="contents">
+                                      <dt className="text-ink-3">{k}</dt>
+                                      <dd className="text-ink-2">{v}</dd>
+                                    </div>
+                                  ))}
+                              </dl>
                             )}
                             {/* a PDF is the document; an XBRL-only filing's facts are shown above, so its raw data
                                 file is a quiet secondary link, not a "filing" that opens code */}

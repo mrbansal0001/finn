@@ -280,7 +280,7 @@ def build(filings: list[dict], moves: list[dict], weights: dict[str, float], nam
                               f"profit ₹{inr(v['pat']/1e7)} cr")
                 c.headline_source = "xbrl"
         if c.kind == "results" and not c.headline:
-            c.headline, c.headline_source, c.needs_read = "Results filed · numbers withheld", "rule", False
+            c.headline, c.headline_source, c.needs_read = "Results filed, numbers withheld", "rule", False
             c.tier = "notable"                 # nothing to read off it: not a lead
             c.why = c.why or ("FINN shows results only when the table passes its checks against the filing; "
                               "this one did not, so open the filing for the numbers.")

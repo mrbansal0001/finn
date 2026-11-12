@@ -17,9 +17,10 @@ export function HoldingsSheet({ holdings, research }: { holdings: Row[]; researc
       <button
         type="button"
         onClick={() => ref.current?.showModal()}
-        className="tap underline decoration-rule decoration-1 underline-offset-4 hover:decoration-ink-3"
+        className="chip tap gap-1"
+        aria-haspopup="dialog"
       >
-        {holdings.length} holdings
+        <span className="num">{holdings.length}</span> holdings <span aria-hidden className="text-ink-3">›</span>
       </button>
       <dialog
         ref={ref}
@@ -40,7 +41,7 @@ export function HoldingsSheet({ holdings, research }: { holdings: Row[]; researc
             </button>
           </div>
           <p className="text-caption text-ink-3">
-            A demo investor&apos;s {holdings.length} NSE holdings · weights add to <span className="num">{total}%</span>
+            A demo investor&apos;s {holdings.length} NSE holdings. Weights add up to <span className="num">{total}%</span>.
           </p>
           <List rows={holdings} close={() => ref.current?.close()} showWeight />
           {research.length > 0 && (
@@ -62,11 +63,11 @@ function List({ rows, close, showWeight }: { rows: Row[]; close: () => void; sho
         <li key={h.symbol}>
           <Link href={`/c/${h.symbol}`} onClick={close} className="flex min-h-[52px] items-center justify-between gap-3 py-1.5">
             <span className="min-w-0">
-              <span className="block text-small font-medium text-ink">{h.symbol}</span>
-              <span className="block truncate text-caption text-ink-3">
-                {h.name}
-                {h.sector ? ` · ${h.sector}` : ""}
+              <span className="flex items-center gap-2">
+                <span className="text-small font-medium text-ink">{h.symbol}</span>
+                {h.sector && <span className="tag truncate">{h.sector}</span>}
               </span>
+              <span className="mt-0.5 block truncate text-caption text-ink-3">{h.name}</span>
             </span>
             {showWeight && <span className="num shrink-0 text-small text-ink-2">{h.weight}%</span>}
           </Link>

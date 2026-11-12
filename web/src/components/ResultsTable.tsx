@@ -81,15 +81,15 @@ export function ResultsTable({ r }: { r: ResultsFacts }) {
       </table>
       <figcaption className="mt-2 text-caption text-ink-3">
         <p>
-          {r.nature}
-          {r.reporting === "Half Yearly" ? " · half-yearly reporter, no QoQ" : ""}
-          {exceptionalLabel ? ` · includes a ${exceptionalLabel} exceptional item` : ""}
-          {c?.net_of_excise ? " · revenue net of excise" : ""}
+          {r.nature}.
+          {r.reporting === "Half Yearly" ? " Half-yearly reporter, so no QoQ." : ""}
+          {exceptionalLabel ? ` Includes a ${exceptionalLabel} exceptional item.` : ""}
+          {c?.net_of_excise ? " Revenue is net of excise." : ""}
           {r.source_url && (
             <>
-              {" · "}
-              <a href={r.source_url} target="_blank" rel="noopener noreferrer" className="tap text-accent">
-                {r.source === "xbrl" ? "exchange XBRL data (XML)" : `results PDF${pageOf(r.source_url)}`} ↗
+              {" "}
+              <a href={r.source_url} target="_blank" rel="noopener noreferrer" className="tap whitespace-nowrap text-accent">
+                {r.source === "xbrl" ? "Exchange XBRL data (XML)" : `Results PDF${pageOf(r.source_url)}`} ↗
               </a>
             </>
           )}
@@ -100,7 +100,7 @@ export function ResultsTable({ r }: { r: ResultsFacts }) {
             <span aria-hidden className="text-up">✓</span>
             {r.check === "xbrl_exact" && !c
               ? "Exact from the exchange XBRL"
-              : `${c?.checks?.filter((x) => !x.startsWith("XBRL")).length ?? 0} checks passed${r.check === "xbrl_match" ? " · matches exchange XBRL" : ""}`}
+              : `${c?.checks?.filter((x) => !x.startsWith("XBRL")).length ?? 0} checks passed${r.check === "xbrl_match" ? ", and it matches the exchange XBRL" : ""}`}
             <span aria-hidden className="text-ink-3">›</span>
           </summary>
           <ul className="mt-1 list-disc space-y-0.5 pl-4">
@@ -117,11 +117,11 @@ export function ResultsTable({ r }: { r: ResultsFacts }) {
 }
 
 function Delta({ v, pending }: { v?: number | null; pending: boolean }) {
-  if (pending) return <td className="num text-right text-ink-3">·</td>;
+  if (pending) return <td className="num text-right text-ink-3">–</td>;
   return <td className={`num text-right font-medium ${dirClass(v)}`}>{pct(v)}</td>;
 }
 
 function pageOf(url: string): string {
   const m = url.match(/#page=(\d+)/);
-  return m ? ` p.${m[1]}` : "";
+  return m ? `, p.${m[1]}` : "";
 }
