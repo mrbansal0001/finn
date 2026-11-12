@@ -63,7 +63,8 @@ def once() -> None:
     # daily per-company backfill catches anything the 1-day RSS window missed
     today = date.today().isoformat()
     if state.get("backfill_day") != today:
-        syms = [h["symbol"] for h in export.portfolio()["holdings"]]
+        pf = export.portfolio()
+        syms = [h["symbol"] for h in pf["holdings"]] + pf.get("research_set", [])
         if step("backfill", ingest.backfill, syms, 30) is not None:
             state["backfill_day"] = today
 

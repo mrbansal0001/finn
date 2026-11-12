@@ -303,6 +303,10 @@ def build(filings: list[dict], moves: list[dict], weights: dict[str, float], nam
     cards = _merge_duplicate_people(cards)
 
     for c in cards:
+        # a research-list company (no weight) is shown but never leads: the edition is about the holdings first
+        if c.symbol not in weights and c.tier == "lead":
+            c.tier = "notable"
+    for c in cards:
         age_h = (until - datetime.fromisoformat(c.at)).total_seconds() / 3600
         c.score = (TIER_WEIGHT[c.tier] + KIND_WEIGHT.get(c.kind, 10) + 4 * weights.get(c.symbol, 0)
                    - min(age_h, 24 * 30) * 0.15)
@@ -339,7 +343,8 @@ def build_moves(moves: list[dict], cards: list[dict], filings: list[dict], weigh
         earlier = None if why_filing else explaining_filing(m, filings, calendar)
         n = m.get("baseline_n") or 20
         base = f"the {n}-session average" if n >= 20 else f"the average of only {n} earlier sessions"
-        tier = "lead" if round(abs(m["change_pct"]), 1) >= 5 and why_filing is None and not earlier else "notable"
+        tier = ("lead" if round(abs(m["change_pct"]), 1) >= 5 and why_filing is None and not earlier and m["symbol"] in weights
+                else "notable")                  # a research-list move is listed, never a lead
         c = Card(
             id=f"move-{m['symbol']}-{m['day']}", symbol=m["symbol"], company=names.get(m["symbol"], m["symbol"]),
             kind="move", tier=tier, at=d.isoformat(), nse_subject="",

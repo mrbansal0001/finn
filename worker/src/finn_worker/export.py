@@ -6,10 +6,11 @@ pushes to Supabase for the deployed app.
 from __future__ import annotations
 
 import json
+import re
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from . import tracking, cards, network, prices, store, universe, xbrl_facts
+from . import fetch, tracking, cards, network, prices, store, universe, xbrl_facts
 
 ROOT = Path(__file__).resolve().parents[3]
 WINDOWS = {"24h": timedelta(hours=24), "3d": timedelta(days=3), "7d": timedelta(days=7), "30d": timedelta(days=30)}
@@ -21,10 +22,12 @@ def portfolio() -> dict:
 
 def snapshot(until: datetime | None = None) -> dict:
     p = portfolio()
-    syms = [h["symbol"] for h in p["holdings"]]
+    # holdings and the research list both get filings and prices (three-pillars plan P1); research names carry
+    # no weight, so they rank below holdings and never lead (cards.build, cards.build_moves)
+    syms = list(dict.fromkeys([h["symbol"] for h in p["holdings"]] + p.get("research_set", [])))
     weights = {h["symbol"]: h["weight"] for h in p["holdings"]}
     u = universe.load()
-    names = {s: u[s].name for s in syms + p.get("research_set", []) if s in u}
+    names = {s: u[s].name for s in syms if s in u}
     con = store.connect()
     q = ",".join("?" * len(syms))
     filings = [dict(r) for r in con.execute(f"select * from filings where symbol in ({q})", syms)] if syms else []
@@ -122,6 +125,7 @@ def snapshot(until: datetime | None = None) -> dict:
                 c["network"][0]["best_reason"] = network.best_reason(c["network"][0])
     people = {s: network.second_degree(network.for_company(s, contacts, today), contacts, edges, today)
               for s in names}
+    ledger_index = {}
     verifiers = {}
     # the machine-built ledgers shown by default (BEL, Deepak) get tracking and verifiers too (audit F11);
     # their row ids (P1..) never collide with the hand-checked reference's (T1..)
@@ -131,6 +135,7 @@ def snapshot(until: datetime | None = None) -> dict:
         tracking.apply(led, res.get(led["symbol"]))
         if json.dumps(led, ensure_ascii=False, sort_keys=True) != before:
             lp.write_text(json.dumps(led, ensure_ascii=False, indent=1))
+        ledger_index[led["symbol"]] = _index_entry(led)
         for row in led["rows"]:
             text = f"{row['title']} {row.get('metric', '')}"
             cands = [l for l in network.for_company(led["symbol"], contacts, today, kind="", text=text) if not l["insider"]]
@@ -149,6 +154,9 @@ def snapshot(until: datetime | None = None) -> dict:
         "prices": {m["symbol"]: m for m in latest},
         # the last 30 sessions per company, for the price/volume chart (computed as the alert is)
         "price_history": prices.series(sessions, syms),
+        # one small entry per ledger, for the Research page and the promise line on results cards
+        "ledger_index": ledger_index,
+        "nifty50": _nifty50(),
     }
 
 
@@ -166,6 +174,42 @@ def write_universe() -> int:
     rows = sorted([c.symbol, c.name] for c in universe.load().values() if c.series in ("EQ", "BE", "BZ", "SM", "ST"))
     (ROOT / "data" / "universe.json").write_text(json.dumps(rows, ensure_ascii=False, separators=(",", ":")))
     return len(rows)
+
+
+def _index_entry(led: dict) -> dict:
+    """What the Research page and the edition need from a ledger, without the ledger: when it was built, the
+    latest call, counts by status, the promise most worth attention, and the promise tracked against filed
+    results. Rows are trimmed to the fields the app's question rules read."""
+    rows = led.get("rows", [])
+    counts: dict[str, int] = {}
+    for r in rows:
+        counts[r["latest"]] = counts.get(r["latest"], 0) + 1
+    vague = lambda r: r["title"].endswith((": no figure", ": direction only"))
+    pick = lambda st: sorted((r for r in rows if r["latest"] in st and not vague(r)), key=lambda r: -(r.get("mentions") or 1))
+    top = (pick(("revised",)) or pick(("silent", "missed", "partly")) or [None])[0]
+    tracked = next((r for r in rows if r.get("tracking")), None)
+    slim = lambda r: r and {k: r.get(k) for k in ("id", "title", "metric", "latest", "mentions", "tracking", "target")} | {
+        "calls": {c: {"status": v.get("status"), "note": v.get("note")} for c, v in r["calls"].items()}}
+    built = re.search(r"Built (\d{1,2} \w{3} \d{4})", led.get("provenance", ""))
+    return {
+        "built": built.group(1) if built else None,
+        "last_call": led["calls"][-1]["label"] if led.get("calls") else None,
+        "calls": [{"label": c["label"], "date": c["date"]} for c in led.get("calls", [])],
+        "rows": len(rows), "counts": counts, "top": slim(top), "tracked": slim(tracked),
+        "reference": bool(led.get("reference")) or (ROOT / "data" / "ledgers" / f"{led['symbol']}.json").exists()
+        and json.loads((ROOT / "data" / "ledgers" / f"{led['symbol']}.json").read_text()).get("provenance", "").startswith("Reference"),
+    }
+
+
+def _nifty50() -> list[str]:
+    """Nifty 50 members from NSE's published list (cached a week); empty if it can't be read."""
+    try:
+        import csv
+        import io
+        b = fetch.get("https://nsearchives.nseindia.com/content/indices/ind_nifty50list.csv", max_age=7 * 24 * 3600)
+        return [r["Symbol"] for r in csv.DictReader(io.StringIO(b.decode("utf-8-sig")))]
+    except Exception:  # the Research page then simply has no Nifty 50 filter
+        return []
 
 
 def main() -> None:
