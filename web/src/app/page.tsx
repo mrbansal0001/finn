@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { alertsFor, applyPrefs, parsePrefs, PREFS_COOKIE, type Alert, type Prefs } from "@/lib/prefs";
-import { getView } from "@/lib/data";
+import { getLedgerSymbols, getView } from "@/lib/data";
 import type { Edition, WindowKey } from "@/lib/types";
 import { dirClass, fullDate, pct, shortDay, since, when } from "@/lib/format";
 import { EditionCard } from "@/components/EditionCard";
@@ -43,7 +43,7 @@ function Loading() {
 }
 
 async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchParams"] }) {
-  const [sp, jar, snap] = await Promise.all([searchParams, cookies(), getView()]);
+  const [sp, jar, snap, ledgers] = await Promise.all([searchParams, cookies(), getView(), getLedgerSymbols()]);
   const prefs = parsePrefs(jar.get(PREFS_COOKIE)?.value);
   const sinceVisit = sp.w === "since" && typeof sp.t === "string" && !Number.isNaN(Date.parse(sp.t)) ? sp.t : null;
   // the brief: "by default the last 24 hours, but let me pick the period"
@@ -59,7 +59,12 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
     const ed = applyPrefs(structuredClone(base), prefs, moveCards);
     prepared[key] = { ed, alerts: moveCards.length ? alertsFor(moveCards, ed.since, ed.until, prefs) : legacyAlerts(ed, prefs) };
   }
-  const row = (s: string, weight = 0) => ({ symbol: s, name: (snap.names[s] ?? s).replace(/ Limited$/, ""), sector: snap.portfolio.find((h) => h.symbol === s)?.sector ?? "", weight });
+  const week = [...snap.editions["7d"].leads, ...snap.editions["7d"].more];
+  const row = (s: string, weight = 0) => ({
+    symbol: s, name: (snap.names[s] ?? s).replace(/ Limited$/, ""), sector: snap.portfolio.find((h) => h.symbol === s)?.sector ?? "", weight,
+    // what FINN knows about it: coverage, people, this week's items (never a risk score)
+    ledger: ledgers.includes(s), people: (snap.people[s] ?? []).length, updates: week.filter((c) => c.symbol === s).length,
+  });
 
   return (
     <main>
@@ -73,7 +78,7 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
             {/* the date at the left, the portfolio as a chip at the right: layout separates them, not punctuation */}
             <div className="mt-1 flex items-center justify-between gap-3">
               <span className="text-small font-medium text-ink">{fullDate(until)}</span>
-              <HoldingsSheet holdings={snap.portfolio.map((h) => row(h.symbol, h.weight))} research={snap.research_set.map((s) => row(s))} />
+              <HoldingsSheet networkReady={snap.network_status !== "unavailable"} holdings={snap.portfolio.map((h) => row(h.symbol, h.weight))} research={snap.research_set.map((s) => row(s))} />
             </div>
             <p className="mt-1 text-caption text-ink-3">A demo portfolio. Filings and prices are real; the network is synthetic.</p>
             <FollowedQuestions />

@@ -2,7 +2,8 @@ import { BackLink } from "@/components/BackLink";
 import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { parsePrefs, PREFS_COOKIE } from "@/lib/prefs";
-import { SettingsForm } from "./SettingsForm";
+import { SettingsForm, type PreviewData } from "./SettingsForm";
+import { getSnapshot } from "@/lib/data";
 
 export default function SettingsPage() {
   return (
@@ -18,6 +19,15 @@ export default function SettingsPage() {
 }
 
 async function Current() {
-  const prefs = parsePrefs((await cookies()).get(PREFS_COOKIE)?.value);
-  return <SettingsForm prefs={prefs} />;
+  const [jar, snap] = await Promise.all([cookies(), getSnapshot()]);
+  const prefs = parsePrefs(jar.get(PREFS_COOKIE)?.value);
+  // every session over the lowest allowed thresholds, so the preview can apply any rule in the browser
+  const preview: PreviewData = {
+    windows: (["24h", "7d"] as const).map((k) => ({ key: k, since: snap.editions[k].since, until: snap.editions[k].until })),
+    moves: (snap.move_cards ?? []).map((c) => {
+      const f = c.facts as { change_pct?: number; volume_multiple?: number };
+      return { s: c.symbol, at: c.at, p: f.change_pct ?? 0, v: f.volume_multiple ?? 0 };
+    }),
+  };
+  return <SettingsForm prefs={prefs} preview={preview} />;
 }

@@ -135,7 +135,7 @@ function PendingHeadline({ card }: { card: Card }) {
   return (
     <span>
       {card.company.replace(/ Limited$/, "")} filed: {card.nse_subject.toLowerCase()}
-      <span className="mt-1 block font-sans text-caption font-normal italic text-ink-3">FINN reads this filing on its next run.</span>
+      <span className="mt-1 block font-sans text-caption font-normal italic text-ink-3">FINN reads this filing on its next update.</span>
     </span>
   );
 }

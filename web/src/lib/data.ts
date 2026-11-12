@@ -50,6 +50,24 @@ export async function getLedger(symbol: string): Promise<Ledger | null> {
   }
 }
 
+/** Which companies have a promises ledger (coverage, for "where do I lack context?"). */
+export async function getLedgerSymbols(): Promise<string[]> {
+  "use cache";
+  cacheLife("minutes");
+  if (supabaseEnabled) {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/ledgers?select=symbol`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+    });
+    return r.ok ? ((await r.json()) as { symbol: string }[]).map((x) => x.symbol) : [];
+  }
+  const { readdir } = await import("node:fs/promises");
+  try {
+    return (await readdir(path.join(DATA_DIR, "ledgers"))).filter((f) => f.endsWith(".json")).map((f) => f.slice(0, -5));
+  } catch {
+    return [];
+  }
+}
+
 type PrivateNetwork = { ok: boolean; lines: Record<string, NetworkLine[]>; contacts: Contact[] };
 
 /** The visitor's own network (never cached across users). Null in local mode. */

@@ -1012,7 +1012,7 @@ def build(symbol: str) -> dict:
             "provenance": (f"Built {date.today():%d %b %Y} from {len(calls)} earnings-call transcripts only"
                            + (f" ({', '.join(refused)} not readable: the source refused access). " if refused else ". ") +
                            f"{verified} quotes verified against their pages; {dropped} unverifiable statements dropped. "
-                           "Statuses computed in code.")}
+                           "Statuses follow fixed rules, not a model's judgement.")}
 
 
 # ------------------------------------------------------------------ model-assisted linking

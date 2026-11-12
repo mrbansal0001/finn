@@ -142,7 +142,7 @@ export function PromiseReplay({ row, calls }: { row: PromiseRow; calls: Ledger["
 }
 
 function changeSentence(note: string): string {
-  const [a, b] = note.split("→").map((x) => x.replace(/↻/g, "").trim());
+  const [a, b] = note.split("→").map((x) => x.replace(/↻/g, "").replace(/\s+date missed$/i, " (date missed)").trim());
   return `Changed from ${a} to ${b}`;
 }
 

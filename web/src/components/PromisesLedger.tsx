@@ -33,7 +33,9 @@ const EVIDENCE_LABEL: Record<PromiseRow["evidence_source"], string> = {
 };
 
 type View = "attention" | "all" | "history";
-const PAGE = 20;
+// the attention list opens on the five that matter most (status, then how often restated): a reading task
+// of 17 before the investor has picked a focus was too much (creative review)
+const FIRST = 5;
 
 export function PromisesLedger({ ledger: built, verifiers = {} }: { ledger: Ledger; verifiers?: Record<string, Line> }) {
   const [source, setSource] = useState<"built" | "reference">("built");
@@ -104,12 +106,12 @@ export function PromisesLedger({ ledger: built, verifiers = {} }: { ledger: Ledg
       ) : view === "attention" ? (
         <>
           <ul className="mt-2">
-            {(showAll ? attention : attention.slice(0, PAGE)).map((r) => (
+            {(showAll ? attention : attention.slice(0, FIRST)).map((r) => (
               <Item key={r.id} row={r} ledger={ledger} open={open === r.id} onToggle={() => toggle(r.id)} verifier={verifier(r)} />
             ))}
           </ul>
           {attention.length === 0 && <p className="py-4 text-small text-ink-2">Nothing changed, slipped or settled across these calls.</p>}
-          {!showAll && attention.length > PAGE && <MoreButton n={attention.length} onClick={() => setShowAll(true)} />}
+          {!showAll && attention.length > FIRST && <MoreButton n={attention.length} onClick={() => setShowAll(true)} />}
         </>
       ) : (
         <div className="mt-2">
@@ -168,7 +170,7 @@ export function PromisesLedger({ ledger: built, verifiers = {} }: { ledger: Ledg
           </p>
         </details>
       )}
-      <p className="mt-4 text-caption text-ink-3">{ledger.provenance}</p>
+      <p className="mt-4 text-caption text-ink-3">{ledger.provenance.replace("Statuses computed in code.", "Statuses follow fixed rules, not a model's judgement.")}</p>
     </section>
   );
 }

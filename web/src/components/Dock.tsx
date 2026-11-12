@@ -123,12 +123,23 @@ export function Dock() {
         <div className="mx-auto max-w-[480px] px-4 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2 md:max-w-[560px]">
           {open && (
             <div className="mb-2 max-h-[min(18rem,50dvh)] overflow-y-auto rounded-lg border border-rule bg-paper-raised py-1" aria-live="polite">
+              {/* a question about the network gets a direct answer first: who, or plainly no one */}
+              {asked && ready && !current.failed && (
+                <p className="border-b border-rule px-3 pb-2 pt-1.5 text-small text-ink">
+                  {(() => {
+                    const n = current.people.filter((p) => p.match !== "near").length;
+                    return n
+                      ? `${n} ${n === 1 ? "person" : "people"} in your network ${n === 1 ? "has" : "have"} a recorded link to “${query}”.`
+                      : `No one in your network has a recorded link to “${query}”.${current.people.length ? " Closest themes below." : ""}`;
+                  })()}
+                </p>
+              )}
               {searching && !current.companies.length && !current.people.length ? (
                 <p className="px-3 py-2 text-small text-ink-3">Searching…</p>
               ) : current.failed ? (
                 <p className="px-3 py-2 text-small text-ink-2">Search is unavailable right now. Try again in a moment.</p>
               ) : !current.companies.length && !current.people.length ? (
-                <p className="px-3 py-2 text-small text-ink-2">
+                asked ? null : <p className="px-3 py-2 text-small text-ink-2">
                   No matches for &ldquo;{query}&rdquo;. Try a ticker, a person, or a theme like &ldquo;specialty chemicals&rdquo;.
                 </p>
               ) : companyFirst ? (

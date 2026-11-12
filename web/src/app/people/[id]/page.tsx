@@ -7,6 +7,8 @@ import { findCard, getView } from "@/lib/data";
 import type { Contact } from "@/lib/types";
 import { NoteDraft } from "@/components/NoteDraft";
 import { monthYear } from "@/lib/format";
+import { RelationPath, pathFor } from "@/components/RelationPath";
+import { CareerBars } from "@/components/CareerBars";
 
 export default function PersonPage({ params, searchParams }: PageProps<"/people/[id]">) {
   return (
@@ -37,6 +39,12 @@ async function Person({ params, searchParams }: { params: PageProps<"/people/[id
     cards.unshift(origin);
   }
 
+  // how you reach them, for the company in question: the origin item's, else the first linked company's
+  const focus = origin?.symbol ?? cards[0]?.symbol ?? links[0]?.symbol ?? undefined;
+  const line = focus
+    ? (origin?.network.find((l) => l.contact_id === c.id) ?? (snap.people[focus] ?? []).find((l) => l.contact_id === c.id))
+    : undefined;
+
   const role = (() => {
     const h = cards[0] && c.history.find((x) => x.symbol === cards[0].symbol);
     return h ? `${h.role} there` : undefined;
@@ -59,6 +67,24 @@ async function Person({ params, searchParams }: { params: PageProps<"/people/[id
         <span className="font-medium text-ink-2">{label(s.total)[0].toUpperCase() + label(s.total).slice(1)} tie</span>
         {c.last_contact ? <>, last spoke {monthYear(c.last_contact)}</> : null}
       </p>
+
+      {line && focus && (
+        <section className="mt-8">
+          <h2 className="section-h">
+            <span>How you reach them</span>
+            {line.via ? <span className="text-caption font-normal normal-case tracking-normal text-ink-3">through {line.via}</span> : null}
+          </h2>
+          <RelationPath path={pathFor(line, snap.contacts, focus, today, origin?.id)} className="mt-3" />
+          {origin && (
+            <Link
+              href={`/investigate?card=${origin.id}`}
+              className="mt-1 inline-flex min-h-[44px] items-center gap-1 text-small font-medium text-accent"
+            >
+              Investigate {origin.symbol} with {c.name.split(" ")[0]} in mind <span aria-hidden>›</span>
+            </Link>
+          )}
+        </section>
+      )}
 
       {cards.length > 0 && (
         <section className="mt-10">
@@ -98,26 +124,19 @@ async function Person({ params, searchParams }: { params: PageProps<"/people/[id
 
       <section className="mt-10">
         <h2 className="section-h">Career</h2>
-        <ol className="hair">
-          {[...c.history].reverse().map((h, i) => (
-            <li key={i} className="flex justify-between gap-3 py-2.5 text-small">
-              <span>
-                {h.role}, <span className="text-ink-2">{h.org}</span>
-              </span>
-              <span className="num shrink-0 text-ink-3">
-                {yr(h.start)}–{h.end ? yr(h.end) : "now"}
-              </span>
-            </li>
-          ))}
-          {c.education.map((e, i) => (
-            <li key={`e${i}`} className="flex justify-between gap-3 py-2.5 text-small">
-              <span>
-                {e.degree}, <span className="text-ink-2">{e.school}</span>
-              </span>
-              <span className="num text-ink-3">{e.year}</span>
-            </li>
-          ))}
-        </ol>
+        <CareerBars history={c.history} until={snap.data_until} covered={[...held, ...snap.research_set]} />
+        {c.education.length > 0 && (
+          <ul className="hair mt-3">
+            {c.education.map((e, i) => (
+              <li key={`e${i}`} className="flex justify-between gap-3 py-2.5 text-small">
+                <span>
+                  {e.degree}, <span className="text-ink-2">{e.school}</span>
+                </span>
+                <span className="num text-ink-3">{e.year}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <details className="group mt-6 border-t border-rule">

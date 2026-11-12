@@ -173,7 +173,7 @@ async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] 
               <p className="font-serif text-subhead">Not covered yet</p>
               <p className="mt-1 text-small text-ink-2">
                 FINN builds this from the last four earnings-call transcripts and the annual report, nothing else. Every promise
-                is quoted with its page; statuses are computed in code.
+                is quoted with its page, and each status follows fixed rules, not a model&apos;s judgement.
               </p>
               <Coverage symbol={symbol} req={req} dataUntil={snap.data_until} />
             </div>
@@ -219,9 +219,9 @@ function Coverage({ symbol, req, dataUntil }: { symbol: string; req: Awaited<Ret
   if (req) {
     return (
       <p className="mt-3 text-small text-ink">
-        {req.status === "building" ? "Building now" : "Queued"} since <span className="num">{when(req.requested_at)}</span> IST. FINN&apos;s
-        research worker reads the last four transcripts, verifies every quote against its page and computes each status on its
-        next run (data last updated <span className="num">{when(dataUntil)}</span> IST).
+        {req.status === "building" ? "Building now" : "Queued"} since <span className="num">{when(req.requested_at)}</span> IST. FINN is reading
+        the last four earnings-call transcripts and checking every quote against its page; this usually takes a few minutes once
+        picked up. FINN last updated at <span className="num">{when(dataUntil)}</span> IST.
         {req.detail ? <span className="mt-1 block text-caption italic text-ink-3">{req.detail}</span> : null}
       </p>
     );

@@ -1,16 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
-type Row = { symbol: string; name: string; sector: string; weight: number };
+type Row = { symbol: string; name: string; sector: string; weight: number; ledger?: boolean; people?: number; updates?: number };
 
 /**
  * "18 holdings" opens a sheet listing the portfolio (plan §8.1): the audit asked for the holdings to be
  * discoverable. A native <dialog>: focus is trapped, Escape and the backdrop close it.
  */
-export function HoldingsSheet({ holdings, research }: { holdings: Row[]; research: Row[] }) {
+export function HoldingsSheet({ holdings, research, networkReady = true }: { holdings: Row[]; research: Row[]; networkReady?: boolean }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const [gaps, setGaps] = useState(false);
+  // "where do I lack context?": no promises ledger yet, or no one in your network linked to it
+  const lacks = (r: Row) => !r.ledger || (networkReady && !r.people);
+  const nGaps = [...holdings, ...research].filter(lacks).length;
   const total = holdings.reduce((a, h) => a + h.weight, 0);
   return (
     <>
@@ -43,11 +47,28 @@ export function HoldingsSheet({ holdings, research }: { holdings: Row[]; researc
           <p className="text-caption text-ink-3">
             A demo investor&apos;s {holdings.length} NSE holdings. Weights add up to <span className="num">{total}%</span>.
           </p>
-          <List rows={holdings} close={() => ref.current?.close()} showWeight />
-          {research.length > 0 && (
+          <div className="mt-3 flex gap-1.5" role="group" aria-label="Which companies">
+            {([[false, "All", holdings.length + research.length], [true, "Where I lack context", nGaps]] as const).map(([k, label, n]) => (
+              <button
+                key={label}
+                aria-pressed={gaps === k}
+                onClick={() => setGaps(k)}
+                className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-full px-4 text-small ${gaps === k ? "bg-ink font-medium text-paper" : "border border-rule text-ink-2"}`}
+              >
+                {label} <span className={`num text-caption ${gaps === k ? "text-paper/70" : "text-ink-3"}`}>{n}</span>
+              </button>
+            ))}
+          </div>
+          {gaps && (
+            <p className="mt-2 text-caption text-ink-3">
+              No promises ledger yet, or no one in your network linked to the company. A gap in what you know, not a risk.
+            </p>
+          )}
+          <List rows={gaps ? holdings.filter(lacks) : holdings} close={() => ref.current?.close()} showWeight networkReady={networkReady} />
+          {research.length > 0 && (!gaps || research.some(lacks)) && (
             <>
               <h3 className="section-h mt-6">Research list</h3>
-              <List rows={research} close={() => ref.current?.close()} />
+              <List rows={gaps ? research.filter(lacks) : research} close={() => ref.current?.close()} networkReady={networkReady} />
             </>
           )}
         </div>
@@ -56,7 +77,7 @@ export function HoldingsSheet({ holdings, research }: { holdings: Row[]; researc
   );
 }
 
-function List({ rows, close, showWeight }: { rows: Row[]; close: () => void; showWeight?: boolean }) {
+function List({ rows, close, showWeight, networkReady }: { rows: Row[]; close: () => void; showWeight?: boolean; networkReady: boolean }) {
   return (
     <ul className="hair mt-2">
       {rows.map((h) => (
@@ -68,6 +89,13 @@ function List({ rows, close, showWeight }: { rows: Row[]; close: () => void; sho
                 {h.sector && <span className="tag truncate">{h.sector}</span>}
               </span>
               <span className="mt-0.5 block truncate text-caption text-ink-3">{h.name}</span>
+              {h.ledger !== undefined && (
+                <span className="mt-1 flex flex-wrap gap-x-3 text-caption">
+                  {h.updates ? <span className="text-ink">{h.updates} this week</span> : <span className="text-ink-3">Quiet this week</span>}
+                  {!h.ledger && <span className="text-ink-3">No ledger yet</span>}
+                  {networkReady && !h.people && <span className="text-ink-3">No one in your network</span>}
+                </span>
+              )}
             </span>
             {showWeight && <span className="num shrink-0 text-small text-ink-2">{h.weight}%</span>}
           </Link>

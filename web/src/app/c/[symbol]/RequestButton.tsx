@@ -14,7 +14,7 @@ export function RequestButton({ symbol }: { symbol: string }) {
       </button>
       <p className="mt-2 text-caption text-ink-3" role="status">
         {state?.message ??
-          "Built on the research worker's next run, from the last four transcripts only."}
+          "FINN picks this up on its next update (every 15 minutes) and reads the last four transcripts only."}
       </p>
     </form>
   );

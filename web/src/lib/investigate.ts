@@ -69,6 +69,14 @@ export function resultsQuestion(r: ResultsFacts): { q: string; unclear: string }
       unclear: "The exceptional item is in the filed table; what it was, and whether it repeats, is in the notes to the results.",
     };
   }
+  // operating profit held up but pre-tax profit didn't: the gap is below EBITDA, and the table shows it
+  const ebitdaY = y.ebitda, pbtY = y.pbt;
+  if (!c.is_lender && ebitdaY != null && pbtY != null && ebitdaY >= 0 && pbtY <= -20) {
+    return {
+      q: `EBITDA rose ${abs(ebitdaY)}% but profit before tax fell ${abs(pbtY)}%. The drop is below the operating line: higher depreciation, interest, or lower other income?`,
+      unclear: "The filed table shows the gap between operating and pre-tax profit; which line caused it, and whether it lasts, is in the results' detail and the next call.",
+    };
+  }
   if (rev != null && mbp != null && !c.is_lender) {
     if (rev > 0 && mbp <= -50) return { q: `Revenue grew ${abs(rev)}% but the EBITDA margin fell ${Math.abs(Math.round(mbp))}bp. Which costs grew faster than sales, and is that temporary?`, unclear };
     if (mbp >= 50) return { q: `The EBITDA margin widened ${Math.round(mbp)}bp from a year ago. Is it mix, pricing or cheaper inputs, and can it last?`, unclear };
@@ -314,7 +322,7 @@ export function fromPromise(row: PromiseRow, ledger: Ledger, snap: Snapshot): In
     question: promiseQuestion(row, ledger.calls, title),
     observed: [],
     unclear:
-      row.evidence_source === "per management"
+      Object.values(row.calls).some((c) => c.evidence)
         ? "The outcome is management's own later statement for the same period, not an audited figure."
         : "FINN compares what management said on each call. Whether it happened is checked only when management states a figure for the same period.",
     passagesTitle: "Related promises from the same calls",
