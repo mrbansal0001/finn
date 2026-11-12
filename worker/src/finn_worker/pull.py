@@ -454,7 +454,7 @@ def _periods_compatible(a: str | None, b: str | None) -> bool:
 
 
 _SCOPE_GENERIC = re.compile(r"\b(company|overall|consolidated|standalone|group|total|business|segment|division|vertical|"
-                            r"the|and|of|our|we)\b", re.I)
+                            r"the|and|of|our|we|new|facility|facilities|plant|plants|unit|units|factory|site|line|lines|capacity)\b", re.I)
 
 
 def _scope_words(scope: str | None) -> set[str]:
@@ -468,8 +468,23 @@ def scopes_compatible(a: dict, b: dict) -> bool:
     if not wa and not wb:
         return True
     if not wa or not wb:
-        return not (a.get("scope") and b.get("scope"))   # one unstated: don't block
+        if a.get("scope") and b.get("scope"):
+            return False
+        # one unstated: don't block, unless its own words name a different site (Dixon: a Noida facility
+        # "by Q2" is not the Chennai desktop line "in Q3"; linked, it read as a slipped date)
+        scoped, bare = (a, b) if wa else (b, a)
+        return not _other_site(bare.get("quote") or "", wa)
     return bool(wa & wb) or fuzz.token_set_ratio(" ".join(wa), " ".join(wb)) >= 70
+
+
+_SITE = re.compile(r"\b(?:in|at)\s+(?:our\s+|the\s+)?([A-Z][a-z]{3,})\s+(?:facility|plant|unit|factory|campus|park|site)\b"
+                   r"|\b(?:facility|plant|unit|factory|campus|site)\s+(?:in|at)\s+([A-Z][a-z]{3,})\b")
+
+
+def _other_site(quote: str, scope_words: set[str]) -> bool:
+    """The quote places the statement at a named site that the other statement's scope doesn't name."""
+    sites = {(m.group(1) or m.group(2)).lower() for m in _SITE.finditer(quote)}
+    return bool(sites) and not (sites & scope_words)
 
 
 def _mid(it: dict) -> float | None:
@@ -957,6 +972,17 @@ def build(symbol: str) -> dict:
     rows = []
     for th in threads:
         cells = statuses(th, order, actuals)
+        # each call's own words, so a replay can show what was said on that call (not only the first and
+        # latest); the same item statuses() compared (the first linked item per call)
+        seen_calls: set[str] = set()
+        for m in th.mentions:
+            if m.call in seen_calls or m.call not in cells:
+                continue
+            seen_calls.add(m.call)
+            it = m.item
+            if it.get("quote"):
+                cells[m.call]["quote"] = {"text": it["quote"], "page": it.get("page"), "url": it.get("url"),
+                                          "speaker": it.get("speaker")}
         sts = [c["status"] for c in cells.values() if c.get("status")]
         first = th.mentions[0].item
         last_call = th.mentions[-1].call
