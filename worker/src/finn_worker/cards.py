@@ -167,7 +167,14 @@ def build(filings: list[dict], moves: list[dict], weights: dict[str, float], nam
     routine: dict[str, int] = defaultdict(int)
     routine_items: list[dict] = []   # every folded filing, so the fold can be opened (UI plan: routine browser)
 
+    folded_keys: set[tuple] = set()
+
     def fold(label: str, f: dict) -> None:
+        # the same filing often arrives twice (live feed and daily backfill, different ids): count it once
+        key = (f["symbol"], f.get("link") or "", (f.get("subject") or "").strip().lower(), f["published_at"][:16])
+        if key in folded_keys or (f.get("link") and any(k[0] == key[0] and k[1] == key[1] for k in folded_keys)):
+            return
+        folded_keys.add(key)
         routine[label] += 1
         routine_items.append({"label": label, "symbol": f["symbol"], "subject": (f.get("subject") or "").strip(),
                               "at": f["published_at"], "link": f.get("link")})

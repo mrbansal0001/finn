@@ -131,3 +131,10 @@ def test_every_folded_filing_can_be_opened():
     ed = C.build([f], [], {}, {}, datetime(2026, 11, 9), datetime(2026, 11, 11), {}, {})
     assert ed["routine_total"] == 1 and ed["routine_items"][0]["subject"] == "Trading Window-XBRL"
     assert ed["routine_items"][0]["link"] and ed["routine_items"][0]["label"] == ed["routine"][0][0]
+
+
+def test_a_filing_arriving_twice_is_folded_once():
+    a = _filing("r1", "ABC", "unclassified", "2026-11-10T12:00:00", tier="routine", subject="Trading Window-XBRL")
+    b = {**a, "id": "r2"}                                   # same filing via the backfill
+    ed = C.build([a, b], [], {}, {}, datetime(2026, 11, 9), datetime(2026, 11, 11), {}, {})
+    assert ed["routine_total"] == 1 and len(ed["routine_items"]) == 1

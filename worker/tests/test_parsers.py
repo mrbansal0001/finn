@@ -102,3 +102,17 @@ def test_a_truncated_feed_is_never_cached(monkeypatch, tmp_path):
     with pytest.raises(fetch.Incomplete):
         fetch.get("https://example.test/feed.xml", max_age=600, validate=feeds._complete_rss)
     assert not fetch.cache_path("https://example.test/feed.xml").exists()
+
+
+def test_xbrl_only_filing_becomes_plain_facts_without_contact_details():
+    from finn_worker.xbrl_facts import facts
+    xml = ("<x><in-capmkt:NSESymbol>SBIN</in-capmkt:NSESymbol>"
+           "<in-capmkt:TypeOfMeetingForWhichIntimationIsGiven>Institutional Investor Meet</in-capmkt:TypeOfMeetingForWhichIntimationIsGiven>"
+           "<in-capmkt:DateOfMeetingOrCallOrConferenceOrEventForIntimation>2026-11-17</in-capmkt:DateOfMeetingOrCallOrConferenceOrEventForIntimation>"
+           "<in-capmkt:PlaceOfMeetingOrCallOrConferenceOrEventForIntimation>Singapore</in-capmkt:PlaceOfMeetingOrCallOrConferenceOrEventForIntimation>"
+           "<in-capmkt:NameOfContactPersonForIntimation>Mr Kaitav Shah</in-capmkt:NameOfContactPersonForIntimation>"
+           "<in-capmkt:EmailIDOfContactPersonForIntimation>svp.inv@sbi.co.in</in-capmkt:EmailIDOfContactPersonForIntimation></x>")
+    got = facts(xml)
+    assert ["Type of meeting", "Institutional Investor Meet"] in got
+    assert ["Date of meeting", "17 Nov 2026"] in got and ["Place of meeting", "Singapore"] in got
+    assert not any("Shah" in v or "@" in v for _, v in got)

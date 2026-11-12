@@ -9,7 +9,7 @@ import json
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from . import tracking, cards, network, prices, store, universe
+from . import tracking, cards, network, prices, store, universe, xbrl_facts
 
 ROOT = Path(__file__).resolve().parents[3]
 WINDOWS = {"24h": timedelta(hours=24), "3d": timedelta(days=3), "7d": timedelta(days=7), "30d": timedelta(days=30)}
@@ -77,6 +77,18 @@ def snapshot(until: datetime | None = None) -> dict:
     for e in con.execute(f"select filing_id, card from events where symbol in ({q})", syms):
         events.setdefault(e["filing_id"], []).append(json.loads(e["card"]))
     editions = {k: cards.build(filings, mv, weights, names, until - w, until, res, events, cal) for k, w in WINDOWS.items()}
+    # an XBRL-only filing (no PDF) is shown as plain-words facts, not a link that renders raw XML
+    xml_cache: dict[str, list] = {}
+    for ed in editions.values():
+        for it in ed.get("routine_items", []):
+            link = it.get("link") or ""
+            if link.lower().endswith(".xml"):
+                if link not in xml_cache:
+                    try:
+                        xml_cache[link] = xbrl_facts.for_link(link)
+                    except Exception:      # refused or unreachable: keep the link, no facts
+                        xml_cache[link] = []
+                it["facts"] = xml_cache[link]
     # every qualifying session as its own card; the app keeps those that meet the investor's rules (F01/F05)
     move_cards = cards.build_moves(mv, editions["30d"]["leads"] + editions["30d"]["more"], filings, weights, names, until, cal)
 
