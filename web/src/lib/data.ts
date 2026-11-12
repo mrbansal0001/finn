@@ -58,7 +58,9 @@ export async function getNetwork(): Promise<PrivateNetwork | null> {
   await connection(); // per-visitor data: render at request time (the auth client reads the clock)
   const sb = await supabaseForRequest();
   const [lines, contacts] = await Promise.all([
-    sb.from("network_lines").select("card_id, lines"),
+    // migration 004: demo visitors read the shared template through a checked function; fall back to
+    // the per-visitor table while the function doesn't exist yet
+    sb.rpc("my_network_lines").then((r) => (r.error ? sb.from("network_lines").select("card_id, lines") : r)),
     sb.from("contacts").select("id, name, profile, interactions_12m, last_contact, reciprocity, rating"),
   ]);
   return {

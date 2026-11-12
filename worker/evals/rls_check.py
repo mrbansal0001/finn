@@ -51,8 +51,16 @@ def main() -> int:
         check("A cannot read B's contacts, even by owner_id", peek == [], f"{len(peek)} rows")
         peek2 = http.get(f"{URL}/rest/v1/network_lines?select=card_id&owner_id=eq.{idb}", headers=as_user(ta)).json()
         check("A cannot read B's network lines", peek2 == [], f"{len(peek2)} rows")
-        lines = http.get(f"{URL}/rest/v1/network_lines?select=card_id&limit=5", headers=as_user(ta)).json()
+        # migration 004: a visitor's lines come through my_network_lines (own rows, else the demo template)
+        rpc = http.post(f"{URL}/rest/v1/rpc/my_network_lines", headers=as_user(ta), json={})
+        if rpc.status_code == 404:      # before 004: per-visitor copies
+            lines = http.get(f"{URL}/rest/v1/network_lines?select=card_id&limit=5", headers=as_user(ta)).json()
+        else:
+            lines = rpc.json() if rpc.status_code == 200 else []
         check("A can read their own network lines", len(lines) > 0, f"{len(lines)} shown")
+        anon_rpc = http.post(f"{URL}/rest/v1/rpc/my_network_lines", headers={"apikey": PUB, "Content-Type": "application/json"}, json={})
+        check("a caller without a session gets no network lines", anon_rpc.status_code in (401, 403, 404) or anon_rpc.json() == [],
+              f"HTTP {anon_rpc.status_code}")
         own = http.post(f"{URL}/rest/v1/contacts", headers=as_user(ta),
                         json={"owner_id": ida, "id": "spam", "name": "x" * 1000, "profile": {}})
         check("visitors cannot write even their own private rows (003)", own.status_code in (401, 403), f"HTTP {own.status_code}")

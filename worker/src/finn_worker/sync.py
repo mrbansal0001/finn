@@ -8,6 +8,7 @@ under row-level security.
 from __future__ import annotations
 
 import copy
+from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
@@ -86,12 +87,20 @@ def push() -> str:
         "interactions_12m": c["interactions_12m"], "last_contact": c["last_contact"],
         "reciprocity": c["reciprocity"], "rating": c["rating"]} for c in net["contacts"]])
     _upsert(http, base, "demo_edges", net["edges"])
-    _upsert(http, base, "demo_network_lines", [{"card_id": k, "lines": v} for k, v in lines.items()])
+    # demo visitors read these template rows directly (migration 004); rows for cards that no longer
+    # exist are pruned by their refresh time (before 004 the column doesn't exist: plain upsert)
+    run_at = datetime.now(timezone.utc).isoformat()
+    rows = [{"card_id": k, "lines": v, "refreshed_at": run_at} for k, v in lines.items()]
+    try:
+        _upsert(http, base, "demo_network_lines", rows)
+        if rows:
+            http.delete(f"{base}/demo_network_lines", params={"refreshed_at": f"lt.{run_at}"}).raise_for_status()
+    except httpx.HTTPStatusError:
+        _upsert(http, base, "demo_network_lines", [{"card_id": r["card_id"], "lines": r["lines"]} for r in rows])
     uni = json.loads((ROOT / "data" / "universe.json").read_text())
     _upsert(http, base, "universe", [{"symbol": s, "name": n} for s, n in uni])
-    # existing (returning) users get the new cards' network lines too
-    http.post(f"{base}/rpc/refresh_demo_network_lines", content="{}").raise_for_status()
-    return f"snapshot + {len(ledgers)} ledgers + {len(lines)} private network rows"
+    # no per-visitor copies to refresh since migration 004 (they timed out at 346 visitors)
+    return f"snapshot + {len(ledgers)} ledgers + {len(lines)} demo network rows"
 
 
 def exchange_requests() -> str:
