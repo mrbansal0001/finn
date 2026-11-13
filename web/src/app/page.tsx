@@ -14,6 +14,8 @@ import { SYNTHETIC } from "@/components/About";
 import { JumpLink } from "@/components/JumpLink";
 import { FirstVisit } from "@/components/FirstVisit";
 import { StaleNote } from "@/components/StaleNote";
+import { ReconnectLine } from "@/components/ReconnectLine";
+import { reconnects, type Reconnect } from "@/lib/warm";
 import { DOOR_CLASS, DoorTile } from "@/components/DoorTile";
 import { HoldingsSheet } from "@/components/HoldingsSheet";
 import { WindowLink, WindowSwitcher } from "@/components/WindowSwitcher";
@@ -116,7 +118,9 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
         panels={Object.fromEntries(
           keys.map((k) => [
             k,
-            <Panel key={k} k={k} ed={prepared[k].ed} alerts={prepared[k].alerts} prefs={prefs} until={until} networkDown={snap.network_status === "unavailable"} history={snap.price_history} latest={snap.freshness?.price_session ?? null} holdings={holdingSet} index={snap.ledger_index} lastOk={snap.freshness?.worker_last_ok?.announcements ?? null} />,
+            <Panel key={k} k={k} ed={prepared[k].ed} alerts={prepared[k].alerts} prefs={prefs} until={until} networkDown={snap.network_status === "unavailable"} history={snap.price_history} latest={snap.freshness?.price_session ?? null} holdings={holdingSet} index={snap.ledger_index} lastOk={snap.freshness?.worker_last_ok?.announcements ?? null}
+              reconnect={snap.network_status === "unavailable" ? undefined : reconnects(snap.contacts, [...prepared[k].ed.leads, ...prepared[k].ed.more], until)[0]}
+            />,
           ]),
         )}
       />
@@ -148,8 +152,9 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
 
 /** One window's edition: its start time, alerts, leads, the rest worth a look, and the routine fold. */
 function Panel({
-  k, ed, alerts, prefs, until, networkDown, history, latest, holdings, index, lastOk,
+  k, ed, alerts, prefs, until, networkDown, history, latest, holdings, index, lastOk, reconnect,
 }: {
+  reconnect?: Reconnect;
   lastOk: string | null;
   k: string; ed: Edition; alerts: Alert[]; prefs: Prefs; until: string; networkDown: boolean; history?: Snapshot["price_history"]; latest: string | null;
   holdings?: Set<string>; index?: Snapshot["ledger_index"];
@@ -233,6 +238,16 @@ function Panel({
           </div>
         )}
       </section>
+
+      {/* keeping the network warm: one natural reason to reconnect, from this window's filings (brief, Network) */}
+      {reconnect && (
+        <section className="mt-8" aria-labelledby={`warm-${k}`}>
+          <h2 id={`warm-${k}`} className="kicker text-ink-3">
+            A reason to reconnect
+          </h2>
+          <ReconnectLine r={reconnect} />
+        </section>
+      )}
 
       {/* the reader's own questions, after today's news and before the long tail */}
       <FollowedQuestions />

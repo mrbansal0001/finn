@@ -7,6 +7,8 @@ import { PeopleView, type Group, type Person } from "@/components/PeopleView";
 import { getView } from "@/lib/data";
 import { monthYear } from "@/lib/format";
 import { strengthParts, tieLabel } from "@/lib/lenses";
+import { reconnects } from "@/lib/warm";
+import { ReconnectLine } from "@/components/ReconnectLine";
 
 export const metadata = { title: "People" };
 
@@ -80,6 +82,24 @@ async function People() {
             ) : null}
             .
           </p>
+          {(() => {
+            const warm = reconnects(snap.contacts, [...snap.editions["7d"].leads, ...snap.editions["7d"].more], snap.data_until).slice(0, 5);
+            return warm.length ? (
+              <section className="mt-6" aria-labelledby="warm-h">
+                <h2 id="warm-h" className="section-h">
+                  <span>Reconnect</span>
+                  <span className="text-caption font-normal normal-case tracking-normal text-ink-3">quiet 6+ months, their company filed this week</span>
+                </h2>
+                <ul className="hair">
+                  {warm.map((r) => (
+                    <li key={r.contact.id}>
+                      <ReconnectLine r={r} />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null;
+          })()}
           <PeopleView people={people} groups={groups} gaps={gaps} />
         </>
       )}
