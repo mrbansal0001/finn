@@ -227,7 +227,8 @@ def best_reason(ln: dict) -> str:
     parts = [ln.get("fit") or ln["relation"]]
     if ln.get("via"):
         parts.append(f"reach them through {ln['via']}")
-    elif ln["strength"] == "strong":
+    elif ln["strength"] == "strong" and ln.get("fit"):
+        # the tie supports a fit; on its own it isn't a reason this person suits this event (design review C3)
         parts.append("a strong tie")
     if ln.get("insider"):
         parts.append("still works there, so public information only")

@@ -133,6 +133,14 @@ _PREFIX = re.compile(
     re.I)
 
 
+def fit_headline(h: str | None) -> str | None:
+    """Any headline to three lines of 20px serif on a phone (about 95 characters), cut at a word with an
+    ellipsis. The exchange's feed already cuts some summaries mid-word at 120 characters (design review T2)."""
+    if not h or len(h) <= 95:
+        return h
+    return h[:91].rsplit(" ", 1)[0].rstrip(",;:-") + "…"
+
+
 def rule_headline(summary: str, subject: str) -> str | None:
     """A headline from NSE's own summary when it carries the news; None when it's boilerplate."""
     s = _PREFIX.sub("", (summary or "").strip()).strip(" .'\"")
@@ -145,7 +153,8 @@ def rule_headline(summary: str, subject: str) -> str | None:
         return None
     m = re.search(r"[\"“'‘]([^\"”'’]{15,140})[\"”'’]", s)
     if m:
-        return m.group(1).strip()
+        q = m.group(1).strip()
+        return q if len(q) <= 95 else q[:91].rsplit(" ", 1)[0].rstrip(",;:") + "…"
     if not s or len(s) < 12:
         return None
     low = s.lower()
@@ -155,7 +164,9 @@ def rule_headline(summary: str, subject: str) -> str | None:
             or len(s) <= len(subject) + 4:
         return None
     s = re.sub(r"^(the )?(company has )?", "", s, flags=re.I)
-    return s[0].upper() + s[1:] if len(s) <= 140 else s[:137].rsplit(" ", 1)[0] + "…"
+    # three lines of 20px serif on a phone hold about 95 characters: a longer summary is cut at a word, so no
+    # headline runs to a fourth line (design review T2)
+    return s[0].upper() + s[1:] if len(s) <= 95 else s[0].upper() + s[1:91].rsplit(" ", 1)[0].rstrip(",;:") + "…"
 
 
 def build(filings: list[dict], moves: list[dict], weights: dict[str, float], names: dict[str, str],
@@ -176,7 +187,7 @@ def build(filings: list[dict], moves: list[dict], weights: dict[str, float], nam
             return
         folded_keys.add(key)
         routine[label] += 1
-        routine_items.append({"label": label, "symbol": f["symbol"], "subject": (f.get("subject") or "").strip(),
+        routine_items.append({"label": label, "symbol": f["symbol"], "subject": plain_subject(f.get("subject") or ""),
                               "at": f["published_at"], "link": f.get("link") if _real_link(f.get("link")) else None})
 
     # group same-company, same-kind filings on the same day into one card (results day = 4-6 filings)
@@ -212,7 +223,7 @@ def build(filings: list[dict], moves: list[dict], weights: dict[str, float], nam
             # the document couldn't be read: the filing stays as material as its category says, with its
             # source, instead of folding into housekeeping (audit F04)
             again = any(e.get("retryable") and (e.get("attempts") or 1) < 3 for e in read)
-            headline, source, needs_read = f"{lead['subject'].strip()} filed", "rule", False
+            headline, source, needs_read = _filed(lead["subject"]), "rule", False
             why = ("Material filing received; FINN couldn't read the document"
                    + (" yet and will try again" if again else "") + ". Open the filing below.")
             read = []
@@ -255,10 +266,13 @@ def build(filings: list[dict], moves: list[dict], weights: dict[str, float], nam
         if headline is None:
             headline, why, needs_read = _fallback_copy(cat, fs, why, needs_read)
             source = "rule" if headline else source
+        att = _attachment(fs)
+        if att:
+            facts = {**facts, "attachment": att}
         cid = hashlib.sha1(("|".join(f["id"] for f in fs)).encode()).hexdigest()[:12]
         cards.append(Card(
             id=cid, symbol=sym, company=names.get(sym, lead["company_name"]), kind=cat, tier=tier,
-            at=lead["published_at"], nse_subject=lead["subject"], headline=headline,
+            at=lead["published_at"], nse_subject=lead["subject"], headline=fit_headline(headline),
             headline_source=source, why=why, facts=facts,
             # NSE writes "-" when a filing has no attachment: only a real address becomes a source
             sources=[Source(_source_label(f), f["link"]) for f in fs if _real_link(f.get("link"))],
@@ -390,6 +404,100 @@ def _fy_quarter(period_end: str) -> str:
     return f"{q}FY{fy % 100:02d}"
 
 
+# NSE's own subjects, as a reader would say them (design review C1): a raw subject such as
+# "Change in Directors/KMP/SMP/Auditor/RTA" must never be a headline, an alert row or a notification.
+# First match wins; anything unlisted gets the general clean-up in plain_subject().
+PLAIN_SUBJECTS: list[tuple[str, str]] = [
+    (r"^change in directors/kmp/smp/auditor/rta", "Director, key manager or auditor change"),
+    (r"^resignation of director/kmp/smp", "A director or key manager resigned"),
+    (r"^resignation of statutory auditor", "The statutory auditor resigned"),
+    (r"^change in director\(s\)", "Change in directors"),
+    (r"^change in management", "Management change"),
+    (r"^change in company secretary", "Company secretary or compliance officer changed"),
+    (r"^change in auditors?", "Auditor change"),
+    (r"^alteration of capital and fund raising", "Capital change or fund raising"),
+    (r"^allotment of securities", "Securities allotted"),
+    (r"^issue of securities", "Securities issue"),
+    (r"^statement of deviation", "Use of issue proceeds: deviation statement"),
+    (r"^monitoring agency report", "Monitoring agency report on issue proceeds"),
+    (r"^utilisation of funds", "Use of funds raised"),
+    (r"^bagging/receiving of orders", "Order or contract won"),
+    (r"^agreements,contracts,arrangements,mou|^agreements$", "Agreement or MoU signed"),
+    (r"^capacity addition", "Capacity addition"),
+    (r"^commencement of commercial production", "Commercial production started"),
+    (r"^update-acquisition", "Acquisition update"),
+    (r"^acquisition of 'to be incorporated companies'", "New subsidiary to be incorporated"),
+    (r"^acquisition", "Acquisition or agreement to acquire"),
+    (r"^amalgamation/merger", "Merger"),
+    (r"^de-merger", "Demerger"),
+    (r"^sale or disposal", "Sale of a business or asset"),
+    (r"^scheme of arrangement", "Scheme of arrangement"),
+    (r"^disclosure under sebi takeover", "Takeover-code disclosure"),
+    (r"^action\(s\) taken or orders passed|^actions initiated/taken", "Regulatory action or order"),
+    (r"^pendency of (any )?litigation", "Litigation update"),
+    (r"^credit rating- revision", "Credit rating revised"),
+    (r"^credit rating", "Credit rating"),
+    (r"^notice of shareholders meetings", "Shareholder meeting notice"),
+    (r"^integrated filing- financial", "Financial results (integrated filing)"),
+    (r"^reasons for delayed/non-submission", "Results delayed"),
+    (r"^disclosure of material issue", "Material disclosure"),
+    (r"^giving (of )?guarantees", "Guarantee given"),
+    (r"^options to purchase securities", "Employee stock options"),
+    (r"^esop/esos/esps", "Employee stock options"),
+    (r"^analysts?/institutional investor meet|^analyst/investor meet", "Analyst or investor meeting"),
+    (r"^rumour verification|^news verification", "Reply to an exchange query on news"),
+    (r"^spurt in volume", "Reply to an exchange query on volume"),
+    (r"^amendment to aoa/moa", "Articles or memorandum amended"),
+    (r"^certificate under sebi \(depositories", "Depositories certificate"),
+    (r"^copy of newspaper publication", "Newspaper notice"),
+    (r"^board meeting intimation", "Board meeting scheduled"),
+    (r"^outcome of board meeting", "Board meeting outcome"),
+    (r"^trading window", "Trading window"),
+    (r"^shareholders meeting", "Shareholder meeting"),
+]
+
+
+def plain_subject(subject: str) -> str:
+    """'Change in Directors/KMP/SMP/Auditor/RTA' -> 'Director, key manager or auditor change'. Unlisted subjects
+    lose the exchange's suffixes ('-XBRL', '(Sub-para 4-Para B)'), slashes become commas, and Title Case
+    becomes sentence case, so 'Outcome Of Board Meeting-XBRL' reads 'Outcome of board meeting'."""
+    raw = re.sub(r"\s+", " ", subject or "").strip()
+    low = raw.lower()
+    for pat, plain in PLAIN_SUBJECTS:
+        if re.search(pat, low):
+            return plain
+    t = re.sub(r"\s*-\s*XBRL$", "", raw, flags=re.I)
+    t = re.sub(r"\s*\((?:Sub-para|Para)[^)]*\)\s*$", "", t, flags=re.I).strip()
+    t = re.sub(r"\s*/\s*", ", ", t)
+    words = t.split()
+    # Title Case from the exchange: lower every word that isn't an acronym (all capitals) or the first
+    if sum(w[:1].isupper() for w in words) >= max(2, len(words) - 1):
+        t = " ".join(w if i == 0 or (w.isupper() and len(w) > 1) else w.lower() for i, w in enumerate(words))
+    return t[:1].upper() + t[1:]
+
+
+def _filed(subject: str) -> str:
+    """A rule headline for a filing FINN doesn't summarise: the plain subject, said as filed."""
+    p = plain_subject(subject)
+    # a phrase that already says what happened ("A director resigned", "Order or contract won") stands alone
+    return p if re.search(r"\b(resigned|won|signed|started|allotted|revised|changed|given|delayed|amended|scheduled)$", p) else f"{p} filed"
+
+
+def _attachment(fs: list[dict]) -> str | None:
+    """'xbrl' (data only, no PDF), 'zip', 'none' (nothing attached), or None for an ordinary PDF filing."""
+    links = [f.get("link") or "" for f in fs]
+    if any(l.lower().endswith(".pdf") for l in links):
+        return None
+    real = [l.lower() for l in links if _real_link(l)]
+    if not real:
+        return "none"
+    if all(l.endswith(".xml") for l in real):
+        return "xbrl"
+    if any(l.endswith(".zip") for l in real):
+        return "zip"
+    return None
+
+
 def _fallback_copy(cat: str, fs: list[dict], why, needs_read: bool):
     """Honest copy for filings the reader will not summarise, instead of a 'pending' that never resolves."""
     text = " ".join(f"{f['subject']} {f.get('summary') or ''} {f.get('link') or ''}" for f in fs).lower()
@@ -402,13 +510,11 @@ def _fallback_copy(cat: str, fs: list[dict], why, needs_read: bool):
     if links and not any(l.lower().endswith(".pdf") for l in links):
         # say what the attachment actually is (audit: every non-PDF was called a ZIP)
         real = [l.lower() for l in links if _real_link(l)]
-        note = ("No document was attached to this filing." if not real
-                else "Filed as XBRL data only (no PDF)." if all(l.endswith(".xml") for l in real)
-                else "The filing is a ZIP attachment; open it below." if any(l.endswith(".zip") for l in real)
-                else "Open the filing below.")
-        return f"{fs[0]['subject'].strip()} filed", why or note, False
+        # what the attachment is goes on the card as a tag, not in the "why" (design review C2): the why is a
+        # reason or nothing. The card reads facts["attachment"]; see build().
+        return _filed(fs[0]["subject"]), why, False
     if cat not in READ_CATEGORIES and not any(f.get("needs_document") for f in fs):
-        return f"{fs[0]['subject'].strip()} filed", why, False
+        return _filed(fs[0]["subject"]), why, False
     return None, why, needs_read                           # the reader will summarise it on a coming run
 
 

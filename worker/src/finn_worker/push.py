@@ -27,6 +27,8 @@ from pathlib import Path
 import httpx
 from dotenv import load_dotenv
 
+from .cards import plain_subject
+
 ROOT = Path(__file__).resolve().parents[3]
 load_dotenv(ROOT / ".env")
 
@@ -90,7 +92,7 @@ def filed(snap: dict, prefs: dict, after: str) -> list[dict]:
 
 def _note(c: dict) -> dict:
     return {"title": f"{c['symbol']}: {KIND_WORD.get(c['kind'], 'Filing')} filed",
-            "body": (c.get("headline") or c.get("nse_subject") or "")[:180],
+            "body": (c.get("headline") or plain_subject(c.get("nse_subject") or ""))[:180],
             "url": f"/card/{c['id']}", "tag": f"filing-{c['id']}"}
 
 

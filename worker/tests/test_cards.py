@@ -129,7 +129,7 @@ def test_moves_are_exported_down_to_the_lowest_allowed_thresholds():
 def test_every_folded_filing_can_be_opened():
     f = _filing("r1", "ABC", "unclassified", "2026-11-10T12:00:00", tier="routine", subject="Trading Window-XBRL")
     ed = C.build([f], [], {}, {}, datetime(2026, 11, 9), datetime(2026, 11, 11), {}, {})
-    assert ed["routine_total"] == 1 and ed["routine_items"][0]["subject"] == "Trading Window-XBRL"
+    assert ed["routine_total"] == 1 and ed["routine_items"][0]["subject"] == "Trading window"  # plain subject (design review C1)
     assert ed["routine_items"][0]["link"] and ed["routine_items"][0]["label"] == ed["routine"][0][0]
 
 
@@ -146,3 +146,13 @@ def test_a_missing_attachment_is_not_called_a_zip():
     ed = C.build([f], [], {}, {}, datetime(2026, 11, 9), datetime(2026, 11, 11), {}, {})
     card = (ed["leads"] + ed["more"])[0]
     assert card["sources"] == [] and "ZIP" not in (card["why"] or "")
+
+
+def test_raw_exchange_subjects_never_become_headlines():
+    """Design review C1: the exchange's own subject is rewritten before it reaches a headline."""
+    from finn_worker.cards import _filed, plain_subject
+    assert _filed("Change in Directors/KMP/SMP/Auditor/RTA") == "Director, key manager or auditor change filed"
+    assert _filed("Resignation of Director/KMP/SMP") == "A director or key manager resigned"
+    assert plain_subject("Outcome Of Some New Thing-XBRL") == "Outcome of some new thing"
+    assert plain_subject("Bagging/Receiving of orders/contracts  (Sub-para 4-Para B)") == "Order or contract won"
+    assert "/" not in plain_subject("Some/Unlisted/Subject")
