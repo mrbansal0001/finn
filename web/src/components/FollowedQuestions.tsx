@@ -144,7 +144,7 @@ export function FollowedQuestions({ symbol, variant = "line" }: { symbol?: strin
       <Link href={`/questions?c=${encodeURIComponent(symbol)}`} className="flex min-h-[44px] items-center text-caption text-accent">
         Evidence trail for {list.length === 1 ? "this question" : `these ${list.length} questions`} ›
       </Link>
-      <p className="pb-1 pt-1 text-caption text-ink-3">On this device only. Checked when you open FINN; no notifications.</p>
+      <p className="pb-1 pt-1 text-caption text-ink-3">On this device only. Checked when you open FINN; followed questions don&apos;t send notifications.</p>
     </section>
   );
 }

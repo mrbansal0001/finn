@@ -121,3 +121,16 @@ Management on demand (needs a new extraction), card swipes with a learning ranke
 ## 6. The sentence for the write-up
 
 FINN is an edition, not a feed: it reads the filings, keeps each company's promises against its own later words, and finds the person who can explain. It pushes at the close, answers questions only from the documents, and says plainly what it doesn't know.
+
+## 7. Result (13 Nov, same day)
+
+| # | Part | State | Measured |
+|---|---|---|---|
+| 1 | Push at the close | Built: Settings switch, service worker, private subscription rows, worker sender (filings within a cycle, close digest once per session) | VAPID pair checked locally; digest text from real sessions ("3 alerts at the 12 Nov close: KALYANKJIL +7.1% on 5.7× volume; …"). **Not yet delivered to a phone:** needs migration 005, and headless Chrome has no push service. Owner to test on a real phone |
+| 2 | Announcement alerts | Built | Filed group in the alerts box; three switches in What counts |
+| 3 | Keeping the network warm | Built | Neha Joshi (HDFC Bank, 9 months cold) on the edition; five on the People page |
+| 4 | Cut, don't add | Partly | 7-day edition 1,851 → 1,816 px locally before parts 2–3 added rows; **1,988 px live** with the filed alerts and the reconnect line. The 1,700 px target is missed; the rest is the three lead cards |
+| 5 | Ask the documents | Built | 31,557 passages, 53 companies; 1–12 ms per query (PGlite test of the migration's function); refuses "cricket world cup sponsorship" for Titan; analyst questions carry the company's reply. **Live after migration 005** and one worker cycle |
+| 6 | Voice in | Built | On the dock and the ask box; hidden where the browser has no recogniser. Owner to test on a real phone |
+| 7 | Trajectory | Built | 23 of 53 companies pass every check; one wrong-row read (Kalyan FY25 profit) caught and shown as a gap |
+| 8 | Verify and write up | Done here | WRITEUP and D-066 to D-072 updated; live checks in one mobile session |

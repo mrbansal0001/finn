@@ -7,7 +7,8 @@
 FINN has one point of view: **an investor should be briefed, not fed.** The Indian tools I studied (Tijori, Trendlyne, Screener, broker apps; about 45 products, `docs/research/01-competitors.md`) mostly alert per filing or per event; some send daily summaries of specific feeds. FINN writes a ranked *edition* of your portfolio. It ranks, shows up to three leads, counts the rest, folds the routine into one line, and ends.
 
 - **Push, "The Edition".** A digest of your 18 holdings' NSE filings and price/volume moves over the last 24 hours, or a window you pick (3d, 7d, 30d, since your last visit).
-  - **Rule matches** sit above the digest: every session in the window that met your price or volume rule (±5%, 2× the 20-session volume by default), each opening its own card. "What counts" lets you change the thresholds (down to 1% and 1.2×), mute announcement types, and set how many leads. These are in-app alerts; nothing is pushed to a phone yet.
+  - **Rule matches** sit above the digest: every session in the window that met your price or volume rule (±5%, 2× the 20-session volume by default), each opening its own card. "What counts" lets you change the thresholds (down to 1% and 1.2×), mute announcement types, and set how many leads. You can also be alerted when a results filing, a deal or a management change lands for a holding.
+  - **It pushes.** Switch on "Notify this device" in What counts, and FINN sends web notifications: a chosen filing within one 15-minute worker cycle of reaching the exchange feed, and once per session the moves that meet *your* rules ("3 alerts at the 12 Nov close: KALYANKJIL +7.1% on 5.7× volume; …"). The subscription and your rules sit in your own private row; nothing from before you subscribed is sent. On iPhone it works once FINN is added to the Home Screen.
   - **Results cards:** Revenue, EBITDA, PBT and PAT with QoQ and YoY (margins in bp; banks get NII, operating profit and provisions; lenders get no EBITDA). The headline is written from the computed numbers. When one-offs are a big part of profit, it leads with profit before one-offs (Titan: +114% reported, +53% before a ₹671 cr fair-value gain).
   - **People cards:** the person's background from the filing, ranked by seniority (a new MD & CEO leads; a compliance officer's appointment doesn't).
   - **Move cards** name the filing published between the previous close and this close, on the exchange's full trading calendar ("Filed before this session: results, Tue 10 Nov 17:08"). If there is none, the card says so instead of guessing a cause.
@@ -17,7 +18,9 @@ FINN has one point of view: **an investor should be briefed, not fed.** The Indi
   - a glyph per call: ● delivered, ◐ partly, ○ missed, ↻ revised, — went silent, ◌ period ended with no outcome stated;
   - the verbatim quote with its transcript page; for a settled row, the outcome quote too, with who said it and on which call;
   - for a company-level, full-year revenue, profit or margin target still running, the latest filed quarter beside it, judged against the target (one quarter is not the year, so the status stays open);
-  - the latest results table, the annual report's own description of the business, and the people who'd know.
+  - the latest results table, the annual report's own description of the business, and the people who'd know;
+  - **Trajectory:** five years of revenue and profit read from the annual report's own multi-year table, each figure kept only if it is printed on the cited page (23 of 53 companies pass every check; the rest show nothing rather than a guess).
+- **Ask the documents.** A question box on every covered company ("what did they say about gold prices and demand?") answered only with the company's own words: up to three passages from its last four call transcripts and its annual report, with speaker, role and page link. If the best passage is an analyst's question, the company's reply comes with it. If no passage covers enough of the question, the answer is "The documents don't say", and scanned transcripts FINN can't read are named. It is full-text search in Postgres over 31,557 passages, not a model, so outside knowledge can't leak in and nothing is paraphrased. The search box offers it for any sentence typed on a company page, and both boxes take voice.
   - Example, BEL (machine-built): FY26 EBITDA margin guided at 27%, and management stated 30% on the May call (delivered); the NGC order target moved from ₹10–12k cr "in H1" to about ₹20k cr for the year, after the first date had passed (revised, not missed). The hand-checked reference also shows the QRSAM order date reset three times.
   - **Delivered/missed is rare by design.** A later statement settles a promise only when it is comparable: same period as the current target, said by management, the number printed in the quote, comparable units, the programme or segment named, and from a later call that reviewed the period. Across 52 ledgers that leaves 2 settled rows out of about 1,800; the rest are open, revised, silent, or ended without a comparable outcome, and say so. An earlier version settled 53, most of them wrongly (E31).
   - Ledgers exist for 52 companies when this was written: 45 of the Nifty 50 (the other five have nothing readable: ITC and Trent list no transcripts, and the sources for Apollo Hospitals, JSW Steel and ONGC refused or were missing) plus holdings, research names and companies visitors requested. Any other company is built on request.
@@ -27,6 +30,7 @@ FINN has one point of view: **an investor should be briefed, not fed.** The Indi
   - **Best placed, and why:** the first suggestion is the person whose role there or expertise fits the event ("as Head, Legal & Secretarial there (2013–20), the closest to this legal matter; reach them through Imran"). Relevance beats warmth.
   - The search box also searches your own network: a name, a theme ("specialty chemicals"), an employer, a school.
   - It knows when *not* to suggest someone: current employees are marked insiders and never offered for an unexplained price move.
+  - **Keeping the network warm, unprompted:** the edition and the People page surface a contact you haven't spoken to in six months whose company, or former employer, just filed something material ("Neha Joshi: HDFC Bank, Fri: management change. Last spoke Feb 2026, 9 months ago").
 
 ## Decisions and tradeoffs (full log: `docs/DECISIONS.md`)
 
@@ -51,6 +55,8 @@ FINN has one point of view: **an investor should be briefed, not fed.** The Indi
   - a composite "credibility score", because a single number invites false precision;
   - model-written bull/bear cases;
   - a network graph view, which reads badly at phone width and answers a vanity question.
+  - **balance sheet and cash quality** (the Pull menu's items): FINN extracts no cash-flow statement or balance sheet, and a ratio built from a results table alone would be wrong. They are the next extraction, not a chart over missing data;
+  - **bull vs bear:** a model's opinion dressed as analysis is exactly what "no AI slop" forbids. The ledger and Ask give the company's own words; the investor makes the case.
 
 ## Architecture
 
@@ -61,6 +67,9 @@ FINN has one point of view: **an investor should be briefed, not fed.** The Indi
  results PDF + XBRL ─► table read + checks ──┼─► cards ─► export ─► Supabase (public: market data)
  NSE bhavcopy ─► moves vs 20-session avg ────┘            │        Supabase (private: your network,
  transcripts ─► extract, verify, link, status ─► ledgers ─┘          row-level security per visitor)
+ transcripts + MD&A ─► speaker passages ──────────────────► Supabase (public: passages, full-text index)
+ annual report ─► multi-year table, on-page check ─► trajectory (in the snapshot)
+ your rules + push endpoint (private row) ◄── worker reads at each cycle ─► web push to your device
  your network (local) ─► deterministic matching ─► private lines ─┘          │
                                                                     Next.js PWA on Vercel (Mumbai)
                                                                     ◄── coverage requests (any NSE ticker)
@@ -75,6 +84,8 @@ FINN has one point of view: **an investor should be briefed, not fed.** The Indi
 | People | the appointment filing's own bio (XBRL `BriefProfile` or the annexure) | on filing |
 | Prices | NSE UDiFF bhavcopy (one public file, all stocks) | after close |
 | Transcripts and annual reports | exchange PDFs (screener.in only to discover the links) | pre-built for the Nifty 50; on request otherwise |
+| Ask passages | the same transcripts and the annual report's MD&A, split by speaker turn | rebuilt when a ledger changes (5 per cycle) |
+| Trajectory | the annual report's five- or ten-year summary page | once per report, cached |
 
 - **Matching a name in a filing to a person in the network.**
   - The filing gives a name, a role, employers, schools and sometimes years.
@@ -141,8 +152,9 @@ Copy rules are enforced in code: a headline needs a verb and a fact, a "why" lin
 ## What I'd do next
 
 1. A licensed announcements feed and a cloud worker in Mumbai, so Pull builds any company in about a minute without a queue.
-2. Web push for installed PWAs, so an alert reaches the phone the moment a threshold is crossed (today's alerts are in-app only).
-3. The rest of the third audit's plan, deliberately left for after submission: a typed evidence store (target versions, outcome observations, comparisons), versioned snapshots switched atomically, a Postgres job queue with leases for on-demand research, refresh when a source changes rather than when a file is missing, reading every event in a results filing, and structured people filings.
-4. Annual-report promises as ledger rows (capex and capacity targets live there), and segment-level tracking against filed segment results.
-5. A sector-specific fourth metric (volumes for autos, order book for capital goods, NIM/GNPA for banks).
-6. A held-out evaluation refreshed every quarter, with a re-audit of every displayed number against its source.
+2. Push from the cloud rather than the Mac worker, so a notification never waits for the laptop to be awake; and email as a fallback for browsers without web push.
+3. Balance sheet and cash quality from the annual report's statements (operating cash flow against profit, net debt), with the same "on the page as printed" check the trajectory uses.
+4. The rest of the third audit's plan, deliberately left for after submission: a typed evidence store (target versions, outcome observations, comparisons), versioned snapshots switched atomically, a Postgres job queue with leases for on-demand research, refresh when a source changes rather than when a file is missing, reading every event in a results filing, and structured people filings.
+5. Annual-report promises as ledger rows (capex and capacity targets live there), and segment-level tracking against filed segment results.
+6. A sector-specific fourth metric (volumes for autos, order book for capital goods, NIM/GNPA for banks).
+7. A held-out evaluation refreshed every quarter, with a re-audit of every displayed number against its source.
