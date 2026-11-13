@@ -90,6 +90,9 @@ def once() -> None:
         from . import passages
         step("passages", passages.run, None, 5)
         step("passages_sync", sync.passages)
+        # push at the close and on chosen filings, to visitors who switched notifications on
+        from . import push
+        step("push", push.run)
     except ImportError:
         pass
     state["last_cycle"] = datetime.now().isoformat(timespec="seconds")      # attempted

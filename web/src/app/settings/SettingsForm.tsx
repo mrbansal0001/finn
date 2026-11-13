@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ALERT_KINDS, KIND_CHOICES, type Prefs } from "@/lib/prefs";
 import { resetPrefs, savePrefs } from "./actions";
 import { ColourToggle } from "./ColourToggle";
+import { NotifyToggle } from "./NotifyToggle";
 import { ThemeChoice } from "./ThemeChoice";
 
 export type PreviewData = {
@@ -47,6 +48,7 @@ export function SettingsForm({ prefs, preview }: { prefs: Prefs; preview: Previe
             </li>
           ))}
         </ul>
+        <NotifyToggle />
       </fieldset>
 
       <fieldset className="mt-10">
