@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ViewTransition, useEffect, useState } from "react";
 import { NAV_START } from "./NavProgress";
+import { VoiceButton } from "./VoiceButton";
 
 type Person = { id: string; name: string; why: string; match?: string };
 type Results = { q: string; companies: [string, string][]; people: Person[]; failed?: boolean };
@@ -182,7 +183,7 @@ export function Dock() {
             </div>
           )}
           <div className="flex items-center gap-2">
-            <form onSubmit={submit} role="search" className="min-w-0 flex-1">
+            <form onSubmit={submit} role="search" className="relative min-w-0 flex-1">
               <label htmlFor="ask" className="sr-only">
                 Research any NSE company or search your network
               </label>
@@ -206,7 +207,14 @@ export function Dock() {
                 autoCorrect="off"
                 spellCheck={false}
                 enterKeyHint="search"
-                className="h-11 w-full rounded-lg border border-ink-3 bg-paper-raised px-3.5 text-body placeholder:text-ink-3 focus:border-accent focus:outline-none"
+                className="h-11 w-full rounded-lg border border-ink-3 bg-paper-raised pl-3.5 pr-11 text-body placeholder:text-ink-3 focus:border-accent focus:outline-none"
+              />
+              {/* voice in: the same search, spoken (brief-check plan, part 6) */}
+              <VoiceButton
+                onText={(t) => {
+                  setQ(t);
+                  setNote("");
+                }}
               />
             </form>
             <Link
