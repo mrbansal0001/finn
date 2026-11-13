@@ -3,6 +3,7 @@ import { BackLink } from "@/components/BackLink";
 import { notFound } from "next/navigation";
 import { Dock } from "@/components/Dock";
 import { AskBox } from "@/components/AskBox";
+import { Trajectory } from "@/components/Trajectory";
 import { CompanySkeleton } from "@/components/Skeletons";
 import { Suspense } from "react";
 import { getLedger, getRequest, getSnapshot, getUniverse, getView } from "@/lib/data";
@@ -173,6 +174,7 @@ async function Company({ params, searchParams }: Pick<PageProps<"/c/[symbol]">, 
               </li>
             ))}
           </ul>
+          {snap.trajectory?.[symbol] && <Trajectory t={snap.trajectory[symbol]} />}
           {(ledger.snapshot.what_they_do.length > 2 || ledger.snapshot.segments.length > 0) && (
             <details className="group mt-1">
               <summary className="inline-flex min-h-[44px] items-center gap-1 text-small text-accent">

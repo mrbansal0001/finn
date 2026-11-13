@@ -79,6 +79,9 @@ def once() -> None:
     step("requests_in", _sync.exchange_requests)
     step("coverage_queue", pull.drain_requests)
     step("requests_out", _sync.exchange_requests)      # a finished build's status goes out now, not next cycle
+    # five-year trajectory for any newly covered company (one model call per report, cached)
+    from . import trajectory
+    step("trajectory", trajectory.run)
     # success times are saved before the export so the snapshot can say what is fresh and what isn't
     state["last_ok"] = {**state.get("last_ok", {}), **LAST_OK}
     _save_state(state)

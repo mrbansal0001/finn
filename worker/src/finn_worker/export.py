@@ -157,6 +157,7 @@ def snapshot(until: datetime | None = None) -> dict:
         # one small entry per ledger, for the Research page and the promise line on results cards
         "ledger_index": ledger_index,
         "nifty50": _nifty50(),
+        "trajectory": _trajectory(),
     }
 
 
@@ -199,6 +200,17 @@ def _index_entry(led: dict) -> dict:
         "reference": bool(led.get("reference")) or (ROOT / "data" / "ledgers" / f"{led['symbol']}.json").exists()
         and json.loads((ROOT / "data" / "ledgers" / f"{led['symbol']}.json").read_text()).get("provenance", "").startswith("Reference"),
     }
+
+
+def _trajectory() -> dict:
+    """Five years of revenue and profit from each annual report's own multi-year table (trajectory.py)."""
+    out = {}
+    for p in sorted((ROOT / "data" / "trajectory").glob("*.json")):
+        d = json.loads(p.read_text())
+        if not d.get("none"):
+            out[d["symbol"]] = {k: d[k] for k in ("url", "page", "report_year", "basis", "revenue_label", "profit_label", "unit_printed")} | {
+                "years": [{"fy": y["fy"], "revenue": y["revenue_cr"], "pat": y["pat_cr"]} for y in d["years"]]}
+    return out
 
 
 def _nifty50() -> list[str]:

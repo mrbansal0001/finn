@@ -105,6 +105,8 @@ export type Snapshot = {
   // one small entry per ledger (worker export._index_entry), and NSE's Nifty 50 list
   ledger_index?: Record<string, LedgerIndexEntry>;
   nifty50?: string[];
+  /** five years of revenue and profit from each annual report's own table, in ₹ crore (worker trajectory.py) */
+  trajectory?: Record<string, Trajectory>;
   people: Record<string, NetworkLine[]>;
   verifiers: Record<string, NetworkLine>;
   contacts: Contact[];
@@ -167,4 +169,15 @@ export type LedgerIndexEntry = {
   top: PromiseRow | null;
   tracked: PromiseRow | null;
   reference: boolean;
+};
+
+export type Trajectory = {
+  url: string;
+  page: number;
+  report_year: number;
+  basis: "consolidated" | "standalone" | "not stated";
+  revenue_label: string;
+  profit_label: string;
+  unit_printed: string;
+  years: { fy: number; revenue: number; pat: number | null }[];
 };
