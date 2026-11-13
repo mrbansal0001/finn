@@ -72,11 +72,14 @@ export function EditionCard({
             <>
               {/* the bars carry the headline figures; the "why" keeps only its first sentence (one number, one place) */}
               <Figures r={results} />
-              {card.why && <p className="mt-2 text-small text-ink-2">{firstSentence(card.why)}</p>}
+              {/* one number, one place: the promise line states the margin when it tracks it */}
+              {card.why && !(promise?.tracking && /margin/i.test(promise.tracking.metric) && /^EBITDA margin/i.test(card.why)) && (
+                <p className="mt-2 text-small text-ink-2">{firstSentence(card.why)}</p>
+              )}
               {promise?.tracking && <PromiseLine symbol={card.symbol} row={promise} />}
             </>
           ) : (
-            card.why && <p className="mt-2 line-clamp-3 text-body text-ink-2">{card.why}</p>
+            card.why && <p className="mt-2 line-clamp-2 text-body text-ink-2">{card.why}</p>
           )}
           {card.kind === "management_change" && <PersonLine card={card} />}
         </>

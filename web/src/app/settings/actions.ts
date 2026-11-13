@@ -12,6 +12,7 @@ export async function savePrefs(form: FormData) {
       volume_x: form.get("volume_x"),
       leads: form.get("leads"),
       muted: KIND_CHOICES.map((k) => k.kind).filter((k) => !enabled.has(k)),
+      alert_kinds: form.getAll("alert_kind").map(String),
     }),
   );
   (await cookies()).set(PREFS_COOKIE, JSON.stringify(prefs), {

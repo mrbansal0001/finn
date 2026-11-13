@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { KIND_CHOICES, type Prefs } from "@/lib/prefs";
+import { ALERT_KINDS, KIND_CHOICES, type Prefs } from "@/lib/prefs";
 import { resetPrefs, savePrefs } from "./actions";
 import { ColourToggle } from "./ColourToggle";
 import { ThemeChoice } from "./ThemeChoice";
@@ -31,6 +31,22 @@ export function SettingsForm({ prefs, preview }: { prefs: Prefs; preview: Previe
           hint={`Volume at ${vol.toFixed(1)}× its 20-session average or more is an alert. FINN never guesses a cause.`}
         />
         <Preview data={preview} price={price} vol={vol} saved={prefs} />
+      </fieldset>
+
+      {/* a filing of these kinds is an alert the moment it lands (brief, Push 2: "a material announcement of a type I care about") */}
+      <fieldset className="mt-10" id="filed-alerts">
+        <legend className="section-h w-full">Alert me when these are filed</legend>
+        <p className="mt-2 text-caption text-ink-3">For your holdings. They join the alerts at the top of the edition, and the notification if it&apos;s on.</p>
+        <ul className="hair mt-1">
+          {ALERT_KINDS.map((k) => (
+            <li key={k.kind}>
+              <label className="flex min-h-[52px] items-center justify-between gap-3 py-2">
+                <span className="text-body">{k.label}</span>
+                <input type="checkbox" name="alert_kind" value={k.kind} defaultChecked={prefs.alert_kinds.includes(k.kind)} className="size-5 accent-[var(--accent)]" />
+              </label>
+            </li>
+          ))}
+        </ul>
       </fieldset>
 
       <fieldset className="mt-10">

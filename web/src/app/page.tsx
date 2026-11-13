@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { cookies } from "next/headers";
-import { alertsFor, applyPrefs, parsePrefs, PREFS_COOKIE, type Alert, type Prefs } from "@/lib/prefs";
+import { ALERT_KINDS, alertsFor, applyPrefs, filedAlertsFor, parsePrefs, PREFS_COOKIE, type Alert, type Prefs } from "@/lib/prefs";
 import { getLedgerIndex, getView } from "@/lib/data";
-import type { Edition, Snapshot, WindowKey } from "@/lib/types";
-import { dirClass, fullDate, pct, shortDay, since, when } from "@/lib/format";
+import type { Card, Edition, Snapshot, WindowKey } from "@/lib/types";
+import { dirClass, fullDate, KIND_LABEL, pct, shortDay, when } from "@/lib/format";
 import { EditionCard } from "@/components/EditionCard";
 import { MoveSpark } from "@/components/MoveSpark";
 import { FollowedQuestions } from "@/components/FollowedQuestions";
@@ -176,7 +176,7 @@ function Panel({
         ) : (
           <span>A quiet window</span>
         )}
-        . <span className="text-ink-3">Filings since <span className="num">{since(ed.since)}</span>.</span>
+        .
         <FollowedQuestions variant="inline" />
       </p>
       <StaleNote lastOk={lastOk} />
@@ -187,7 +187,16 @@ function Panel({
         </p>
       )}
 
-      <Alerts hits={alerts} prefs={prefs} id={`alerts-${k}`} history={history} latest={latest} span={SPAN[k] ?? "in this window"} />
+      <Alerts
+        hits={alerts}
+        filed={holdings ? filedAlertsFor([...ed.leads, ...ed.more], prefs, holdings) : []}
+        prefs={prefs}
+        id={`alerts-${k}`}
+        history={history}
+        latest={latest}
+        span={SPAN[k] ?? "in this window"}
+        refTime={until}
+      />
 
       <section aria-labelledby={`leads-${k}`} className="mt-10 scroll-mt-4">
         <h2 id={`leads-${k}`} className="section-h text-ink">
@@ -271,21 +280,29 @@ function SectionSummary({ label, count }: { label: string; count: number }) {
   );
 }
 
-/** Alerts at the close (plan §8.2; layout plan §3): the brief's trigger is end-of-day, so the rows are the
- *  latest session's matches (at most three); earlier sessions in the window fold under one line. The box is
- *  never taller than the first lead. Every row opens its own card. In-app only. */
+/** Alerts (brief, Push 2), in two groups: price and volume at the latest close, by the investor's own rules,
+ *  and filings of the kinds they asked for (results, deals, management changes) for their holdings. At most
+ *  three rows show; the rest fold under one line. The thresholds are said in the group's own label, so the box
+ *  needs no separate rules row (brief-check plan, part 4). Every row opens its own card. */
 function Alerts({
-  hits, prefs, id, history, latest, span,
-}: { hits: Alert[]; prefs: Prefs; id: string; history?: Snapshot["price_history"]; latest: string | null; span: string }) {
-  if (!hits.length) return null;
-  const today = latest ? hits.filter((h) => h.card.at.slice(0, 10) === latest) : hits;
-  const shown = today.slice(0, 3);
-  const rest = hits.filter((h) => !shown.includes(h));
-  const row = ({ card, rules }: Alert) => {
+  hits, filed, prefs, id, history, latest, span, refTime,
+}: {
+  hits: Alert[]; filed: Card[]; prefs: Prefs; id: string; history?: Snapshot["price_history"]; latest: string | null; span: string; refTime: string;
+}) {
+  if (!hits.length && !filed.length) return null;
+  const closeHits = latest ? hits.filter((h) => h.card.at.slice(0, 10) === latest) : hits;
+  // filings since the latest close's day are "today"; older ones fold
+  const todayFiled = latest ? filed.filter((c) => c.at.slice(0, 10) >= latest) : filed.slice(0, 2);
+  const priceShown = closeHits.slice(0, todayFiled.length ? 2 : 3);
+  const filedShown = todayFiled.slice(0, 3 - priceShown.length); // the filed rows take the room the price rows leave
+  const priceRest = hits.filter((h) => !priceShown.includes(h));
+  const filedRest = filed.filter((c) => !filedShown.includes(c));
+  const count = closeHits.length + todayFiled.length;
+  const priceRow = ({ card, rules }: Alert) => {
     const f = card.facts as { change_pct?: number; volume_multiple?: number };
     const priceFired = rules.some((r) => r.endsWith("%"));
     return (
-      <li key={card.id} className="border-t border-rule first:border-t-0">
+      <li key={card.id} className="border-t border-rule">
         <Link
           href={`/card/${card.id}`}
           className="grid min-h-[52px] grid-cols-[minmax(0,1fr)_3.75rem_3.5rem_4.25rem_0.5rem] items-center gap-1.5 px-4 py-1.5 hover:bg-paper-raised/60 max-[389px]:grid-cols-[minmax(0,1fr)_3rem_3.25rem_4rem_0.5rem] max-[389px]:gap-1 max-[359px]:grid-cols-[minmax(0,1fr)_4.25rem_4.75rem_0.5rem]"
@@ -296,7 +313,6 @@ function Alerts({
             <span className="num block text-caption text-ink-3">{shortDay(card.at)}</span>
           </span>
           {/* a word-sized picture of the alert: 20 sessions of price, volume bars, the alert day marked */}
-          {/* narrower phones get the same chart a little smaller, so tickers keep their full names */}
           <span className="max-[389px]:[&>svg]:w-12 max-[359px]:hidden">
             <MoveSpark
               width={60}
@@ -312,41 +328,72 @@ function Alerts({
           <span className="num whitespace-nowrap text-right text-small text-ink-2">
             {(f.volume_multiple ?? 0).toFixed(1)}×<span className="text-caption text-ink-3"> usual</span>
           </span>
-          {/* each row opens its own card */}
           <span aria-hidden className="go text-right">›</span>
         </Link>
       </li>
     );
   };
+  const filedRow = (c: Card) => (
+    <li key={c.id} className="border-t border-rule">
+      <Link href={`/card/${c.id}`} className="grid min-h-[52px] grid-cols-[minmax(0,5.5rem)_minmax(0,1fr)_0.5rem] items-center gap-2 px-4 py-1.5 hover:bg-paper-raised/60">
+        <span className="min-w-0">
+          <span className="block truncate text-small font-medium text-ink">{c.symbol}</span>
+          <span className="num block text-caption text-ink-3">{when(c.at, refTime).includes(",") ? shortDay(c.at) : "Today"}</span>
+        </span>
+        <span className="min-w-0">
+          <span className="kicker block text-ink-3">{KIND_LABEL[c.kind] ?? "Filing"}</span>
+          <span className="block truncate text-small text-ink">{c.headline ?? c.nse_subject}</span>
+        </span>
+        <span aria-hidden className="go text-right">›</span>
+      </Link>
+    </li>
+  );
+  const kindWords = ALERT_KINDS.filter((k) => prefs.alert_kinds.includes(k.kind)).map((k) => k.label.toLowerCase());
   return (
     <section aria-labelledby={id} className="mt-6 scroll-mt-4 overflow-hidden rounded-lg border border-rule bg-tint">
-      <div className="flex items-center justify-between gap-3 px-4 pb-1.5 pt-3">
+      <div className="flex items-center justify-between gap-3 px-4 pb-2 pt-3">
         <h2 id={id} className="flex items-center gap-2">
-          <span className="kicker text-ink">Alerts at the close</span>
-          <span className="count" aria-label={`${today.length} at the latest close`}>{today.length}</span>
+          <span className="kicker text-ink">Alerts</span>
+          <span className="count" aria-label={`${count} at the latest close`}>{count}</span>
         </h2>
+        <Link href="/settings" className="tap shrink-0 text-caption text-accent">
+          Your rules ›
+        </Link>
       </div>
-      {/* the rules, in words, the first time anyone reads them (three-pillars plan P3) */}
-      <Link href="/settings" className="tap mx-4 mb-1.5 inline-flex text-caption text-accent">
-        Your rules: <span className="num ml-1">±{prefs.price_pct}%</span>&nbsp;price, <span className="num ml-1">{prefs.volume_x}×</span>&nbsp;volume ›
-      </Link>
-      {shown.length ? (
-        <ul>{shown.map(row)}</ul>
-      ) : (
-        <p className="border-t border-rule px-4 py-3 text-small text-ink-2">None at the latest close.</p>
+      {/* each group says its own rule, so nobody has to remember it (P3) */}
+      <p className="px-4 pb-1 text-caption text-ink-3">
+        Price <span className="num">±{prefs.price_pct}%</span> or volume <span className="num">{prefs.volume_x}×</span>
+        {latest ? `, at the ${shortDay(latest + "T15:30:00")} close` : ""}
+      </p>
+      {priceShown.length ? <ul>{priceShown.map(priceRow)}</ul> : <p className="border-t border-rule px-4 py-3 text-small text-ink-2">None at the latest close.</p>}
+      {filedShown.length > 0 && (
+        <>
+          <p className="border-t border-rule px-4 pb-1 pt-2 text-caption text-ink-3">Filed: {kindWords.join(", ").replace(/, ([^,]*)$/, " and $1")}</p>
+          <ul className="[&>li:first-child]:border-t-0">{filedShown.map(filedRow)}</ul>
+        </>
       )}
-      {rest.length > 0 && (
+      {priceRest.length + filedRest.length > 0 && (
         <details className="group border-t border-rule">
           <summary className="flex min-h-[48px] cursor-pointer list-none items-center justify-between px-4 text-small text-accent">
-            {rest.length} more {span}
+            {priceRest.length + filedRest.length} more {span}
             <span aria-hidden className="transition-transform duration-200 group-open:rotate-90">›</span>
           </summary>
-          {/* the key for the word-sized charts, said once, where the longer list is */}
-          <p className="px-4 pb-1.5 text-caption text-ink-3 max-[359px]:hidden">
-            Line: the last 20 closes. Bars: each day&apos;s volume, the alert day in blue{" "}
-            <span aria-hidden className="inline-block h-2.5 w-1 rounded-[1px] bg-accent align-[-1px]" />.
-          </p>
-          <ul className="border-t border-rule">{rest.map(row)}</ul>
+          {priceRest.length > 0 && (
+            <>
+              {/* the key for the word-sized charts, said once, where the longer list is */}
+              <p className="px-4 pb-1.5 text-caption text-ink-3 max-[359px]:hidden">
+                Line: the last 20 closes. Bars: each day&apos;s volume, the alert day in blue{" "}
+                <span aria-hidden className="inline-block h-2.5 w-1 rounded-[1px] bg-accent align-[-1px]" />.
+              </p>
+              <ul>{priceRest.map(priceRow)}</ul>
+            </>
+          )}
+          {filedRest.length > 0 && (
+            <>
+              <p className="border-t border-rule px-4 pb-1 pt-2 text-caption text-ink-3">Filed</p>
+              <ul className="[&>li:first-child]:border-t-0">{filedRest.map(filedRow)}</ul>
+            </>
+          )}
         </details>
       )}
     </section>

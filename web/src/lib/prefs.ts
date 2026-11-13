@@ -7,9 +7,17 @@ export type Prefs = {
   volume_x: number;      // alert when volume >= this multiple of the 20-session average
   muted: string[];       // card kinds folded into routine
   leads: number;         // how many lead items an edition may have
+  alert_kinds: string[]; // filings that are alerts the moment they land (brief: "a material announcement of a type I care about")
 };
 
-export const DEFAULT_PREFS: Prefs = { price_pct: 5, volume_x: 2, muted: [], leads: 3 };
+/** The announcement types that can be alerts (brief, Push 2): results, deals, management changes. */
+export const ALERT_KINDS: { kind: string; label: string }[] = [
+  { kind: "results", label: "Results" },
+  { kind: "m_and_a", label: "Deals" },
+  { kind: "management_change", label: "Management changes" },
+];
+
+export const DEFAULT_PREFS: Prefs = { price_pct: 5, volume_x: 2, muted: [], leads: 3, alert_kinds: ALERT_KINDS.map((k) => k.kind) };
 export const PREFS_COOKIE = "finn_prefs";
 
 export const KIND_CHOICES: { kind: string; label: string; hint: string }[] = [
@@ -36,6 +44,10 @@ export function parsePrefs(raw: string | undefined): Prefs {
       volume_x: clamp(Number(p.volume_x ?? DEFAULT_PREFS.volume_x), 1.2, 10),
       muted: Array.isArray(p.muted) ? p.muted.filter((k) => typeof k === "string").slice(0, 20) : [],
       leads: clamp(Math.round(Number(p.leads ?? 3)), 1, 5),
+      // a cookie from before this setting existed gets the defaults (all three on)
+      alert_kinds: Array.isArray(p.alert_kinds)
+        ? p.alert_kinds.filter((k) => ALERT_KINDS.some((a) => a.kind === k))
+        : DEFAULT_PREFS.alert_kinds,
     };
   } catch {
     return DEFAULT_PREFS;
@@ -113,3 +125,9 @@ export function applyPrefs(ed: Edition, prefs: Prefs, moveCards: Card[] = [], ho
 
 /** Export timestamps carry no offset and are IST. */
 export const ist = (s: string) => Date.parse(/[+Z]/.test(s.slice(10)) ? s : `${s}+05:30`);
+
+/** Filings of the kinds the investor asked to be alerted about, for their holdings, newest first (brief, Push 2). */
+export function filedAlertsFor(cards: Card[], prefs: Prefs, holdings: Set<string>): Card[] {
+  const kinds = new Set(prefs.alert_kinds);
+  return cards.filter((c) => kinds.has(c.kind) && holdings.has(c.symbol)).sort((a, b) => b.at.localeCompare(a.at));
+}
