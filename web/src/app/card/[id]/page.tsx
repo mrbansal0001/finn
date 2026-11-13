@@ -69,7 +69,7 @@ async function Detail({ params }: { params: PageProps<"/card/[id]">["params"] })
   return (
     <main>
       <BackLink fallback="/" label="Edition" />
-      <CardMeta kind={card.kind} symbol={card.symbol} at={card.at} refTime={snap.data_until} lead={card.tier === "lead"} />
+      <CardMeta kind={card.kind} symbol={card.symbol} at={card.at} refTime={snap.data_until} lead={card.tier === "lead"} attachment={card.facts.attachment as string | undefined} />
       <h1 className="mt-2.5 font-serif text-title">{card.headline ?? `${card.company}: ${card.nse_subject}`}</h1>
       <p className="mt-0.5 text-small text-ink-3">{card.company.replace(/ Limited$/, "")}</p>
       {/* a move's figures are in the chart's readout: the "why" keeps only what it adds (one number, one place) */}

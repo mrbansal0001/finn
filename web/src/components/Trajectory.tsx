@@ -66,7 +66,7 @@ function Bars({ label, values }: { label: string; values: { fy: number; v: numbe
               <span className="w-full border-b border-dashed border-ink-3" title="Not shown: the figure failed a check" />
             ) : (
               <span
-                className={`w-full rounded-t-sm ${x.v < 0 ? "bg-down" : i === values.length - 1 ? "bg-ink" : "bg-ink-3/60"}`}
+                className={`w-full rounded-t-sm ${x.v < 0 ? "bg-down" : i === values.length - 1 ? "bg-ink" : "bg-mark"}`}
                 style={{ height: Math.max(2, (Math.abs(x.v) / max) * H) }}
               />
             )}

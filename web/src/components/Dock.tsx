@@ -120,7 +120,7 @@ export function Dock({ askSymbol }: { askSymbol?: string } = {}) {
       {current.companies.slice(0, current.people.length ? 5 : 8).map(([s, n]) => (
         <li key={s}>
           <Link href={`/c/${encodeURIComponent(s)}`} className="flex min-h-[44px] items-center gap-3 px-3 hover:bg-paper">
-            <span className="w-24 shrink-0 text-small font-medium text-ink">{s}</span>
+            <span className="ticker w-24 shrink-0 text-small text-ink">{s}</span>
             <span className="truncate text-small text-ink-2">{n}</span>
           </Link>
         </li>
@@ -219,12 +219,13 @@ export function Dock({ askSymbol }: { askSymbol?: string } = {}) {
                 }}
                 onFocus={() => setFocused(true)}
                 onBlur={() => setFocused(false)}
-                placeholder="Company, person or theme"
+                // where a company's documents are in view, the box takes questions too, and says so (design review 0.1)
+                placeholder={askSymbol ? `Search, or ask ${askSymbol}…` : "Company, person or theme"}
                 autoCapitalize="none"
                 autoCorrect="off"
                 spellCheck={false}
                 enterKeyHint="search"
-                className="h-11 w-full rounded-lg border border-ink-3 bg-paper-raised pl-3.5 pr-11 text-body placeholder:text-ink-3 focus:border-accent focus:outline-none"
+                className="h-11 w-full rounded-lg border border-rule bg-paper-raised pl-3.5 pr-11 text-body placeholder:text-ink-3 focus:border-accent focus:outline-none"
               />
               {/* voice in: the same search, spoken (brief-check plan, part 6) */}
               <VoiceButton
@@ -259,7 +260,7 @@ function Group({ title, count, children }: { title: string; count: number; child
     <section>
       <p className="flex items-center gap-2 px-3 pb-1 pt-2.5">
         <span className="kicker text-ink-3">{title}</span>
-        <span className="count bg-ink-3">{count}</span>
+        <span className="count">{count}</span>
       </p>
       <ul aria-label={title}>{children}</ul>
     </section>

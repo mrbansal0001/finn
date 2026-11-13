@@ -23,7 +23,10 @@ export function EditionCard({
   history,
   research = false,
   promise,
+  lens,
 }: {
+  /** the person's lens for this company ("Money"), shown as a tag on the compact person line */
+  lens?: string;
   research?: boolean;
   promise?: PromiseRow; // a results lead: the company's tracked promise on the same figures (three-pillars P7)
   card: Card;
@@ -97,11 +100,10 @@ export function EditionCard({
           >
             {card.network[0].name}
           </Link>
-          <span className="min-w-0 text-ink-3">
-            {firstClause(card.network[0].relation)}
-            {/* reached through someone: said on the row (three-pillars N7) */}
-            {card.network[0].via ? `, through ${card.network[0].via}` : ""}
-          </span>
+          {/* name and tags only: a role cut to two words ("was Head") read as a broken sentence; how you
+              know them is on the card page (design review 1.17) */}
+          {card.network[0].insider && <span className="tag shrink-0">Insider</span>}
+          {lens && <span className="tag shrink-0">{lens}</span>}
         </p>
       )}
       {/* a lead: the person by name (the relation never fits a phone; it is on the card page) and the one action */}
@@ -220,10 +222,6 @@ function PromiseLine({ symbol, row }: { symbol: string; row: PromiseRow }) {
   );
 }
 
-/** "is also an alumnus of PSG College, studied 1998" -> "is also an alumnus of PSG College". */
-function firstClause(s: string): string {
-  return s.split(/[,;(]/)[0].trim();
-}
 
 /** The first sentence of a "why" (the rest restates what a chart already shows). */
 export function firstSentence(s: string): string {

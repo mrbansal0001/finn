@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { LensKey } from "@/lib/lenses";
 import type { NetworkLine } from "@/lib/types";
 import { RelationPath, type Path } from "./RelationPath";
+import { SectionNav } from "./SectionNav";
 import { CHANGED, dropQuestion, findByHref, saveQuestion, type Followed, type Revisit } from "./followed";
 
 export type FlowPerson = { line: NetworkLine; basis: string; lenses: LensKey[]; path: Path; questions: Partial<Record<LensKey, string[]>> };
@@ -127,14 +128,9 @@ export function InvestigateFlow({
         </p>
       </div>
 
-      {/* jump links, not another fixed bar over the search dock (visual review §3.4) */}
-      <nav aria-label="Sections" className="-mx-1 mt-3 flex gap-1 overflow-x-auto">
-        {SECTIONS.map(([id, label]) => (
-          <button key={id} onClick={() => go(id)} className="min-h-[44px] shrink-0 rounded-full border border-rule px-3.5 text-small text-ink-2 hover:text-ink">
-            {label}
-          </button>
-        ))}
-      </nav>
+      {/* the same sticky section bar as the company page: one component for "jump within this page"; pills
+          are filters elsewhere, so they read as filters here too (design review 4.3) */}
+      <SectionNav sections={SECTIONS} onGo={go} />
 
       {/* four steps, named as the navigator names them; what remains unclear closes step 1 (layout plan §6) */}
       <Step n={1} title="What changed" section="s-change">
@@ -232,14 +228,9 @@ function People({
               </div>
               </>
               )}
+              {/* one line: which lens, and what it covers (design review 4.6) */}
               <p className="mt-2 text-caption text-ink-3">
-                {lenses.filter((l) => count(l.key) > 0).length > 1 ? `${L.label}: ${L.ask}.` : `Matched for ${L.label.toLowerCase()}: ${L.ask}.`} Matched on each person&apos;s recorded role.
-                {(() => {
-                  const empty = lenses.filter((l) => count(l.key) === 0);
-                  if (!empty.length) return null;
-                  const roles = empty.map((l) => l.roles.split(",")[0].replace(/ or .*/, "")).join(", ").replace(/, ([^,]*)$/, " or $1");
-                  return ` No one linked to ${co} has a recorded ${roles} role.`;
-                })()}
+                Matched on {L.label.toLowerCase()}: {L.ask}.
               </p>
             </>
           ) : (

@@ -30,6 +30,7 @@ export function ColourToggle() {
       </span>
       <input
         type="checkbox"
+        role="switch"
         checked={value}
         onChange={(e) => {
           const v = e.target.checked;
@@ -40,7 +41,7 @@ export function ColourToggle() {
           if (v) document.documentElement.dataset.cb = "1";
           else delete document.documentElement.dataset.cb;
         }}
-        className="size-5 accent-[var(--accent)]"
+        className="switch"
       />
       <span className="sr-only" aria-live="polite">
         {value ? "Blue and orange directions on" : "Green and red directions on"}

@@ -15,7 +15,7 @@ export function JumpLink({ to, children }: { to: string; children: ReactNode }) 
         if (fold) (fold as HTMLDetailsElement).open = true;
         el.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
       }}
-      className="text-ink underline decoration-accent/50 underline-offset-2 hover:decoration-accent"
+      className="tap text-accent hover:underline underline-offset-2"
     >
       {children}
     </a>

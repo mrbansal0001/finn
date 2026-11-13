@@ -16,7 +16,7 @@ import { ResultsVisual } from "@/components/ResultsVisual";
 import { QuestionCard, QuestionRow } from "@/components/QuestionCard";
 import { About, AboutPart } from "@/components/About";
 import { filingMarkers } from "@/lib/markers";
-import { LENSES, lensesFor } from "@/lib/lenses";
+import { lensLabel } from "@/lib/lenses";
 import { MoveSpark } from "@/components/MoveSpark";
 import { Mark } from "@/components/StatusIcon";
 import { NetworkLine } from "@/components/NetworkLine";
@@ -95,11 +95,11 @@ async function Company({ params, searchParams }: Pick<PageProps<"/c/[symbol]">, 
   const marks = history ? [...new Set(filingMarkers(snap, symbol, history.map((r) => r.d)).map((m) => m.d))] : [];
 
   const people = snap.people[symbol] ?? [];
+  // in page order; no "Overview": the page starts there, and five fit a phone (design review 5.6)
   const sections = [
-    ["overview", "Overview"],
+    ledger && ["ask-docs", "Ask"],
     results && ["results", "Results"],
     ["promises", "Promises"],
-    ledger && ["ask-docs", "Ask"],
     people.length > 0 && ["people", "People"],
     ["filings", "Filings"],
   ].filter(Boolean) as [string, string][];
@@ -208,6 +208,10 @@ async function Company({ params, searchParams }: Pick<PageProps<"/c/[symbol]">, 
       <FollowedQuestions symbol={symbol} />
       <Questions symbol={symbol} snap={snap} ledger={ledger} />
 
+      {/* FINN's three questions, then yours: Ask sits with "Worth your attention", in the first two screens,
+          not after a ledger of up to 27 rows (design review 5.13) */}
+      {ledger && <AskBox key={asked ?? ""} symbol={symbol} name={name.replace(/ Limited$/i, "")} examples={askExamples(ledger)} initial={asked} />}
+
       {results && (
         <section id="results" className="mt-12 scroll-mt-16">
           <h2 className="section-h">
@@ -250,9 +254,6 @@ async function Company({ params, searchParams }: Pick<PageProps<"/c/[symbol]">, 
           </section>
         )}
       </div>
-
-      {/* the company's own words, on demand (brief-check plan, part 5): only where its documents are indexed */}
-      {ledger && <AskBox key={asked ?? ""} symbol={symbol} name={name.replace(/ Limited$/i, "")} examples={askExamples(ledger)} initial={asked} />}
 
       {people.length > 0 && (
         <section id="people" className="mt-12 scroll-mt-16">
@@ -463,7 +464,4 @@ function InsiderKey() {
 }
 
 /** The first lens a contact's recorded role fits, as a word ("Execution"), or nothing. */
-function lensLabel(c: Snapshot["contacts"][number] | undefined, symbol: string): string | undefined {
-  const k = lensesFor(c, symbol).lenses[0];
-  return k ? LENSES.find((l) => l.key === k)?.label : undefined;
-}
+

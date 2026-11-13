@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
  * In-page shortcuts for a long company page (plan §9.3): hairline pills that jump to a section, and the
  * one you're reading fills in as you scroll.
  */
-export function SectionNav({ sections }: { sections: [string, string][] }) {
+export function SectionNav({ sections, onGo }: { sections: [string, string][]; onGo?: (id: string) => void }) {
   const [active, setActive] = useState<string | null>(null);
   useEffect(() => {
     const els = sections.map(([id]) => document.getElementById(id)).filter((e): e is HTMLElement => !!e);
@@ -33,7 +33,21 @@ export function SectionNav({ sections }: { sections: [string, string][] }) {
     >
       <div className="seg seg-sm">
         {sections.map(([id, label]) => (
-          <a key={id} href={`#${id}`} aria-current={active === id ? "location" : undefined} className="!px-1">
+          <a
+            key={id}
+            href={`#${id}`}
+            data-inpage
+            onClick={
+              onGo
+                ? (e) => {
+                    e.preventDefault();
+                    onGo(id);
+                  }
+                : undefined
+            }
+            aria-current={active === id ? "location" : undefined}
+            className="!px-1"
+          >
             {label}
           </a>
         ))}

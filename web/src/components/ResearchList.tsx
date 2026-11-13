@@ -98,8 +98,9 @@ export function ResearchList({ rows, hasNifty }: { rows: ResearchRow[]; hasNifty
                 ["all", "All read"],
               ] as const
             ).map(([k, label]) => (
-              <button key={k} aria-pressed={filter === k} onClick={() => setFilter(k)}>
-                {label} <span className="num text-caption opacity-70">{counts[k]}</span>
+              <button key={k} aria-pressed={filter === k} onClick={() => setFilter(k)} aria-label={`${label}, ${counts[k]} companies`}>
+                {/* no counts inside a segment: they clipped at 360px; the subtitle already counts (design review 6.3) */}
+                {label}
               </button>
             ))}
           </div>
@@ -135,7 +136,7 @@ export function ResearchList({ rows, hasNifty }: { rows: ResearchRow[]; hasNifty
                 <li key={s}>
                   <Link href={`/c/${encodeURIComponent(s)}`} className="flex min-h-[52px] items-center justify-between gap-3 py-2">
                     <span className="min-w-0">
-                      <span className="block text-small font-medium text-ink">{s}</span>
+                      <span className="ticker block text-small text-ink">{s}</span>
                       <span className="block truncate text-caption text-ink-3">{n}</span>
                     </span>
                     <span className="shrink-0 text-caption text-accent">Open, request a ledger ›</span>
@@ -152,20 +153,22 @@ export function ResearchList({ rows, hasNifty }: { rows: ResearchRow[]; hasNifty
 
 function Row({ r }: { r: ResearchRow }) {
   const sym = encodeURIComponent(r.symbol);
+  // design review 6.5: one line who (ticker and name) and when, one line what changed and the facts, then the
+  // question. The ticker is ink: the row is the link and its › says so, so blue would only add noise.
   return (
     <li className="py-3">
-      <Link href={`/c/${sym}${r.ledger ? "#promises" : ""}`} className="group flex items-start justify-between gap-3">
-        <span className="min-w-0">
-          <span className="flex flex-wrap items-center gap-1.5">
-            <span className="text-small font-medium text-accent group-hover:underline">{r.symbol}</span>
-            {r.sector && <span className="tag">{r.sector}</span>}
-            {r.weight != null && <span className="tag num">{r.weight}%</span>}
-            {r.research && <span className="tag">Research list</span>}
+      <Link href={`/c/${sym}${r.ledger ? "#promises" : ""}`} className="group block">
+        <span className="flex items-baseline justify-between gap-3">
+          <span className="flex min-w-0 items-baseline gap-2">
+            <span className="ticker shrink-0 text-small text-ink group-hover:underline">{r.symbol}</span>
+            <span className="truncate text-caption text-ink-2">{r.name}</span>
           </span>
-          <span className="mt-0.5 block truncate text-caption text-ink-3">{r.name}</span>
+          <span className="flex shrink-0 items-center gap-1">
+            <span className="num text-caption text-ink-3">{r.ledger ? (r.lastCall ? `${r.lastCall} call` : "Read") : "No ledger yet"}</span>
+            <span aria-hidden className="go text-small">›</span>
+          </span>
         </span>
-        <span className="flex shrink-0 flex-col items-end gap-1">
-          <span className="num text-caption text-ink-3">{r.ledger ? (r.lastCall ? `${r.lastCall} call` : "Read") : "No ledger yet"}</span>
+        <span className="mt-1 flex items-center justify-between gap-3">
           {r.ledger ? (
             <span className="flex items-center gap-2" aria-label={SHOWN.filter((s) => r.counts[s]).map((s) => `${r.counts[s]} ${STATUS_META[s].short}`).join(", ") || "nothing changed"}>
               {SHOWN.filter((s) => r.counts[s]).map((s) => (
@@ -177,8 +180,12 @@ function Row({ r }: { r: ResearchRow }) {
               {!SHOWN.some((s) => r.counts[s]) && <span className="text-caption text-ink-3">Nothing changed</span>}
             </span>
           ) : (
-            <span className="text-caption text-accent">Build one ›</span>
+            <span className="text-caption text-accent">Build one</span>
           )}
+          {/* facts as plain caption text, not pills: a pill row cost a line on most companies */}
+          <span className="min-w-0 truncate text-right text-caption text-ink-3">
+            {[r.sector, r.weight != null ? `${r.weight}%` : null, r.research ? "Research list" : null].filter(Boolean).join(", ")}
+          </span>
         </span>
       </Link>
       {r.question && r.questionHref && (

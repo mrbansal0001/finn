@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { cookies } from "next/headers";
-import { ALERT_KINDS, alertsFor, applyPrefs, filedAlertsFor, parsePrefs, PREFS_COOKIE, type Alert, type Prefs } from "@/lib/prefs";
+import { alertsFor, applyPrefs, filedAlertsFor, parsePrefs, PREFS_COOKIE, type Alert, type Prefs } from "@/lib/prefs";
 import { getLedgerIndex, getView } from "@/lib/data";
 import type { Card, Edition, Snapshot, WindowKey } from "@/lib/types";
 import { dirClass, fullDate, KIND_LABEL, pct, shortDay, when } from "@/lib/format";
@@ -16,6 +16,7 @@ import { FirstVisit } from "@/components/FirstVisit";
 import { StaleNote } from "@/components/StaleNote";
 import { ReconnectLine } from "@/components/ReconnectLine";
 import { reconnects, type Reconnect } from "@/lib/warm";
+import { lensLabel } from "@/lib/lenses";
 import { DOOR_CLASS, DoorTile } from "@/components/DoorTile";
 import { HoldingsSheet } from "@/components/HoldingsSheet";
 import { WindowLink, WindowSwitcher } from "@/components/WindowSwitcher";
@@ -118,7 +119,7 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
         panels={Object.fromEntries(
           keys.map((k) => [
             k,
-            <Panel key={k} k={k} ed={prepared[k].ed} alerts={prepared[k].alerts} prefs={prefs} until={until} networkDown={snap.network_status === "unavailable"} history={snap.price_history} latest={snap.freshness?.price_session ?? null} holdings={holdingSet} index={snap.ledger_index} lastOk={snap.freshness?.worker_last_ok?.announcements ?? null}
+            <Panel key={k} k={k} ed={prepared[k].ed} alerts={prepared[k].alerts} prefs={prefs} until={until} networkDown={snap.network_status === "unavailable"} history={snap.price_history} latest={snap.freshness?.price_session ?? null} holdings={holdingSet} index={snap.ledger_index} lastOk={snap.freshness?.worker_last_ok?.announcements ?? null} contacts={snap.contacts}
               reconnect={snap.network_status === "unavailable" ? undefined : reconnects(snap.contacts, [...prepared[k].ed.leads, ...prepared[k].ed.more], until)[0]}
             />,
           ]),
@@ -129,7 +130,7 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
         {/* the end of the edition: a rule either side, not a pair of dots */}
         <div className="flex items-center gap-3">
           <span className="h-px flex-1 bg-rule" />
-          <span className="font-serif text-body font-normal italic text-ink-3">End of edition</span>
+          <span className="font-serif text-body text-ink-3">End of edition</span>
           <span className="h-px flex-1 bg-rule" />
         </div>
         <p className="mt-2 text-caption text-ink-3">
@@ -152,8 +153,9 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
 
 /** One window's edition: its start time, alerts, leads, the rest worth a look, and the routine fold. */
 function Panel({
-  k, ed, alerts, prefs, until, networkDown, history, latest, holdings, index, lastOk, reconnect,
+  k, ed, alerts, prefs, until, networkDown, history, latest, holdings, index, lastOk, reconnect, contacts,
 }: {
+  contacts: Snapshot["contacts"];
   reconnect?: Reconnect;
   lastOk: string | null;
   k: string; ed: Edition; alerts: Alert[]; prefs: Prefs; until: string; networkDown: boolean; history?: Snapshot["price_history"]; latest: string | null;
@@ -170,7 +172,7 @@ function Panel({
   ];
   return (
     <>
-      <p className="mt-3 text-caption text-ink-2">
+      <p className="mt-3 text-small text-ink-2">
         {parts.length ? (
           parts.map(([id, label], i) => (
             <span key={id}>
@@ -257,7 +259,15 @@ function Panel({
           <SectionSummary label="Worth a look" count={ed.more.length} />
           <div className="hair">
             {ed.more.map((c) => (
-              <EditionCard key={c.id} card={c} refTime={until} compact history={c.kind === "move" ? history?.[c.symbol] : undefined} research={!!holdings && !holdings.has(c.symbol)} />
+              <EditionCard
+                key={c.id}
+                card={c}
+                refTime={until}
+                compact
+                history={c.kind === "move" ? history?.[c.symbol] : undefined}
+                research={!!holdings && !holdings.has(c.symbol)}
+                lens={c.network?.[0] ? lensLabel(contacts.find((x) => x.id === c.network[0].contact_id), c.symbol) : undefined}
+              />
             ))}
           </div>
         </details>
@@ -324,7 +334,7 @@ function Alerts({
         >
           {/* the date sits under the ticker, so the ticker keeps its room at larger text sizes */}
           <span className="min-w-0">
-            <span className="block truncate text-small font-medium text-ink">{card.symbol}</span>
+            <span className="ticker block truncate text-small text-ink">{card.symbol}</span>
             <span className="num block text-caption text-ink-3">{shortDay(card.at)}</span>
           </span>
           {/* a word-sized picture of the alert: 20 sessions of price, volume bars, the alert day marked */}
@@ -350,20 +360,19 @@ function Alerts({
   };
   const filedRow = (c: Card) => (
     <li key={c.id} className="border-t border-rule">
-      <Link href={`/card/${c.id}`} className="grid min-h-[52px] grid-cols-[minmax(0,5.5rem)_minmax(0,1fr)_0.5rem] items-center gap-2 px-4 py-1.5 hover:bg-paper-raised/60">
+      <Link href={`/card/${c.id}`} className="grid min-h-[52px] grid-cols-[minmax(0,6.75rem)_minmax(0,1fr)_0.5rem] items-center gap-2 px-4 py-1.5 hover:bg-paper-raised/60">
         <span className="min-w-0">
-          <span className="block truncate text-small font-medium text-ink">{c.symbol}</span>
+          <span className="ticker block truncate text-small text-ink">{c.symbol}</span>
           <span className="num block text-caption text-ink-3">{when(c.at, refTime).includes(",") ? shortDay(c.at) : "Today"}</span>
         </span>
         <span className="min-w-0">
           <span className="kicker block text-ink-3">{KIND_LABEL[c.kind] ?? "Filing"}</span>
-          <span className="block truncate text-small text-ink">{c.headline ?? c.nse_subject}</span>
+          <span className="line-clamp-2 text-small text-ink">{c.headline ?? c.nse_subject}</span>
         </span>
         <span aria-hidden className="go text-right">›</span>
       </Link>
     </li>
   );
-  const kindWords = ALERT_KINDS.filter((k) => prefs.alert_kinds.includes(k.kind)).map((k) => k.label.toLowerCase());
   return (
     <section aria-labelledby={id} className="mt-6 scroll-mt-4 overflow-hidden rounded-lg border border-rule bg-tint">
       <div className="flex items-center justify-between gap-3 px-4 pb-2 pt-3">
@@ -376,14 +385,16 @@ function Alerts({
         </Link>
       </div>
       {/* each group says its own rule, so nobody has to remember it (P3) */}
-      <p className="px-4 pb-1 text-caption text-ink-3">
+      {/* the rule, and when nothing met it, that too: one line, no empty row (design review 1.12a) */}
+      <p className="px-4 pb-2 text-caption text-ink-3">
         Price <span className="num">±{prefs.price_pct}%</span> or volume <span className="num">{prefs.volume_x}×</span>
-        {latest ? `, at the ${shortDay(latest + "T15:30:00")} close` : ""}
+        {priceShown.length ? (latest ? `, at the ${shortDay(latest + "T15:30:00")} close` : "") : `: none at the ${latest ? `${shortDay(latest + "T15:30:00")} ` : "latest "}close`}
       </p>
-      {priceShown.length ? <ul>{priceShown.map(priceRow)}</ul> : <p className="border-t border-rule px-4 py-3 text-small text-ink-2">None at the latest close.</p>}
+      {priceShown.length > 0 && <ul>{priceShown.map(priceRow)}</ul>}
       {filedShown.length > 0 && (
         <>
-          <p className="border-t border-rule px-4 pb-1 pt-2 text-caption text-ink-3">Filed: {kindWords.join(", ").replace(/, ([^,]*)$/, " and $1")}</p>
+          {/* the kinds are in Your rules; the caption says when, not which (1.12b) */}
+          <p className="border-t border-rule px-4 pb-1 pt-2 text-caption text-ink-3">Filed today</p>
           <ul className="[&>li:first-child]:border-t-0">{filedShown.map(filedRow)}</ul>
         </>
       )}
@@ -441,7 +452,7 @@ function Routine({ ed, refTime, id }: { ed: Edition; refTime: string; id: string
                         return (
                           <li key={i} className="py-2">
                             <div className="flex min-h-[28px] items-baseline gap-2 text-small">
-                              <span className="shrink-0 font-medium text-ink">{x.symbol}</span>
+                              <span className="ticker shrink-0 text-ink">{x.symbol}</span>
                               <span className="min-w-0 flex-1 truncate text-ink-2">{x.subject.replace(/-XBRL$/i, "")}</span>
                               <span className="num shrink-0 text-caption text-ink-3">{when(x.at, refTime)}</span>
                             </div>
@@ -477,7 +488,7 @@ function Routine({ ed, refTime, id }: { ed: Edition; refTime: string; id: string
                     : (ed.muted ?? []).map((c) => (
                         <li key={c.id} className="py-2 text-small">
                           <Link href={`/card/${c.id}`} className="text-ink-2 hover:text-ink">
-                            <span className="font-medium text-ink">{c.symbol}</span> {c.headline ?? c.nse_subject}
+                            <span className="ticker text-ink">{c.symbol}</span> {c.headline ?? c.nse_subject}
                           </Link>
                         </li>
                       ))}

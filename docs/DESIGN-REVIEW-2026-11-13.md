@@ -303,3 +303,28 @@ Each step is independently shippable. Steps 1–3 are the ones a reviewer would 
 - **Moving Ask into the dock as the only entry.** The dock row is the shortcut; the section is where the answer lives. Both stay.
 - **Collapsing the ledger into the Research page.** A company's promises belong on its page; Research is the index.
 - **Reducing dark mode to "follow phone" only.** The explicit choice costs nothing and some readers want it.
+
+---
+
+## Result (13 Nov, implemented the same day)
+
+Every item marked Adjust, Move or Merge was built; Keep items were left alone. Measured at 390×844 (and 360) on the local build, before → after:
+
+| Part D step | Target | Result |
+|---|---|---|
+| 1. Plain subjects (C1), attachment as a tag (C2) | 7d headlines over 3 lines: 1 → 0; truncated filed-alert rows: 1 → 0 | **0 and 0 at 390px.** Raw subjects mapped (37 patterns plus a general clean-up); every headline fitted to 95 characters, including summaries the exchange feed itself cuts at 120. At 360px a 10-letter ticker can still clip in a filed row |
+| 2. Company page order, five-item bar | Titan Ask field under 1,500px | **655px** (was about 2,900) |
+| 3. Ledger rows, no counts in segments | No clipped segment at 360px; BEL *All* a third shorter | **No clipped segment on any page at 390 or 360.** BEL *All* is 2,345px with folds open; the before-height wasn't measured with the same method, so the "a third shorter" target is unverified |
+| 4. Settings: one on/off control | One control type | **Done:** every yes/no is the same 52×32 switch (real checkboxes, `role="switch"`) |
+| 5. Research rows, Reconnect cap, Agenda, Coverage headers | Research under 2,250 CSS px | **Missed: 2,694 → 2,628px (−2%).** Each row keeps three facts (who, what changed, the question); dropping pills saved less than estimated. Reconnect shows 3 plus a fold; Agenda tickers sit above events; Coverage headers are one line |
+| 6. Type and colour | Nothing under 11px | **Done:** chart text 9 → 11px, `--mark` token on chart furniture, `.ticker` class, quiet `.count`, ink Ask button, roman "End of edition", accent jump links |
+| 7. Dark tint | Surfaces read as surfaces | **Kept `#2a2822`:** the alerts box and question card read as surfaces without becoming cards |
+
+Decisions made while building, with reasons:
+- **T6 (Fraunces optical size):** no change. `font-optical-sizing: auto` already sets the optical size to the font size, so an explicit `opsz 30` at 30px is the same setting; the wordmark looks heavier only because it is weight 600 against 440, which is deliberate.
+- **K4:** chart *lines and bars* use `--mark`; chart *text* stays ink-3, because 60% of ink-3 would fall below 4.5:1 for 11px text.
+- **Ledger *All* view:** rows grouped under a status heading don't repeat the status word; *Needs attention* rows carry icon and word.
+- **Dock placeholder:** says "Search, or ask TITAN…" only where a company's documents are in view, since asking works only there.
+- **Lens explanation (4.6):** cut to one line; the sentence naming lenses no one fits was dropped with it.
+- **Research segment counts** stay as each segment's accessible name for screen readers.
+- **The local dev server served a stale stylesheet** after the CSS edits (the switch rule was missing until a clean restart), the same failure Vercel had on 13 Nov; the production build already clears its cache.

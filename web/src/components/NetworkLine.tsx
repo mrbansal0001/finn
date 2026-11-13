@@ -79,5 +79,7 @@ function extra(reason: string | undefined, relation: string): string {
   const r = reason.startsWith(relation) ? reason.slice(relation.length) : reason;
   // the insider note is said once, in its own sentence
   const out = r.replace(/;?\s*still works there[^;]*/i, "").replace(/^[\s;,.]+/, "").trim();
+  // "best placed" says the fit, never the tie alone (design review C3): the tie is on the line already
+  if (/^a (strong|medium|weak) tie\.?$/i.test(out)) return "";
   return out ? out[0].toUpperCase() + out.slice(1).replace(/\.?$/, ".") : "";
 }

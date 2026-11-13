@@ -105,15 +105,15 @@ export function PriceVolumeChart({ rows, alertDay, markers, symbol }: { rows: Se
         }}
       >
         {/* panel labels and scales, outside the touch area's data */}
-        <text x={PL} y={PT - 4} className="fill-ink-3" fontSize="9">Close, ₹ (as traded)</text>
-        <text x={W - PR + 4} y={yP(hi) + 3} className="fill-ink-3" fontSize="9">{inr0.format(hi)}</text>
-        <text x={W - PR + 4} y={yP(lo) + 3} className="fill-ink-3" fontSize="9">{inr0.format(lo)}</text>
-        <line x1={PL} x2={W - PR} y1={PT + PH} y2={PT + PH} className="stroke-rule" strokeWidth="1" />
+        <text x={PL} y={PT - 4} className="fill-ink-3" fontSize="11">Close, ₹</text>
+        <text x={W - PR + 4} y={yP(hi) + 3} className="fill-ink-3" fontSize="11">{inr0.format(hi)}</text>
+        <text x={W - PR + 4} y={yP(lo) + 3} className="fill-ink-3" fontSize="11">{inr0.format(lo)}</text>
+        <line x1={PL} x2={W - PR} y1={PT + PH} y2={PT + PH} className="stroke-mark" strokeWidth="1" />
         {segs.map((pts, i) => (
           <polyline key={i} points={pts} fill="none" className="stroke-ink-2" strokeWidth="1.5" strokeLinejoin="round" />
         ))}
         {rows.map((row, i) =>
-          row.gap ? <line key={`g${i}`} x1={x(i) - bw} x2={x(i) - bw} y1={PT} y2={PT + PH} className="stroke-rule" strokeDasharray="2 2" /> : null,
+          row.gap ? <line key={`g${i}`} x1={x(i) - bw} x2={x(i) - bw} y1={PT} y2={PT + PH} className="stroke-mark" strokeDasharray="2 2" /> : null,
         )}
         {/* filing markers on the session they were filed; hollow when filed after the close */}
         {rows.map((row, i) => {
@@ -123,12 +123,12 @@ export function PriceVolumeChart({ rows, alertDay, markers, symbol }: { rows: Se
           return <path key={`m${i}`} d={`M${x(i) - 4},${PT + 1} l4,6 l4,-6 z`} className={after ? "fill-paper stroke-accent" : "fill-accent stroke-accent"} strokeWidth="1" />;
         })}
 
-        <text x={PL} y={vTop - 4} className="fill-ink-3" fontSize="9">Volume, shares; dashed: 20-session average</text>
-        <text x={W - PR + 4} y={vTop + 8} className="fill-ink-3" fontSize="9">{vol(vmax / 1.08)}</text>
-        <text x={W - PR + 4} y={vTop + VH} className="fill-ink-3" fontSize="9">0</text>
-        <line x1={PL} x2={W - PR} y1={vTop + VH} y2={vTop + VH} className="stroke-rule" strokeWidth="1" />
+        <text x={PL} y={vTop - 4} className="fill-ink-3" fontSize="11">Volume</text>
+        <text x={W - PR + 4} y={vTop + 8} className="fill-ink-3" fontSize="11">{vol(vmax / 1.08)}</text>
+        <text x={W - PR + 4} y={vTop + VH} className="fill-ink-3" fontSize="11">0</text>
+        <line x1={PL} x2={W - PR} y1={vTop + VH} y2={vTop + VH} className="stroke-mark" strokeWidth="1" />
         {rows.map((row, i) => (
-          <rect key={`v${i}`} x={x(i) - bw / 2} y={yV(row.v)} width={bw} height={vTop + VH - yV(row.v)} className={i === sel ? "fill-accent" : i === alertIdx ? "fill-ink-2" : "fill-ink-3/45"} />
+          <rect key={`v${i}`} x={x(i) - bw / 2} y={yV(row.v)} width={bw} height={vTop + VH - yV(row.v)} className={i === sel ? "fill-accent" : i === alertIdx ? "fill-ink-2" : "fill-mark"} />
         ))}
         {rows.map((row, i) =>
           row.avg ? <line key={`a${i}`} x1={x(i) - bw / 2 - 1} x2={x(i) + bw / 2 + 1} y1={yV(row.avg)} y2={yV(row.avg)} className="stroke-ink" strokeWidth="1" strokeDasharray="2 1.5" /> : null,
@@ -138,7 +138,7 @@ export function PriceVolumeChart({ rows, alertDay, markers, symbol }: { rows: Se
         <line x1={x(sel)} x2={x(sel)} y1={PT} y2={vTop + VH} className="stroke-accent" strokeWidth="1" />
         <circle cx={x(sel)} cy={yP(r.c)} r="3.5" className="fill-accent stroke-paper" strokeWidth="1.5" />
         {ticks.map((t) => (
-          <text key={t} x={x(t)} y={H - 4} textAnchor={t === 0 ? "start" : t === n - 1 ? "end" : "middle"} className="fill-ink-3" fontSize="9">
+          <text key={t} x={x(t)} y={H - 4} textAnchor={t === 0 ? "start" : t === n - 1 ? "end" : "middle"} className="fill-ink-3" fontSize="11">
             {day(rows[t].d, { day: "numeric", month: "short" })}
           </text>
         ))}

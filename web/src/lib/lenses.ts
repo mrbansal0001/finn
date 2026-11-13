@@ -126,3 +126,9 @@ export function questionsFor(lens: LensKey, company: string, insider: boolean, t
   // a current employee: two questions, both about what is already public (D-031)
   return insider ? q[topic][lens].slice(0, 2).map((x) => `From what's public, ${x[0].toLowerCase()}${x.slice(1)}`) : q[topic][lens];
 }
+
+/** The first lens a contact fits for a company, as its label ("Money"), or undefined. */
+export function lensLabel(c: Contact | undefined, symbol: string): string | undefined {
+  const k = lensesFor(c, symbol).lenses[0];
+  return k ? LENSES.find((l) => l.key === k)?.label : undefined;
+}

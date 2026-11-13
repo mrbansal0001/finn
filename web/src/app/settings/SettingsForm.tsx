@@ -34,21 +34,23 @@ export function SettingsForm({ prefs, preview }: { prefs: Prefs; preview: Previe
         <Preview data={preview} price={price} vol={vol} saved={prefs} />
       </fieldset>
 
-      {/* a filing of these kinds is an alert the moment it lands (brief, Push 2: "a material announcement of a type I care about") */}
+      {/* Notifications (design review §10): this device first, then what it alerts on, all as switches. The
+          filed kinds also join the alerts at the top of the edition, whether notifications are on or not. */}
       <fieldset className="mt-10" id="filed-alerts">
-        <legend className="section-h w-full">Alert me when these are filed</legend>
-        <p className="mt-2 text-caption text-ink-3">For your holdings. They join the alerts at the top of the edition, and the notification if it&apos;s on.</p>
-        <ul className="hair mt-1">
+        <legend className="section-h w-full">Notifications</legend>
+        <NotifyToggle />
+        <p className="mt-5 text-small text-ink">Alert me when these are filed</p>
+        <p className="text-caption text-ink-3">For your holdings. They join the alerts at the top of the edition, and the notification if it&apos;s on.</p>
+        <ul className="hair mt-1 border-l-2 border-rule pl-3">
           {ALERT_KINDS.map((k) => (
             <li key={k.kind}>
               <label className="flex min-h-[52px] items-center justify-between gap-3 py-2">
                 <span className="text-body">{k.label}</span>
-                <input type="checkbox" name="alert_kind" value={k.kind} defaultChecked={prefs.alert_kinds.includes(k.kind)} className="size-5 accent-[var(--accent)]" />
+                <input type="checkbox" role="switch" name="alert_kind" value={k.kind} defaultChecked={prefs.alert_kinds.includes(k.kind)} className="switch" />
               </label>
             </li>
           ))}
         </ul>
-        <NotifyToggle />
       </fieldset>
 
       <fieldset className="mt-10">
@@ -74,8 +76,8 @@ export function SettingsForm({ prefs, preview }: { prefs: Prefs; preview: Previe
                   <span className="block text-caption text-ink-3">{k.hint}</span>
                 </span>
                 <input
-                  type="checkbox" name="kind" value={k.kind} defaultChecked={!prefs.muted.includes(k.kind)}
-                  className="size-5 accent-[var(--accent)]"
+                  type="checkbox" role="switch" name="kind" value={k.kind} defaultChecked={!prefs.muted.includes(k.kind)}
+                  className="switch"
                 />
               </label>
             </li>
@@ -198,8 +200,8 @@ function Scatter({ data, w, price, vol }: { data: PreviewData; w: PreviewData["w
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label={`${pts.length} sessions plotted; ${n} pass these rules`}>
         {/* the quiet zone: inside both rules, no alert */}
         <rect x={x(-price)} y={y(vol)} width={x(price) - x(-price)} height={H - P - y(vol)} className="fill-paper" />
-        <line x1={P} x2={W - P} y1={H - P} y2={H - P} className="stroke-rule" />
-        <line x1={x(0)} x2={x(0)} y1={P / 2} y2={H - P} className="stroke-rule" strokeDasharray="2 2" />
+        <line x1={P} x2={W - P} y1={H - P} y2={H - P} className="stroke-mark" />
+        <line x1={x(0)} x2={x(0)} y1={P / 2} y2={H - P} className="stroke-mark" strokeDasharray="2 2" />
         <line x1={x(-price)} x2={x(-price)} y1={P / 2} y2={H - P} className="stroke-accent" />
         <line x1={x(price)} x2={x(price)} y1={P / 2} y2={H - P} className="stroke-accent" />
         <line x1={P} x2={W - P} y1={y(vol)} y2={y(vol)} className="stroke-accent" />
@@ -208,12 +210,12 @@ function Scatter({ data, w, price, vol }: { data: PreviewData; w: PreviewData["w
             <title>{`${m.s}: ${signed(m.p)}, ${m.v.toFixed(1)}× volume`}</title>
           </circle>
         ))}
-        <text x={x(price) + 3} y={P / 2 + 8} fontSize="9" className="fill-accent">±{price.toFixed(1)}%</text>
-        <text x={W - P} y={y(vol) - 3} fontSize="9" textAnchor="end" className="fill-accent">{vol.toFixed(1)}×</text>
-        <text x={P} y={H - 8} fontSize="9" className="fill-ink-3">−{xm.toFixed(0)}%</text>
-        <text x={W - P} y={H - 8} fontSize="9" textAnchor="end" className="fill-ink-3">+{xm.toFixed(0)}%</text>
-        <text x={x(0)} y={H - 8} fontSize="9" textAnchor="middle" className="fill-ink-3">price change</text>
-        <text x={4} y={P / 2 + 4} fontSize="9" className="fill-ink-3">volume ×</text>
+        <text x={x(price) + 3} y={P / 2 + 8} fontSize="11" className="fill-accent">±{price.toFixed(1)}%</text>
+        <text x={W - P} y={y(vol) - 3} fontSize="11" textAnchor="end" className="fill-accent">{vol.toFixed(1)}×</text>
+        <text x={P} y={H - 8} fontSize="11" className="fill-ink-3">−{xm.toFixed(0)}%</text>
+        <text x={W - P} y={H - 8} fontSize="11" textAnchor="end" className="fill-ink-3">+{xm.toFixed(0)}%</text>
+        <text x={x(0)} y={H - 8} fontSize="11" textAnchor="middle" className="fill-ink-3">price change</text>
+        <text x={4} y={P / 2 + 4} fontSize="11" className="fill-ink-3">volume ×</text>
       </svg>
       <p className="text-caption text-ink-3">
         <span className="num">{pts.length}</span> sessions plotted, <span className="num">{n}</span> pass (filled). A session alerts if it is beyond either

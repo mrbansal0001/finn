@@ -16,7 +16,7 @@ export function DoorTile({ icon, label, sub }: { icon: "portfolio" | "research" 
         <span className="min-w-0 truncate text-small font-medium text-ink max-[359px]:text-caption">{label}</span>
       </span>
       <span className="mt-0.5 flex min-w-0 items-center gap-1">
-        <span className="min-w-0 truncate text-left text-caption text-ink-3 max-[359px]:text-label">{sub}</span>
+        <span className="min-w-0 truncate text-left text-caption text-ink-2 max-[359px]:text-label">{sub}</span>
         <span aria-hidden className="go ml-auto text-small leading-none">›</span>
       </span>
     </>

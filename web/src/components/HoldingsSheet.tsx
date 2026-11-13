@@ -156,7 +156,7 @@ function List({ rows, close, showWeight, networkReady }: { rows: Row[]; close: (
           <Link href={`/c/${h.symbol}`} onClick={close} className="flex min-h-[52px] items-center justify-between gap-3 py-1.5">
             <span className="min-w-0">
               <span className="flex items-center gap-2">
-                <span className="text-small font-medium text-ink">{h.symbol}</span>
+                <span className="ticker text-small text-ink">{h.symbol}</span>
                 {h.sector && <span className="tag truncate">{h.sector}</span>}
               </span>
               <span className="mt-0.5 block truncate text-caption text-ink-3">{h.name}</span>
@@ -193,7 +193,8 @@ function Coverage({ holdings, research, qs, close, networkReady }: { holdings: R
     );
   return (
     <div className="mt-3">
-      <p className="text-caption text-ink-3">Sort by</p>
+      {/* the period lives here once, so the column headers fit on one line (design review 2.4) */}
+      <p className="text-caption text-ink-3">Sort by; updates are the last 7 days, research the latest call</p>
       <div className="seg seg-sm mt-1" role="group" aria-label="Sort by">
         {(
           [
@@ -228,10 +229,10 @@ function Matrix({ rows, qs, close, max, networkReady, weighted }: { rows: Row[];
   return (
     <div className="mt-2" role="table" aria-label="Coverage by company">
       <div role="row" className="grid grid-cols-4 gap-1 border-b border-rule pb-1 text-label text-ink-3">
-        <span role="columnheader">Updates, 7 days</span>
-        <span role="columnheader">Research, latest call</span>
+        <span role="columnheader" aria-label="Updates, last 7 days">Updates</span>
+        <span role="columnheader" aria-label="Research, latest call">Research</span>
         <span role="columnheader">People</span>
-        <span role="columnheader">Your questions</span>
+        <span role="columnheader" aria-label="Your questions">Questions</span>
       </div>
       {rows.map((h) => {
         const q = qs[h.symbol] ?? 0;
@@ -239,7 +240,7 @@ function Matrix({ rows, qs, close, max, networkReady, weighted }: { rows: Row[];
         return (
           <div key={h.symbol} role="row" className="border-b border-rule py-2">
             <div className="flex items-center gap-2" role="rowheader">
-              <Link href={`/c/${sym}`} onClick={close} className="text-small font-medium text-ink hover:underline">
+              <Link href={`/c/${sym}`} onClick={close} className="ticker text-small text-ink hover:underline">
                 {h.symbol}
               </Link>
               {weighted ? (
@@ -323,27 +324,30 @@ function Agenda({ events, today, close }: { events: Event[]; today?: string; clo
           <li key={d} className="relative pb-3 pl-5">
             <span aria-hidden className="absolute -left-[5px] top-1.5 size-2.5 rounded-full bg-ink-3" />
             <p className="num text-caption font-medium text-ink">{fmt(d)}</p>
-            <ul className="mt-1 space-y-1.5">
+            <ul className="mt-1 space-y-2.5">
               {all
                 .filter((e) => e.date === d)
                 .map((e, i) => (
-                  <li key={i} className="flex items-start gap-2 text-small">
-                    <Link href={`/c/${encodeURIComponent(e.symbol)}`} onClick={close} className="chip tap shrink-0">
+                  <li key={i} className="text-small">
+                    {/* the ticker as a kicker above the event, so a long event name keeps its ↗ on its own line
+                        (design review C-c); the person page's "why talk now" rows use the same form */}
+                    <Link href={`/c/${encodeURIComponent(e.symbol)}`} onClick={close} className="tap ticker text-caption text-accent">
                       {e.symbol}
                     </Link>
-                    <span className="min-w-0">
+                    <span className="block">
                       {e.kind === "reminder" ? (
                         <Link href={e.href!} onClick={close} className="line-clamp-2 text-ink hover:underline">
                           {e.label} <span aria-hidden className="go">›</span>
                         </Link>
                       ) : e.href ? (
                         <a href={e.href} target="_blank" rel="noopener noreferrer" className="text-ink hover:underline">
-                          {e.label} <span className="text-accent">↗︎</span>
+                          {e.label}&nbsp;<span className="text-accent">↗︎</span>
                         </a>
                       ) : (
                         <span className="text-ink">{e.label}</span>
                       )}
-                      <span className="block text-caption text-ink-3">{e.kind === "reminder" ? "Your revisit date" : "Announced by the company"}</span>
+                      {/* only the exception is labelled per row; the foot caption says the rest are the companies' */}
+                      {e.kind === "reminder" && <span className="block text-caption text-ink-3">Your revisit date</span>}
                     </span>
                   </li>
                 ))}
@@ -351,7 +355,7 @@ function Agenda({ events, today, close }: { events: Event[]; today?: string; clo
           </li>
         ))}
       </ol>
-      <p className="text-caption text-ink-3">Dates the companies filed, plus the revisit dates you set. Results dates aren&apos;t guessed.</p>
+      <p className="text-caption text-ink-3">Every event here was announced by the company in a filing; revisit dates you set are marked. Results dates aren&apos;t guessed.</p>
     </div>
   );
 }

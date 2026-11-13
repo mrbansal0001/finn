@@ -60,7 +60,10 @@ export function PromisesLedger({ ledger: built, verifiers = {} }: { ledger: Ledg
     <section aria-labelledby="promises-h">
       <h2 id="promises-h" className="section-h">
         <span>Promised vs delivered</span>
-        <span className="text-caption font-normal normal-case tracking-normal text-ink-3">last {ledger.calls.length} calls</span>
+        {/* the count lives here, not inside a segment, where it clipped at 390px (design review C-a) */}
+        <span className="text-caption font-normal normal-case tracking-normal text-ink-3">
+          <span className="num">{ledger.rows.length}</span> promises, last {ledger.calls.length} calls
+        </span>
       </h2>
       {source === "reference" && (
         <p className="mt-3 rounded-lg bg-tint px-4 py-2.5 text-small text-ink-2">
@@ -99,11 +102,11 @@ export function PromisesLedger({ ledger: built, verifiers = {} }: { ledger: Ledg
       <div className="seg mt-4" role="group" aria-label="Which view">
         {(
           [
-            ["attention", "Needs attention", attention.length],
-            ["all", "All", ledger.rows.length],
-            ["history", "History", null],
+            ["attention", "Needs attention"],
+            ["all", "All"],
+            ["history", "History"],
           ] as const
-        ).map(([k, label, n]) => (
+        ).map(([k, label]) => (
           <button
             key={k}
             aria-pressed={view === k}
@@ -113,7 +116,6 @@ export function PromisesLedger({ ledger: built, verifiers = {} }: { ledger: Ledg
             }}
           >
             {label}
-            {n != null && <span className={`num text-caption ${view === k ? "text-paper/70" : "text-ink-3"}`}>{n}</span>}
           </button>
         ))}
       </div>
@@ -200,30 +202,33 @@ function Item({ row, ledger, open, onToggle, verifier, hideTag }: { row: Promise
   const change = changeLine(row, ledger).replace(/\s*↻\s*/g, " ").replace(/\s{2,}/g, " ").trim();
   return (
     <li className="border-b border-rule">
+      {/* two lines: what was promised and its status; what changed, and the chevron that opens it. The
+          four-call strip lives in History only: on every row it was mostly faint rings (design review L5) */}
       <button onClick={onToggle} aria-expanded={open} className="block w-full py-3 text-left">
         <span className="flex items-start justify-between gap-3">
           <span className="text-small font-medium text-ink">
             <PromiseTitleText title={row.title} />
-            {/* opens here: a grey chevron that turns down (13 Nov tap language) */}
-            <span aria-hidden className="fold ml-1.5">›</span>
           </span>
-          <span className="flex shrink-0 flex-col items-end gap-1">
-            {!hideTag && (
-              <span className="flex items-center gap-1 whitespace-nowrap text-caption font-medium" style={{ color: st.color }}>
-                <StatusIcon status={row.latest} size={14} />
-                {st.word}
+          {!hideTag && (
+            <span className="flex shrink-0 items-center gap-1 whitespace-nowrap pt-0.5 text-caption font-medium" style={{ color: st.color }}>
+              <StatusIcon status={row.latest} size={14} />
+              {st.word}
+            </span>
+          )}
+        </span>
+        <span className="mt-1 flex items-end justify-between gap-3">
+          <span className="min-w-0">
+            {change && <span className="block text-caption text-ink-2">{change}</span>}
+            {row.tracking && (
+              <span className="mt-0.5 block text-caption text-ink-2">
+                {row.tracking.label}: <span className="num font-medium text-ink">{row.tracking.value}%</span>
+                {row.tracking.verdict ? `, ${row.tracking.verdict === "on track" ? "within" : row.tracking.verdict} the full-year target` : ""}
               </span>
             )}
-            <CallStrip row={row} ledger={ledger} />
           </span>
+          {/* opens here: the grey chevron that turns (13 Nov tap language), closing the row */}
+          <span aria-hidden className="fold shrink-0">›</span>
         </span>
-        {change && <span className="mt-1 block text-caption text-ink-2">{change}</span>}
-        {row.tracking && (
-          <span className="mt-0.5 block text-caption text-ink-2">
-            {row.tracking.label}: <span className="num font-medium text-ink">{row.tracking.value}%</span>
-            {row.tracking.verdict ? `, ${row.tracking.verdict === "on track" ? "within" : row.tracking.verdict} the full-year target` : ""}
-          </span>
-        )}
       </button>
       {open && (
         <div className="pb-4">
@@ -481,27 +486,6 @@ function orderRows(rows: PromiseRow[]) {
   );
 }
 
-/** The promise's path in four marks, oldest first: how it evolved, at a glance (the History matrix in a row).
- *  A faint icon: still open, not mentioned on that call; a short hairline: not stated yet. */
-function CallStrip({ row, ledger }: { row: PromiseRow; ledger: Ledger }) {
-  const cells = ledger.calls.map((c) => ({ label: c.label, cell: row.calls[c.label] }));
-  const said = cells
-    .map(({ label, cell }) => `${label}: ${cell?.status ? `${STATUS[cell.status].word.toLowerCase()}${carried(cell) ? ", not mentioned" : ""}` : "not stated"}`)
-    .join(", ");
-  return (
-    <span className="flex items-center gap-1" role="img" aria-label={`Call by call: ${said}`}>
-      {cells.map(({ label, cell }) =>
-        cell?.status ? (
-          <StatusIcon key={label} status={cell.status} size={13} faint={carried(cell)} missedFirst={!!cell.missed_then_reset} />
-        ) : (
-          <span key={label} aria-hidden className="flex w-[13px] justify-center">
-            <span className="h-px w-2 bg-rule" />
-          </span>
-        ),
-      )}
-    </span>
-  );
-}
 
 /** A promise's title, with a vague target shown as a tag rather than as part of the promise (L4). */
 function PromiseTitleText({ title }: { title: string }) {

@@ -173,11 +173,13 @@ async function Investigate({ searchParams }: { searchParams: PageProps<"/investi
                 ) : (
                   // long quotes fold to an excerpt (visual review §3.4); the full words are one tap away
                   <details className="group mt-1">
+                    {/* open, the full quote replaces the excerpt: the same words twice read as two quotes (design review 4.5) */}
                     <summary className="cursor-pointer list-none font-serif text-small italic text-ink-2">
-                      &ldquo;{p.quote.slice(0, 150).replace(/\s+\S*$/, "")}…&rdquo;{" "}
+                      <span className="group-open:hidden">&ldquo;{p.quote.slice(0, 150).replace(/\s+\S*$/, "")}…&rdquo; </span>
                       <span className="font-sans text-caption not-italic text-accent group-open:hidden">Full quote</span>
+                      <span className="hidden font-sans text-caption not-italic text-accent group-open:inline">Show less</span>
                     </summary>
-                    <blockquote className="mt-1 font-serif text-small italic text-ink-2">&ldquo;{p.quote}&rdquo;</blockquote>
+                    <blockquote className="font-serif text-small italic text-ink-2">&ldquo;{p.quote}&rdquo;</blockquote>
                     {p.cite && (
                       <a href={p.cite.href} target="_blank" rel="noopener noreferrer" className="tap mt-1 inline-flex text-caption text-accent">
                         {p.cite.text} ↗︎

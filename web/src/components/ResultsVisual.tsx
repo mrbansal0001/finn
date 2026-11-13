@@ -48,35 +48,19 @@ export function ResultsVisual({ r, question }: { r: ResultsFacts; question?: { t
 
   return (
     <figure className="mt-3">
-      {/* both choices on one row: what to show, and what to compare with */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="seg seg-sm" role="group" aria-label="Chart">
-          {(["growth", "margins"] as const).map((v) => (
-            <button
-              key={v}
-              aria-pressed={view === v}
-              disabled={v === "margins" && !margin}
-              onClick={() => setView(v)}
-            >
-              {v === "growth" ? "Growth" : "Margins"}
-            </button>
-          ))}
-        </div>
-        {view === "growth" && (
-          <div className="seg seg-sm" role="group" aria-label="Compared with">
-            {(["yoy", "qoq"] as const).map((v) => (
-              <button
-                key={v}
-                aria-pressed={cmp === v}
-                aria-label={v === "yoy" ? "Compared with a year ago" : "Compared with last quarter"}
-                disabled={v === "qoq" && (halfYearly || !c.prev_q)}
-                onClick={() => setCmp(v)}
-              >
-                {v === "yoy" ? "YoY" : "QoQ"}
-              </button>
-            ))}
-          </div>
-        )}
+      {/* what to show, above the chart; what to compare against sits with the legend below, beside the
+          periods it produces (design review 3.5) */}
+      <div className="seg seg-sm w-fit" role="group" aria-label="Chart">
+        {(["growth", "margins"] as const).map((v) => (
+          <button
+            key={v}
+            aria-pressed={view === v}
+            disabled={v === "margins" && !margin}
+            onClick={() => setView(v)}
+          >
+            {v === "growth" ? "Growth" : "Margins"}
+          </button>
+        ))}
       </div>
 
       {view === "margins" && margin ? (
@@ -105,7 +89,7 @@ export function ResultsVisual({ r, question }: { r: ResultsFacts; question?: { t
                     </span>
                     {/* two bars on this metric's own scale, from zero; a loss is outlined, not a negative bar */}
                     {[
-                      { v: m.then, cls: "bg-ink-3/40", lab: thenQ },
+                      { v: m.then, cls: "bg-mark", lab: thenQ },
                       { v: m.now, cls: "bg-ink", lab: nowQ },
                     ].map((b) => (
                       <span key={b.lab} className="mt-1 flex items-center gap-1.5">
@@ -126,15 +110,30 @@ export function ResultsVisual({ r, question }: { r: ResultsFacts; question?: { t
               );
             })}
           </ul>
-          <p className="mt-2 flex items-center gap-3 text-caption text-ink-3">
-            <span className="inline-flex items-center gap-1 whitespace-nowrap">
-              <span aria-hidden className="inline-block h-2 w-3 rounded-sm bg-ink-3/40" /> {thenQ}
-            </span>
-            <span className="inline-flex items-center gap-1 whitespace-nowrap">
-              <span aria-hidden className="inline-block h-2 w-3 rounded-sm bg-ink" /> {nowQ}
-            </span>
-            <span>{r.nature}; each metric on its own scale, from zero.</span>
-          </p>
+          <div className="mt-2 flex items-center justify-between gap-3">
+            <p className="flex items-center gap-3 text-caption text-ink-3">
+              <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                <span aria-hidden className="inline-block h-2 w-3 rounded-sm bg-mark" /> {thenQ}
+              </span>
+              <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                <span aria-hidden className="inline-block h-2 w-3 rounded-sm bg-ink" /> {nowQ}
+              </span>
+            </p>
+            <div className="seg seg-sm shrink-0" role="group" aria-label="Compared with">
+              {(["yoy", "qoq"] as const).map((v) => (
+                <button
+                  key={v}
+                  aria-pressed={cmp === v}
+                  aria-label={v === "yoy" ? "Compared with a year ago" : "Compared with last quarter"}
+                  disabled={v === "qoq" && (halfYearly || !c.prev_q)}
+                  onClick={() => setCmp(v)}
+                >
+                  {v === "yoy" ? "YoY" : "QoQ"}
+                </button>
+              ))}
+            </div>
+          </div>
+          <p className="mt-1 text-caption text-ink-3">{r.nature}; each metric on its own scale, from zero.</p>
           {sel && (
             <p className="mt-2 rounded-lg bg-tint px-3.5 py-2.5 text-small text-ink-2" aria-live="polite">
               <span className="font-medium text-ink">{sel.label}</span>: {cr(sel.now)} in {nowQ} against {cr(sel.then)} in {thenQ}. {r.nature}, ₹ crore, as filed

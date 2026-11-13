@@ -66,7 +66,7 @@ export function AskBox({ symbol, name, examples, initial }: { symbol: string; na
             maxLength={200}
             enterKeyHint="search"
             placeholder="e.g. what did they say about margins?"
-            className="h-11 w-full rounded-lg border border-ink-3 bg-paper-raised pl-3.5 pr-11 text-body placeholder:text-ink-3 focus:border-accent focus:outline-none"
+            className="h-11 w-full rounded-lg border border-rule bg-paper-raised pl-3.5 pr-11 text-body placeholder:text-ink-3 focus:border-accent focus:outline-none"
           />
           <VoiceButton
             onText={(t, final) => {
@@ -75,17 +75,18 @@ export function AskBox({ symbol, name, examples, initial }: { symbol: string; na
             }}
           />
         </div>
-        <button type="submit" disabled={busy} className="inline-flex h-11 min-w-[64px] items-center justify-center rounded-lg bg-accent px-4 text-small font-medium text-paper disabled:opacity-70">
+        <button type="submit" disabled={busy} className="inline-flex h-11 min-w-[64px] items-center justify-center rounded-lg bg-ink px-4 text-small font-medium text-paper disabled:opacity-70">
           {busy ? <span className="spinner" style={{ borderTopColor: "var(--paper)" }} aria-label="Searching" /> : "Ask"}
         </button>
       </form>
       {!res && (
         <div className="mt-2 flex flex-wrap gap-1.5">
           {examples.map((x) => (
+            // tap to ask: the entity-chip style (outlined, accent), not the filter pill (design review 5.13)
             <button
               key={x}
               type="button"
-              className="pill"
+              className="chip tap min-h-[36px]"
               onClick={() => {
                 setQ(x);
                 void run(x);

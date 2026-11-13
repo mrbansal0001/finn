@@ -84,19 +84,27 @@ async function People() {
           </p>
           {(() => {
             const warm = reconnects(snap.contacts, [...snap.editions["7d"].leads, ...snap.editions["7d"].more], snap.data_until).slice(0, 5);
+            const row = (r: (typeof warm)[number]) => (
+              <li key={r.contact.id}>
+                <ReconnectLine r={r} />
+              </li>
+            );
+            // three, then the rest folded: five pushed the page's own controls 600px down (design review 7.3)
             return warm.length ? (
               <section className="mt-6" aria-labelledby="warm-h">
                 <h2 id="warm-h" className="section-h">
-                  <span>Reconnect</span>
-                  <span className="text-caption font-normal normal-case tracking-normal text-ink-3">quiet 6+ months, their company filed this week</span>
+                  Reconnect
                 </h2>
-                <ul className="hair">
-                  {warm.map((r) => (
-                    <li key={r.contact.id}>
-                      <ReconnectLine r={r} />
-                    </li>
-                  ))}
-                </ul>
+                <p className="mt-2 text-caption text-ink-3">Quiet for six months or more, and their company filed this week.</p>
+                <ul className="hair">{warm.slice(0, 3).map(row)}</ul>
+                {warm.length > 3 && (
+                  <details className="group border-t border-rule">
+                    <summary className="flex min-h-[44px] cursor-pointer list-none items-center gap-1 text-small text-accent">
+                      {warm.length - 3} more <span aria-hidden className="fold">›</span>
+                    </summary>
+                    <ul className="hair">{warm.slice(3).map(row)}</ul>
+                  </details>
+                )}
               </section>
             ) : null;
           })()}

@@ -47,7 +47,7 @@ export function MoveSpark({
       )}
       <circle cx={x(n - 1)} cy={y(last.c)} r="2.4" className={up ? "fill-up" : "fill-down"} />
       {upto.map((r, i) => (
-        <rect key={r.d} x={x(i) - bw / 2} y={barTop + barH - (r.v / vmax) * barH} width={bw} height={Math.max(0.6, (r.v / vmax) * barH)} className={i === n - 1 ? "fill-accent" : "fill-ink-3/35"} />
+        <rect key={r.d} x={x(i) - bw / 2} y={barTop + barH - (r.v / vmax) * barH} width={bw} height={Math.max(0.6, (r.v / vmax) * barH)} className={i === n - 1 ? "fill-accent" : "fill-mark"} />
       ))}
     </svg>
   );

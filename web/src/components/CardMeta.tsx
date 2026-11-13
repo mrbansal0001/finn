@@ -5,8 +5,12 @@ import { KIND_LABEL, when } from "@/lib/format";
  * The line above a headline: what kind of news (a label, not tappable), which company (a chip, tappable),
  * and when (at the right edge). Space and shape separate them, not dots.
  */
-export function CardMeta({ kind, symbol, at, refTime, lead, overCard, research }: {
+const ATTACHMENT: Record<string, string> = { xbrl: "XBRL only", zip: "ZIP file", none: "No document" };
+
+export function CardMeta({ kind, symbol, at, refTime, lead, overCard, research, attachment }: {
   research?: boolean; // a research-list company, not a holding: tagged so it is never mistaken for one
+  /** what the filing's attachment is, when it isn't a PDF: a source fact, so a tag here, not the "why" (design review C2) */
+  attachment?: string;
   kind: string;
   symbol: string;
   at: string;
@@ -26,6 +30,7 @@ export function CardMeta({ kind, symbol, at, refTime, lead, overCard, research }
           {symbol}
         </Link>
         {research && <span className="tag shrink-0">Research</span>}
+        {attachment && ATTACHMENT[attachment] && <span className="tag shrink-0">{ATTACHMENT[attachment]}</span>}
       </div>
       <time dateTime={at} className="num shrink-0 text-caption text-ink-3">
         {/* a bare time means today: say so (three-pillars S/P8) */}

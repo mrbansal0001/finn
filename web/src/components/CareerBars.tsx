@@ -39,7 +39,7 @@ export function CareerBars({ history, until, covered }: { history: Contact["hist
               </div>
               <div className="relative mt-1 h-2 rounded-full bg-tint" aria-hidden>
                 <span
-                  className={`absolute inset-y-0 rounded-full ${h.end ? "bg-ink-3" : "bg-accent"}`}
+                  className={`absolute inset-y-0 rounded-full ${h.end ? "bg-mark" : "bg-accent"}`}
                   style={{ left: x(s), width: `calc(${x(e)} - ${x(s)})`, minWidth: "6px" }}
                 />
               </div>
@@ -47,8 +47,10 @@ export function CareerBars({ history, until, covered }: { history: Contact["hist
           );
         })}
       </ol>
-      <p className="num mt-1.5 flex justify-between text-label text-ink-3" aria-hidden>
+      {/* one axis for every bar, ruled off so it doesn't read as the last bar's own label (design review 8.9) */}
+      <p className="num mt-3 flex justify-between border-t border-rule pt-1 text-label text-ink-3" aria-hidden>
         <span>{lo}</span>
+        <span>{Math.round((lo + hi) / 2)}</span>
         <span>{hi}</span>
       </p>
     </div>

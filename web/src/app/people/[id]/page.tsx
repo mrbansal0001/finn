@@ -169,7 +169,7 @@ async function Person({ params, searchParams }: { params: PageProps<"/people/[id
         <h2 className="section-h">Career</h2>
         <CareerBars history={c.history} until={snap.data_until} covered={[...held, ...snap.research_set]} />
         {c.education.length > 0 && (
-          <ul className="hair mt-3">
+          <ul className="hair mt-6">
             {c.education.map((e, i) => (
               <li key={`e${i}`} className="flex justify-between gap-3 py-2.5 text-small">
                 <span>
@@ -232,7 +232,7 @@ function PersonCard({ id, symbol, title }: { id: string; symbol: string; title: 
     <li>
       <Link href={`/card/${id}`} className="flex items-start justify-between gap-3 py-2.5 hover:bg-paper-raised">
         <span>
-          <span className="kicker mr-2 text-ink-3">{symbol}</span>
+          <span className="ticker mr-2 text-caption text-ink-3">{symbol}</span>
           <span className="text-body text-ink">{title}</span>
         </span>
         <span aria-hidden className="go mt-0.5">›</span>
