@@ -2,6 +2,7 @@ import Link from "next/link";
 import { BackLink } from "@/components/BackLink";
 import { notFound } from "next/navigation";
 import { Dock } from "@/components/Dock";
+import { AskBox } from "@/components/AskBox";
 import { CompanySkeleton } from "@/components/Skeletons";
 import { Suspense } from "react";
 import { getLedger, getRequest, getSnapshot, getUniverse, getView } from "@/lib/data";
@@ -33,16 +34,18 @@ export async function generateMetadata({ params }: PageProps<"/c/[symbol]">) {
   return { title: name.replace(/ Limited$/i, "") };
 }
 
-export default function CompanyPage({ params }: PageProps<"/c/[symbol]">) {
+export default function CompanyPage({ params, searchParams }: PageProps<"/c/[symbol]">) {
   return (
     <Suspense fallback={<CompanySkeleton />}>
-      <Company params={params} />
+      <Company params={params} searchParams={searchParams} />
     </Suspense>
   );
 }
 
-async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] }) {
+async function Company({ params, searchParams }: Pick<PageProps<"/c/[symbol]">, "params" | "searchParams">) {
   const { symbol: raw } = await params;
+  const askParam = (await searchParams).ask;
+  const asked = typeof askParam === "string" ? askParam.slice(0, 200) : undefined;
   let symbol: string;
   try {
     symbol = decodeURIComponent(raw).toUpperCase();
@@ -95,6 +98,7 @@ async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] 
     ["overview", "Overview"],
     results && ["results", "Results"],
     ["promises", "Promises"],
+    ledger && ["ask-docs", "Ask"],
     people.length > 0 && ["people", "People"],
     ["filings", "Filings"],
   ].filter(Boolean) as [string, string][];
@@ -245,6 +249,9 @@ async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] 
         )}
       </div>
 
+      {/* the company's own words, on demand (brief-check plan, part 5): only where its documents are indexed */}
+      {ledger && <AskBox key={asked ?? ""} symbol={symbol} name={name.replace(/ Limited$/i, "")} examples={askExamples(ledger)} initial={asked} />}
+
       {people.length > 0 && (
         <section id="people" className="mt-12 scroll-mt-16">
           <h2 className="section-h">People who&apos;d know</h2>
@@ -315,9 +322,19 @@ async function Company({ params }: { params: PageProps<"/c/[symbol]">["params"] 
           </AboutPart>
         )}
       </About>
-      <Dock />
+      <Dock askSymbol={ledger ? symbol : undefined} />
     </main>
   );
+}
+
+/** Two of the company's own tracked topics as example questions, then one every company answers. */
+function askExamples(ledger: Ledger): string[] {
+  const seen = new Set<string>();
+  const topics = ledger.rows
+    .map((r) => r.metric?.replace(/\s*\(.*?\)\s*/g, " ").trim())
+    .filter((m): m is string => !!m && m.length <= 28 && !seen.has(m.toLowerCase()) && !!seen.add(m.toLowerCase()))
+    .slice(0, 2);
+  return [...topics.map((t) => t.charAt(0).toUpperCase() + t.slice(1)), "Demand outlook"];
 }
 
 function Coverage({ symbol, req, dataUntil }: { symbol: string; req: Awaited<ReturnType<typeof getRequest>>; dataUntil: string }) {

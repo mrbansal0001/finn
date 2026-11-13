@@ -19,7 +19,7 @@ export function searchTerm(q: string): { term: string; asked: boolean } {
  * Bottom dock: one slim row, search (any NSE company, or your own network) and the rules. It stays put
  * while pages crossfade beneath it.
  */
-export function Dock() {
+export function Dock({ askSymbol }: { askSymbol?: string } = {}) {
   const router = useRouter();
   const [q, setQ] = useState("");
   const [res, setRes] = useState<Results>({ q: "", companies: [], people: [] });
@@ -79,9 +79,17 @@ export function Dock() {
     router.push(href);
   };
 
+  // on a company FINN has documents for, a sentence is a question for them (brief-check plan, part 5)
+  const askable = !!askSymbol && !asked && query.split(/\s+/).length >= 2;
+  const askHref = askSymbol ? `/c/${encodeURIComponent(askSymbol)}?ask=${encodeURIComponent(query)}#ask-docs` : "";
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
     setNote("");
+    if (askable && !current.companies.some(([s]) => s === upper) && !current.people.some((p) => p.match === "name")) {
+      go(askHref);
+      return;
+    }
     // only a single ticker-shaped word is ever opened as a ticker; a sentence never is (audit F11)
     const tickerish = /^[A-Za-z0-9&-]{1,20}$/.test(query);
     const exact = current.companies.find(([s]) => s === upper)?.[0];
@@ -142,7 +150,16 @@ export function Dock() {
                   })()}
                 </p>
               )}
-              {searching && !current.companies.length && !current.people.length ? (
+              {askable && (
+                <Link href={askHref} className="flex min-h-[48px] items-center justify-between gap-3 border-b border-rule px-3 hover:bg-paper">
+                  <span className="min-w-0">
+                    <span className="block text-small font-medium text-ink">Ask {askSymbol}&apos;s documents</span>
+                    <span className="block truncate text-caption text-ink-3">&ldquo;{query}&rdquo;, answered with quotes from its calls and annual report</span>
+                  </span>
+                  <span aria-hidden className="text-accent">›</span>
+                </Link>
+              )}
+              {askable && !current.companies.length && !current.people.length ? null : searching && !current.companies.length && !current.people.length ? (
                 <p className="px-3 py-2 text-small text-ink-3">Searching…</p>
               ) : current.failed ? (
                 <p className="px-3 py-2 text-small text-ink-2">Search is unavailable right now. Try again in a moment.</p>

@@ -86,6 +86,10 @@ def once() -> None:
     try:
         from . import sync
         step("sync", sync.push)
+        # "Ask the documents": rebuild companies whose ledger changed (five a cycle), upload what changed
+        from . import passages
+        step("passages", passages.run, None, 5)
+        step("passages_sync", sync.passages)
     except ImportError:
         pass
     state["last_cycle"] = datetime.now().isoformat(timespec="seconds")      # attempted

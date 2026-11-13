@@ -59,7 +59,8 @@ async function Detail({ params }: { params: PageProps<"/card/[id]">["params"] })
     card.facts = { ...card.facts, matched: matched.length ? matched : [`below your rules (±${prefs.price_pct}%, ${prefs.volume_x}×); listed on the company page`] };
   }
   const weight = snap.portfolio.find((h) => h.symbol === card.symbol)?.weight ?? 0;
-  const inv = fromCard(card, snap, await getLedger(card.symbol));
+  const led = await getLedger(card.symbol);
+  const inv = fromCard(card, snap, led);
   const moveRows = card.kind === "move" ? snap.price_history?.[card.symbol] : undefined;
   const moveChart = !!moveRows && moveRows.some((r) => r.d === card.at.slice(0, 10));
   const ageH = (new Date(snap.data_until).getTime() - new Date(card.at).getTime()) / 3_600_000;
@@ -168,7 +169,7 @@ async function Detail({ params }: { params: PageProps<"/card/[id]">["params"] })
           </details>
         </AboutPart>
       </About>
-      <Dock />
+      <Dock askSymbol={led ? card.symbol : undefined} />
     </main>
   );
 }

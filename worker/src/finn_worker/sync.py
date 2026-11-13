@@ -103,6 +103,35 @@ def push() -> str:
     return f"snapshot + {len(ledgers)} ledgers + {len(lines)} demo network rows"
 
 
+def passages() -> str:
+    """Upload companies whose passages changed since the last upload (migration 005). A company's rows are
+    replaced whole, so a rebuilt company never mixes old and new passage numbers."""
+    c = _client()
+    if c is None:
+        return "skipped (no Supabase credentials in .env)"
+    http, base = c
+    mark_p = ROOT / "data" / "passages_synced.json"
+    marks = json.loads(mark_p.read_text()) if mark_p.exists() else {}
+    done = []
+    for f in sorted((ROOT / "data" / "passages").glob("*.json")):
+        d = json.loads(f.read_text())
+        if marks.get(d["symbol"]) == d["built"]:
+            continue
+        sym = d["symbol"]
+        r = http.delete(f"{base}/passages", params={"symbol": f"eq.{sym}"})
+        if r.status_code == 404:          # PGRST205: the table doesn't exist until migration 005 is applied
+            return "skipped (apply migration 005 to create the passages table)"
+        r.raise_for_status()
+        http.delete(f"{base}/passage_sources", params={"symbol": f"eq.{sym}"}).raise_for_status()
+        _upsert(http, base, "passage_sources", [{"symbol": sym, "i": i, **src} for i, src in enumerate(d["sources"])])
+        _upsert(http, base, "passages", [{"symbol": sym, "i": i, "s": p["s"], "page": p["p"], "who": p["who"],
+                                          "role": p["r"], "body": p["t"]} for i, p in enumerate(d["passages"])])
+        marks[sym] = d["built"]
+        mark_p.write_text(json.dumps(marks, indent=1))
+        done.append(sym)
+    return f"{len(done)} companies uploaded" if done else "nothing changed"
+
+
 def exchange_requests() -> str:
     """Bring visitors' coverage requests down to the worker queue; send statuses back."""
     c = _client()
