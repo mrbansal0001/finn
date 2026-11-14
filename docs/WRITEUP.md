@@ -121,7 +121,10 @@ FINN is deliberately **not** an autonomous agent. Push and Pull are fixed pipeli
 
 1. read a filing into typed events (with the people named in it);
 2. transcribe a results table, as text or as an image of a scanned page;
-3. transcribe a transcript's forward-looking statements and stated actuals.
+3. transcribe a transcript's forward-looking statements and stated actuals;
+4. read the annual report's five-year table, one page at a time (a figure is kept only if it is printed on that page).
+
+Ask the documents uses no model: it is full-text search in Postgres over the company's own passages, so an answer can only be the company's words.
 
 Copy rules are enforced in code: a headline needs a verb and a fact, a "why" line without a number is dropped, and qualifiers like "up to" are kept.
 
@@ -131,7 +134,7 @@ Copy rules are enforced in code: a headline needs a verb and a fact, a "why" lin
   - overlapping 6-page windows find 80%, at 61% strict precision;
   - half of the "false positives" were genuine commitments my labels had missed, so effective precision is near 80%.
 - **Linking.** Deterministic, with pairwise precision 0.88 / recall 0.70 on BEL and 0.75 / 0.67 on Deepak Nitrite. Model-assisted linking was noisier run to run, so it stays off. BEL's ledger shows the machine-built version by default, with the hand-checked reference one tap away.
-- **Cost.** $2.86 of paid model spend for the entire build as of 12 Nov, across 1,874 model calls: most of it the paid fallback while Gemini's free tier was overloaded during the pre-build, plus filings that named people, which went to the paid API until 12 Nov (now free tier first). Rebuilding every ledger after a logic change costs nothing: identical requests come from the cache (37 ledgers rebuilt, 0 model calls). A ledger on the free tier costs $0; reading a filing is free unless Gemini fails, when the fallback costs about $0.005, so a day of Push for 18 holdings costs at most cents.
+- **Cost.** $2.87 of paid model spend for the entire build, across 1,960 logged model calls (1,081 on Gemini's free tier, 879 paid), and nothing paid since 12 Nov: most of it the paid fallback while Gemini's free tier was overloaded during the pre-build, plus filings that named people, which went to the paid API until 12 Nov (now free tier first). Rebuilding every ledger after a logic change costs nothing: identical requests come from the cache (37 ledgers rebuilt, 0 model calls). A ledger on the free tier costs $0; reading a filing is free unless Gemini fails, when the fallback costs about $0.005, so a day of Push for 18 holdings costs at most cents.
 
 ## Cloud
 
