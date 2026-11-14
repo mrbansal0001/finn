@@ -32,7 +32,11 @@ def snapshot(until: datetime | None = None) -> dict:
     q = ",".join("?" * len(syms))
     filings = [dict(r) for r in con.execute(f"select * from filings where symbol in ({q})", syms)] if syms else []
     # first run / new portfolio: no filings yet is a valid (empty) edition, not a crash
-    until = until or max((datetime.fromisoformat(f["published_at"]) for f in filings), default=datetime.now())
+    # the edition runs to when it was built, not to the newest filing: on a Saturday with nothing new from the
+    # holdings, "the last 24 hours" must mean the last 24 hours, and the masthead must say Saturday (14 Nov).
+    # The newest filing's time is kept separately (freshness.filings_until) for the footer and "since last visit".
+    newest_filing = max((datetime.fromisoformat(f["published_at"]) for f in filings), default=None)
+    until = until or datetime.now().replace(microsecond=0)
 
     res = {}
     rank = lambda r: (r["period_end"], r["nature"] == "Consolidated",
@@ -147,7 +151,7 @@ def snapshot(until: datetime | None = None) -> dict:
         "portfolio": p["holdings"], "research_set": p.get("research_set", []), "names": names,
         "editions": editions, "move_cards": move_cards, "results": res,
         # what each part of the data is current to, separately (audit F09)
-        "freshness": {"filings_until": until.isoformat(), "price_session": cal[-1] if cal else None,
+        "freshness": {"filings_until": (newest_filing or until).isoformat(), "price_session": cal[-1] if cal else None,
                       "price_sessions": len(cal), "worker_last_ok": _worker_last_ok()}, "people": people, "verifiers": verifiers,
         # private to the owner; in production this lives behind Supabase row-level security
         "contacts": json.loads((ROOT / "config" / "network.json").read_text())["contacts"],

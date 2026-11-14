@@ -115,7 +115,9 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
             </nav>
           </>
         }
-        sinceSeen={until}
+        // the newest filing seen, not the build time: a filing that reaches FINN late, with an earlier timestamp,
+        // still counts as new on the next visit
+        sinceSeen={snap.freshness?.filings_until ?? until}
         panels={Object.fromEntries(
           keys.map((k) => [
             k,
