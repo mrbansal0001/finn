@@ -18,7 +18,7 @@ Covers `FINN-FULL-SUBMISSION-REVIEW-2026-11-14.md` (F01–F18), `FINN-UX-REVIEW-
 | F10 | One bad subscriber stops the batch; empty kinds = all; reset not synced | Yes | **Fixed.** Per-subscriber isolation, typed rules (empty = none), Reset updates the phone's rules too. Tests |
 | F11 | Temporary read failures never retried | Yes, in code | **Fixed.** The twin check excludes the filing's own failed attempt and requires a successful read of a same-subject filing |
 | F12 | Substring number match; USD treated as rupees | Yes | **Fixed.** Whole-number tokens; non-rupee units rejected. All 24 trajectories rebuilt with identical values. Tests |
-| F13 | Publication not atomic | Code-level | **Fixed for passages** (one-transaction replace, migration 006; source list no longer cached). **Deferred:** snapshot and ledgers are still published in sequence |
+| F13 | Publication not atomic | Code-level | **Fixed for passages** (one-transaction replace, migration 006, applied and in use; source list no longer cached). **Deferred:** snapshot and ledgers are still published in sequence |
 | F14 | Coverage jobs can stick; empty builds "ready" | Code-level | **Fixed.** Interrupted builds reclaimed after 2 h (3 attempts); a build with no readable transcript is "unavailable". **Deferred:** separating fast ingestion from slow enrichment |
 | F15 | "Hard-capped" spend overclaims | Yes | **Fixed in docs:** a budget guard on logged estimates, not a billing cap |
 | F16 | Deployment guide lists 2 of 5 migrations | Yes | **Fixed.** All six migrations, every setting, push, worker, no-paid-call checks; real READMEs |
@@ -47,6 +47,6 @@ Covers `FINN-FULL-SUBMISSION-REVIEW-2026-11-14.md` (F01–F18), `FINN-UX-REVIEW-
 
 ## How it was checked
 
-Worker tests (150), typecheck and lint, production build; the live feature walk (22 steps, every failure checked by hand: all were test timing or data assumptions); the live link check (936 pages, 1,902 promise links, 0 problems); 23/23 live privacy checks; migration 006 tested in PGlite before publication.
+Worker tests (150), typecheck and lint, production build; the live feature walk (22 steps, every failure checked by hand: all were test timing or data assumptions); the live link check (936 pages, 1,902 promise links, 0 problems); 25/25 live privacy checks; migration 006 tested in PGlite before publication.
 
-**Needs the owner:** apply `supabase/migrations/006_review_hardening.sql` in the Supabase SQL editor. Until then the push constraint and column grant are enforced only in the app and worker, and passages upload without the single transaction.
+Migration 006 was applied on 14 Nov: the live privacy check's two new cases pass (a non-push endpoint is rejected with a constraint error; visitors cannot edit delivery cursors), and passages now upload one company per transaction.

@@ -45,7 +45,7 @@ uv run python -c "from finn_worker import sync; print(sync.passages())"
 
 ```
 uv run pytest -q                                  # worker unit tests
-uv run python -m evals.rls_check                  # 23 live row-level-security cases (creates and deletes two test users)
+uv run python -m evals.rls_check                  # 25 live row-level-security cases (creates and deletes two test users)
 uv run python -m evals.link_check                 # every page, every promise link (add --docs for every source document)
 cd ../web && npx tsc --noEmit -p . && npx eslint src && npm run build
 ```

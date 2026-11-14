@@ -31,10 +31,10 @@ Here is my submission for the FINN build challenge.
 
 **Measured on 14 Nov:**
 - 54 companies; 1,902 promises (2 settled, 64 revised, 47 gone silent);
-- 32,175 searchable passages; 24 five-year tables;
+- 32,263 searchable passages; 24 five-year tables;
 - 41 results tables: all pass the statement's arithmetic identities, and 3 are also matched to exchange XBRL;
 - held-out filing classification: 36/36 material filings surfaced;
-- 23/23 live privacy checks; every page and promise link opens;
+- 25/25 live privacy checks; every page and promise link opens;
 - $2.87 paid spend in total, across 1,985 model calls.
 
 **Left out:** balance sheet, cash quality and bull/bear cases. I chose reliable scope over a model's opinion.

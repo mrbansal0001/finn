@@ -2134,3 +2134,172 @@ All 23 pass, and the two new 006 cases will run automatically once you apply it.
 **Claude:**
 
 > _tool: Bash_ — Re-export history, scan it, commit and push
+
+**Claude:**
+
+One cleanup command failed on an unmatched pattern (zsh aborts the whole command in that case), so the per-session duplicate file may have been committed. Checking:
+
+**Claude:**
+
+> _tool: Bash_ — Check the history folder contents
+
+**Claude:**
+
+> _tool: Bash_ — Remove the duplicate and note the pitfall in memory
+
+**Claude:**
+
+Fixed. The only check still running is the external-document scan; waiting for it:
+
+**Claude:**
+
+> _tool: Bash_ — Wait for the document link check
+
+**Claude:**
+
+While that finishes, recording in memory that migration 006 is waiting on you:
+
+**Claude:**
+
+> _tool: Bash_ — Record review-fix state in memory
+
+**Claude:**
+
+> _tool: Bash_ — Wait for the document link check to finish
+
+**Claude:**
+
+> _tool: Bash_ — Read the document link check result
+
+**Claude:**
+
+> _tool: Bash_ — Check every ledger and passage source document
+
+**Claude:**
+
+> _tool: Bash_ — Make the link replacements permanent; repair data; add a test
+
+**Claude:**
+
+Repairing Maruti's passages too: its January call had gone back to "unreadable" through the hijacked link. Then re-exporting, syncing, and re-checking every source document:
+
+**Claude:**
+
+> _tool: Bash_ — Rebuild Maruti passages, sync, confirm no bad links remain
+
+**Claude:**
+
+No known-bad links remain, and Maruti's four calls are searchable again (471 passages). Committing and pushing:
+
+**Claude:**
+
+> _tool: Bash_ — Commit and push the permanent link fix
+
+**Claude:**
+
+Most findings in the three reports were real, and I've fixed them. A few turned out to be already working, and some I deliberately deferred. Everything is pushed and live, except one database migration that you need to apply. I checked each claim against the code or the live site before changing anything.
+
+**The serious ones, all confirmed and fixed:**
+- **Ask labelled an analyst "for the company" (F01).** The moderator's "Please go ahead" matched the job title "head". 68 passages across 54 companies were mislabelled; all are corrected, and Umesh Raut of Nomura is now "analyst" everywhere.
+- **Ask presented keyword matches as answers (F02).** "What will margins be in FY30?" got FY27 passages back as an answer. Any number or period in a question must now appear in the passage, or the reply says "None of the closest passages mentions FY30". The framing says "match", never "answer".
+- **The HDFC Bank lead story (F07, UX P0-1).** It was really V S Rangan's routine re-appointment. FINN had a parser for these filings that nothing ever called, which is why the category name became the headline. It's wired in now, and the filing folds away as routine.
+- **Stale research (F05).** Titan's ledger read through August while its November transcript was already on NSE. Five ledgers now include their November calls. Seven more show "newer call filed" until the transcript is linked, and the worker refreshes them automatically.
+- **"0 filings" for companies FINN doesn't follow (F06):** the page now says "Filings not followed" and links to the company's NSE page.
+- **Promise comparisons (F04, UX P0-2):**
+  - a date can no longer be "revised" into an amount (ADANIENT);
+  - a target shows both its amount and its deadline;
+  - a delivered promise is marked at the call where the evidence was stated.
+- **Notifications (F08–F10):**
+  - only real browser push services are accepted;
+  - a failed send is retried, not silently skipped;
+  - one bad record can't stop everyone else's notifications;
+  - "no filing alerts" really means none;
+  - Reset now applies to your phone too.
+- **Smaller real bugs:**
+  - filing quotes are now checked against the page they cite (141 of 156 verified; scanned ones are labelled);
+  - a substring bug in the five-year table check is fixed;
+  - failed filing reads are actually retried now;
+  - filings from the 10 Nov holiday no longer show as "during market hours".
+- **Docs:** the email was overclaiming in places: 38 of 41 results tables are checked by arithmetic identities only, not against exchange XBRL. The deployment guide listed only 2 of the 6 migrations. Both are corrected.
+
+**Already working (verified, no change):** no layout overflow at 320 px, and Escape closes the portfolio sheet.
+
+**Deferred, with reasons:** labelled Back destinations, the remaining polish items and both creative extensions. Both UX documents say correctness comes first. Each is listed in [docs/REVIEW-RESPONSE-2026-11-14.md](docs/REVIEW-RESPONSE-2026-11-14.md).
+
+**One mistake of mine, now fixed:** rebuilding all the ledgers re-read Screener's transcript list, which still has the spam-hijacked Maruti link and the dead HCLTECH link. That undid yesterday's fix. The replacements now live in the code, with a test, so a rebuild can't bring them back.
+
+**Checked on the live site:**
+- 151 tests pass; typecheck, lint and the production build are clean.
+- Every page (936) and every promise link (1,902) opens.
+- 23 of 23 privacy checks pass.
+- Every source document opens, except one HDFC attachment that NSE itself serves as an empty file.
+- The ledger rebuild made no paid model calls; total spend is still $2.87.
+
+**What you need to do:**
+1. **Apply `supabase/migrations/006_review_hardening.sql` in the Supabase SQL editor**, the same way you did 005. I tested it locally first. Until it's applied, the notification protections run in the app and worker but not in the database.
+2. **The email is now 507 words** ([docs/EMAIL.md](docs/EMAIL.md)), down from about 900, because the review flagged the length and the brief asks for a "short writeup". The full write-up stays linked. If you preferred the longer version, it's in git history. The build history has been re-exported with today's work.
+
+## You
+
+<command-name>/extra-usage</command-name>
+            <command-message>extra-usage</command-message>
+            <command-args></command-args>
+
+## You
+
+i ran the sql query on supabase
+
+## You
+
+<local-command-caveat>The command below was run directly in Claude Code, not sent to you as a request, and its output goes straight to the user. It's recorded here as context for later messages.</local-command-caveat>
+
+
+<command-name>/extra-usage</command-name>
+            <command-message>extra-usage</command-message>
+            <command-args></command-args>
+
+
+<local-command-stdout>/extra-usage is now /usage-credits
+
+Browser opened to manage usage credits. If it didn't open, visit: https://claude.ai/admin-settings/usage</local-command-stdout>
+
+
+
+
+i ran the sql query on supabase
+
+**Claude:**
+
+Thanks. Verifying it took effect: the privacy check now runs its two migration 006 cases, then I'll confirm the one-transaction passage upload works:
+
+**Claude:**
+
+> _tool: Bash_ — Run the privacy check with migration 006 applied
+
+**Claude:**
+
+It still reports 006 as missing, but my detection may be wrong: a GET without arguments can return "not found" even when the function exists. Testing directly instead:
+
+**Claude:**
+
+> _tool: Bash_ — Test migration 006 directly
+
+**Claude:**
+
+> _tool: Bash_ — Fix the 006 detection and rerun the privacy check
+
+**Claude:**
+
+> _tool: Bash_ — Test the transactional upload and the existing subscription
+
+**Claude:**
+
+> _tool: Bash_ — Update passage and privacy-check counts in the docs
+
+**Claude:**
+
+Docs updated. Re-exporting the build history (standing rule), scanning it, and committing:
+
+**Claude:**
+
+> _tool: Bash_ — Re-export history, scan, commit and push

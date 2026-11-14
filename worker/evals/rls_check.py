@@ -108,8 +108,9 @@ def main() -> int:
         forged = http.post(f"{URL}/rest/v1/push_subscriptions", headers=as_user(tb), json={**sub(9), "user_id": ida})
         check("B cannot subscribe in A's name (005)", forged.status_code in (401, 403), f"HTTP {forged.status_code}")
         # migration 006: endpoints limited to browser push services; visitors can change their rules only
-        cur = http.get(f"{URL}/rest/v1/rpc/replace_company_passages", headers=anon)
-        if cur.status_code == 404 and "replace_company_passages" in cur.text:
+        svc_h = {"apikey": SVC, "Authorization": f"Bearer {SVC}", "Content-Type": "application/json"}
+        cur = http.post(f"{URL}/rest/v1/rpc/replace_company_passages", headers=svc_h, json={"sym": "ZZRLSCHECK", "srcs": [], "rows": []})
+        if cur.status_code == 404:
             print("NOTE  migration 006 not applied yet: its two checks are skipped")
         else:
             evil = http.post(f"{URL}/rest/v1/push_subscriptions", headers=as_user(tb), json={**sub(8), "endpoint": f"https://evil.example/{idb}"})
