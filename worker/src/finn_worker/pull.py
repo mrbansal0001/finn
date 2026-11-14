@@ -34,9 +34,10 @@ class Transcript:
     url: str
 
 
-def discover(symbol: str, n: int = 4) -> list[Transcript]:
-    """Latest `n` concall transcripts. Screener is used only to find the exchange PDF links."""
-    page = fetch.get(SCREENER.format(symbol=symbol.upper()), max_age=7 * 24 * 3600).decode("utf-8", "replace")
+def discover(symbol: str, n: int = 4, fresh: bool = False) -> list[Transcript]:
+    """Latest `n` concall transcripts. Screener is used only to find the exchange PDF links. `fresh` re-reads the
+    listing (an hour old at most) when the exchange shows a newer transcript than the ledger reads."""
+    page = fetch.get(SCREENER.format(symbol=symbol.upper()), max_age=3600 if fresh else 7 * 24 * 3600).decode("utf-8", "replace")
     i = page.find("documents concalls")
     seg = page[i: page.find("</ul>", i)] if i > 0 else ""
     out, seen = [], set()
@@ -537,6 +538,12 @@ def link(calls: list[tuple[str, list[dict]]]) -> list[Thread]:
                 if same_call and not shared and not all(
                         _bounds(x) == _bounds(it) and (x.get("due") or None) == (it.get("due") or None) for x in same_call):
                     continue                  # a different figure in the same call is a different promise (E29: Dixon P95)
+                # a deadline-only statement and an amount-only one are never the same promise, whatever words
+                # they share: "tariff order by June" is not "businesses will contribute ₹6,000-6,800 cr" (UX review
+                # P0-2, ADANIENT); dates never become amounts on one lane
+                if _target_type(it) != _target_type(prev) and "both" not in (_target_type(it), _target_type(prev)) \
+                        and "none" not in (_target_type(it), _target_type(prev)):
+                    continue
                 # a shared programme name outweighs differing amounts (NGC order sized 2-3k, then 10-12k cr)
                 if not scopes_compatible(it, prev) or (not shared and not values_compatible(it, prev)):
                     continue
@@ -560,6 +567,13 @@ def link(calls: list[tuple[str, list[dict]]]) -> list[Thread]:
             else:
                 threads.append(Thread(f"P{len(threads) + 1}", it["metric"], per, [Mention(call, it)]))
     return threads
+
+
+def _target_type(it: dict) -> str:
+    """'amount' (a figure only), 'date' (a deadline only), 'both', or 'none' (direction or no figure)."""
+    has_value = it.get("value_low") is not None or it.get("value_high") is not None
+    has_due = bool(it.get("due"))
+    return "both" if has_value and has_due else "amount" if has_value else "date" if has_due else "none"
 
 
 def _bounds(it: dict) -> tuple[float | None, float | None]:
@@ -787,10 +801,14 @@ def statuses(thread: Thread, call_order: list[str], actuals: list[dict]) -> dict
                 else:
                     final = "delivered"                    # within band, or beat it
                 beat = " (beat)" if hi is not None and v > hi * 1.005 and last.get("kind") != "ceiling" else ""
-            out[call_order[-1]] = {"status": final, "note": f"management stated {pre}{_g(v)}{suf} vs {_describe(last)}{beat}",
-                              "evidence": {"quote": hit["quote"], "page": hit["page"], "url": hit.get("url"),
-                                           "call": hit.get("call"), "speaker": hit.get("speaker"),
-                                           "period": active}}
+            settled = {"status": final, "note": f"management stated {pre}{_g(v)}{suf} vs {_describe(last)}{beat}",
+                       "evidence": {"quote": hit["quote"], "page": hit["page"], "url": hit.get("url"),
+                                    "call": hit.get("call"), "speaker": hit.get("speaker"), "period": active}}
+            # the outcome is known from the call that stated it, and stays known after: write it there and carry
+            # it forward, so a replay never shows it arriving later than it did (full review F04, BEL P3)
+            at = hit.get("call") if hit.get("call") in call_order else call_order[-1]
+            for c in call_order[call_order.index(at):]:
+                out[c] = settled if c == at else {**settled, "note": f"settled on the {at} call: " + settled["note"]}
     return out
 
 
@@ -819,7 +837,12 @@ def _describe(it: dict) -> str:
     k = it.get("kind")
     if k == "range" and lo is not None and lo == hi:
         k = "point"
+    due = f" by {it['due']}" if it.get("due") else ""
     if k == "milestone":
+        # a milestone with a figure keeps both: "₹25,000 cr by 2027-03", not "by 2027-03" (full review F04, BEL P62)
+        if lo is not None or hi is not None:
+            amt = f"{pre}{_g(lo)}–{_g(hi)}{suf}" if lo is not None and hi is not None and lo != hi else f"{pre}{_g(lo if lo is not None else hi)}{suf}"
+            return f"{amt}{due}"
         return f"by {it.get('due') or 'unspecified date'}"
     if k == "range" and lo is not None and hi is not None:
         return f"{pre}{_g(lo)}–{_g(hi)}{suf}"
@@ -880,7 +903,11 @@ def speaker_of(quote: str, page: int, pages: dict[int, str], known: set[str] | N
 
 
 _TITLES = re.compile(r"managing director|\bmd\b|chief|\bceo\b|\bcfo\b|\bcoo\b|director|chairman|chairperson|president|"
-                     r"head\b|investor relations|company secretary|general manager|executive|officer|management", re.I)
+                     r"\bhead\b|investor relations|company secretary|general manager|executive|officer|management", re.I)
+# a moderator's line ("…from Nomura. Please go ahead.", "I now hand over to the management") is not a participant
+# list, whatever title-like word it contains (full review F01: "ahead" matched "head")
+_MODERATOR_LINE = re.compile(r"go ahead|please proceed|next question|line of|hand (?:it )?over|question (?:is )?from|"
+                             r"joining us|welcome|ladies and gentlemen|thank you", re.I)
 
 
 def management_lines(pages: dict[int, str]) -> list[str]:
@@ -889,7 +916,7 @@ def management_lines(pages: dict[int, str]) -> list[str]:
     out = []
     for p in sorted(pages)[:4]:
         for line in pages[p].splitlines():
-            if _TITLES.search(line) and len(line) < 160 and not re.search(r"securities|capital|research|analyst|"
+            if _TITLES.search(line) and len(line) < 160 and not _MODERATOR_LINE.search(line) and not re.search(r"securities|capital|research|analyst|"
                                                                           r"equities|asset management|investments?\b", line, re.I):
                 out.append(line.strip().lower())
     return out
@@ -1104,6 +1131,71 @@ def link_with_model(calls: list[tuple[str, list[dict]]]) -> list[Thread]:
 
 # ------------------------------------------------------------------ coverage queue (local mode)
 
+def newest_transcript(symbol: str) -> str | None:
+    """The date of the newest earnings-call transcript the exchange feed carried for a company (from the filings FINN
+    has read), or None. Used to tell "research through the Aug call" from "a newer call exists" (full review F05)."""
+    from . import store
+    con = store.connect()
+    row = con.execute(
+        "select max(published_at) from filings where symbol = ? and (lower(subject) like '%con. call%' or lower(subject) like '%transcript%')"
+        " and (lower(coalesce(link, '')) like '%transcript%' or lower(coalesce(summary, '')) like '%transcript%')", (symbol,)).fetchone()
+    return row[0][:10] if row and row[0] else None
+
+
+def stale_ledger(led: dict) -> str | None:
+    """The newer transcript's date when the exchange carried one after the ledger's latest call, else None."""
+    import datetime as _d
+    last = max((m for m in (call_month(c.get("label", "")) for c in led.get("calls", [])) if m), default=None)
+    newest = newest_transcript(led.get("symbol", ""))
+    if not (newest and last):
+        return None
+    # a call is labelled by its month and its transcript is filed days later (Maruti's 27 Oct call, filed 2 Nov):
+    # only a transcript filed more than 15 days after the call's month ends is a newer call
+    y, m = map(int, last.split("-"))
+    month_end = _d.date(y + (m == 12), m % 12 + 1, 1) - _d.timedelta(days=1)
+    return newest if _d.date.fromisoformat(newest) > month_end + _d.timedelta(days=15) else None
+
+
+def refresh_stale(limit: int = 1) -> str:
+    """Rebuild the ledger of a followed company whose exchange feed shows a newer call transcript than its ledger
+    reads (holdings and research list; at most `limit` a cycle, each listing re-read at most every 12 hours)."""
+    import json as _json
+    from datetime import datetime as _dt, timedelta as _td
+    from pathlib import Path as _P
+    from . import export
+    root = _P(__file__).resolve().parents[3]
+    state_p = root / "data" / "refresh_state.json"
+    state = _json.loads(state_p.read_text()) if state_p.exists() else {}
+    pf = export.portfolio()
+    followed = [h["symbol"] for h in pf["holdings"]] + pf.get("research_set", [])
+    done, waiting = [], []
+    for sym in followed:
+        lp = root / "data" / "ledgers" / f"{sym}.json"
+        if not lp.exists() or len(done) >= limit:
+            continue
+        led = _json.loads(lp.read_text())
+        if led.get("provenance", "").startswith("Reference"):
+            continue                       # hand-checked references are rebuilt by hand, not by the worker
+        newer = stale_ledger(led)
+        if not newer:
+            continue
+        last_try = state.get(sym)
+        if last_try and _dt.fromisoformat(last_try) > _dt.now() - _td(hours=12):
+            waiting.append(sym)
+            continue
+        state[sym] = _dt.now().isoformat(timespec="seconds")
+        state_p.write_text(_json.dumps(state, indent=1))
+        found = discover(sym, fresh=True)
+        top = call_month(found[0].label) if found else None
+        last = max((m for m in (call_month(c.get("label", "")) for c in led.get("calls", [])) if m), default=None)
+        if not top or not last or top <= last:
+            waiting.append(sym)            # the exchange has it; the transcript list doesn't link it yet
+            continue
+        lp.write_text(_json.dumps(build(sym), ensure_ascii=False, indent=1))
+        done.append(sym)
+    return f"refreshed {len(done)} ({' '.join(done)})" + (f"; waiting on listing: {' '.join(waiting)}" if waiting else "")
+
+
 def drain_requests(limit: int = 2) -> str:
     """Build ledgers that visitors asked for. Requests live in data/requests.json locally
     (Supabase coverage_requests in production, pulled by sync). Needs a model key."""
@@ -1120,14 +1212,27 @@ def drain_requests(limit: int = 2) -> str:
         valid = {s for s, _ in _json.loads((root / "data" / "universe.json").read_text())}
     except FileNotFoundError:
         valid = set()
+    # a build that died mid-way (the Mac slept, the process was killed) goes back in the queue after two hours,
+    # up to three attempts, instead of showing "building" forever (full review F14)
+    from datetime import datetime as _dt, timedelta as _td
+    for r in queue:
+        if r["status"] == "building" and r.get("started_at") and _dt.fromisoformat(r["started_at"]) < _dt.now() - _td(hours=2):
+            r["attempts"] = r.get("attempts", 1) + 1
+            r["status"], r["detail"] = ("queued", "retrying after an interrupted build") if r["attempts"] <= 3 else \
+                ("unavailable", "The build was interrupted three times; request it again later.")
     for req in [r for r in queue if r["status"] == "queued" and r["symbol"] in valid][:limit]:
-        req["status"] = "building"
+        req["status"], req["started_at"] = "building", _dt.now().isoformat(timespec="seconds")
         qp.write_text(_json.dumps(queue, indent=1))
         try:
             if not discover(req["symbol"]):
                 req["status"], req["detail"] = "unavailable", "No earnings-call transcripts filed for this company."
             else:
                 ledger = build(req["symbol"])
+                if not ledger.get("calls"):
+                    # every transcript refused or unreadable: not a ledger, whatever the build returned (F14)
+                    req["status"], req["detail"] = "unavailable", "No transcript could be read (sources refused or unreadable)."
+                    qp.write_text(_json.dumps(queue, indent=1))
+                    continue
                 (root / "data" / "ledgers").mkdir(parents=True, exist_ok=True)
                 (root / "data" / "ledgers" / f"{req['symbol']}.json").write_text(_json.dumps(ledger, ensure_ascii=False, indent=1))
                 req["status"], built = "ready", built + 1

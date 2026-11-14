@@ -156,3 +156,30 @@ def test_raw_exchange_subjects_never_become_headlines():
     assert plain_subject("Outcome Of Some New Thing-XBRL") == "Outcome of some new thing"
     assert plain_subject("Bagging/Receiving of orders/contracts  (Sub-para 4-Para B)") == "Order or contract won"
     assert "/" not in plain_subject("Some/Unlisted/Subject")
+
+
+def test_trajectory_numbers_are_whole_tokens_and_rupees_only():
+    """Full review F12: '123' is not on a page that says 91234, and a USD table is not rupees."""
+    from finn_worker.trajectory import _on_page, to_crore
+    assert not _on_page("123", "Revenue 91234")
+    assert _on_page("91,234", "Revenue 91,234 crore") and _on_page("91234", "Revenue 91,234")
+    assert to_crore("USD million") is None and to_crore("$ mn") is None
+    assert to_crore("₹ in crore") == 1.0 and to_crore("Rs. million") == 0.1
+
+
+def test_moderator_lines_never_establish_management():
+    """Full review F01: 'Please go ahead' matched the title word 'head'."""
+    from finn_worker.pull import management_lines
+    pages = {1: "The first question is from the line of Mr. Umesh Raut from Nomura India. Please go ahead.\nMR. MANOJ JAIN – CHAIRMAN AND MANAGING DIRECTOR"}
+    lines = management_lines(pages)
+    assert not any("umesh" in l for l in lines) and any("manoj jain" in l for l in lines)
+
+
+def test_a_deadline_only_and_an_amount_only_statement_are_different_promises():
+    """UX review P0-2 (ADANIENT): 'tariff order by June' must not be revised into '₹6,000-6,800 cr'."""
+    from finn_worker.pull import link
+    date_only = {"metric": "tariff order for Mumbai", "speaker_role": "management", "kind": "milestone", "due": "2025-06"}
+    amount_only = {"metric": "tariff order for Mumbai businesses", "speaker_role": "management", "kind": "range",
+                   "value_low": 6000, "value_high": 6800, "unit": "INR crore"}
+    threads = link([("May 2025", [date_only]), ("Apr 2026", [amount_only])])
+    assert len(threads) == 2

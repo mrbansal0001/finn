@@ -126,7 +126,8 @@ def transcript(url: str, source: int, mgmt: set[str] | None = None) -> list[dict
                     continue
             # anyone introducing the next questioner names an analyst (some calls write "Moderator" without a colon)
             for a in ANALYST_INTRO.findall(ln):
-                analysts.add(a.strip())
+                # "the line of Mr. Umesh Raut from Nomura": the speaker line says "Umesh Raut" (full review F01)
+                analysts.add(re.sub(r"^(?:mr|ms|mrs|dr|shri|smt|miss)\.?\s+", "", a.strip(), flags=re.I))
             m = SPEAKER.match(ln) or INLINE_SPEAKER.match(ln)
             name = (m.group(1) or (m.group(2) if m.re is SPEAKER else None)) if m else None
             if not name and (b := BARE.match(ln)) and (b.group(1).strip() in bare or b.group(1).strip() in analysts):
@@ -149,10 +150,14 @@ def transcript(url: str, source: int, mgmt: set[str] | None = None) -> list[dict
         full = o["who"].lower()
         # m = quoted by the ledger, or on the company's participant list; a = introduced by the moderator;
         # "" = not known (never a guess). The full name decides first: Umesh Raut (analyst) is not Mahesh Raut (CFO).
-        if full in mgmt or full in titled:
+        # the moderator's introduction outranks a title match ("from Nomura" beats a stray title word); only the
+        # ledger's own quoted speakers (who made a company promise) outrank it
+        if full in mgmt:
             o["r"] = "m"
         elif o["who"] in analysts:
             o["r"] = "a"
+        elif full in titled:
+            o["r"] = "m"
     return out
 
 
