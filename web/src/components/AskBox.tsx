@@ -46,7 +46,7 @@ export function AskBox({ symbol, name, examples, initial }: { symbol: string; na
         <span>Ask the documents</span>
       </h2>
       <p className="mt-1 text-small text-ink-2">
-        Answered only with {name}{name.endsWith("s") ? "’" : "’s"} own words, from its last four calls and its annual report. If they don&apos;t say, FINN says so.
+        Finds passages in {name}{name.endsWith("s") ? "’" : "’s"} own words, from its last four calls and its annual report&apos;s management discussion. Quotes, not a summary; if nothing matches, FINN says so.
       </p>
       <form
         className="mt-3 flex gap-2"
@@ -118,17 +118,24 @@ function Answer({ res, asked }: { res: AskResult; asked: string }) {
       <p className="text-small text-ink">
         {res.status === "answer" ? (
           <>
-            {res.hits.length === 1 ? "One passage" : `${res.hits.length} passages`} in {docs} answer{res.hits.length === 1 ? "s" : ""}{" "}
-            <q>{asked}</q>. Quoted as filed.
+            {res.hits.length === 1 ? "One passage" : `${res.hits.length} passages`} in {docs} match{res.hits.length === 1 ? "es" : ""} <q>{asked}</q>. Quoted
+            as filed; read them in context before relying on them.
+          </>
+        ) : res.status === "partial" && res.missing?.length ? (
+          // the period, year or amount asked about isn't in any passage: say which, then show the rest (full review F02)
+          <>
+            <span className="font-medium">None of the closest passages mentions {res.missing.map((m) => m.toUpperCase()).join(" or ")}.</span> They match
+            the rest of the question:
           </>
         ) : res.status === "partial" ? (
           <>
-            <span className="font-medium">The documents don&apos;t say this directly.</span> No passage in {docs} covers enough of{" "}
-            <q>{asked}</q>. The nearest mentions:
+            <span className="font-medium">No passage matches this closely.</span> Nothing in {docs} covers enough of <q>{asked}</q>. The nearest mentions:
           </>
         ) : (
           <>
-            <span className="font-medium">The documents don&apos;t say.</span> Nothing in {docs} speaks to <q>{asked}</q>.
+            <span className="font-medium">No matching passage.</span>{" "}
+            {res.missing?.length ? `None of the closest passages mentions ${res.missing.map((m) => m.toUpperCase()).join(" or ")}. ` : ""}FINN searched {docs}; other
+            documents aren&apos;t indexed, so this doesn&apos;t mean the company never discussed it.
           </>
         )}
       </p>
@@ -211,7 +218,8 @@ function Marked({ text }: { text: string }) {
 function describe(s: AskSource[]): string {
   const calls = s.filter((x) => x.label.endsWith("call")).length;
   const ar = s.find((x) => x.label.includes("annual report"));
-  const parts = [calls ? `${calls === 1 ? "one call transcript" : `${words(calls)} call transcripts`}` : "", ar ? `the ${ar.label}` : ""].filter(Boolean);
+  // only the annual report's management discussion is indexed: say so, not "the annual report"
+  const parts = [calls ? `${calls === 1 ? "one call transcript" : `${words(calls)} call transcripts`}` : "", ar ? `the ${ar.label}'s management discussion` : ""].filter(Boolean);
   return parts.length ? parts.join(" and ") : "its documents";
 }
 

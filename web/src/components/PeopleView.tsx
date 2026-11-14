@@ -27,6 +27,8 @@ type View = "holding" | "theme" | "tie";
 /** The People page's views and filters (three-pillars plan §4, N2, N6, N7). */
 export function PeopleView({ people, groups, gaps }: { people: Person[]; groups: Group[]; gaps: string[] }) {
   const [view, setView] = useState<View>("holding");
+  // themes as an index: pick one, see its people (UX review P1-4: every theme expanded made a 12,867px page)
+  const [theme, setTheme] = useState<string | null>(null);
   const [insiders, setInsiders] = useState(false);
   const [introducers, setIntroducers] = useState(false);
   const byId = new Map(people.map((p) => [p.id, p]));
@@ -67,6 +69,25 @@ export function PeopleView({ people, groups, gaps }: { people: Person[]; groups:
         <span className="tag mr-1.5">Insider</span>works there now; ask only about what is public.
       </p>
 
+      {/* a filter combination with no one in it says so and offers a way back (UX review P1-3) */}
+      {(insiders || introducers) && !people.some((p) => keep(p)) && (
+        <div className="mt-6 rounded-lg bg-tint px-4 py-3 text-small text-ink-2">
+          <p>
+            No one in your network matches {insiders && introducers ? "both filters: insiders who can also introduce someone" : insiders ? "this filter" : "this filter"}.
+          </p>
+          <div className="mt-2 flex flex-wrap gap-3">
+            <button type="button" onClick={() => { setInsiders(false); setIntroducers(false); }} className="tap font-medium text-accent">
+              Clear filters
+            </button>
+            {insiders && introducers && (
+              <button type="button" onClick={() => setInsiders(false)} className="tap font-medium text-accent">
+                Show everyone who can introduce
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {view === "holding" && (
         <div className="mt-2">
           {groups.map((g) => {
@@ -93,21 +114,33 @@ export function PeopleView({ people, groups, gaps }: { people: Person[]; groups:
       )}
 
       {view === "theme" && (
-        <div className="mt-2">
-          {themeList.map(([theme, ps]) => {
-            const rows = ps.filter((p) => keep(p)).sort((a, b) => b.strength - a.strength);
-            if (!rows.length) return null;
-            return (
-              <section key={theme} className="mt-6" aria-label={theme}>
-                <h2 className="minor-h">{theme.charAt(0).toUpperCase() + theme.slice(1)}</h2>
-                <ul className="hair mt-1">
-                  {rows.map((p) => (
-                    <Row key={p.id} p={p} note={p.role} insider={p.insiderAt.length > 0} />
-                  ))}
-                </ul>
-              </section>
-            );
-          })}
+        <div className="mt-4">
+          <p className="text-caption text-ink-3">Pick a theme to see who knows it</p>
+          <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label="Themes">
+            {themeList.map(([t, ps]) => {
+              const n = ps.filter((p) => keep(p)).length;
+              if (!n) return null;
+              return (
+                <button key={t} type="button" aria-pressed={theme === t} onClick={() => setTheme(theme === t ? null : t)} className="pill !min-h-[2.25rem] text-caption">
+                  {t.charAt(0).toUpperCase() + t.slice(1)} <span className="num text-ink-3">{n}</span>
+                </button>
+              );
+            })}
+          </div>
+          {theme &&
+            (() => {
+              const rows = (themes.get(theme) ?? []).filter((p) => keep(p)).sort((a, b) => b.strength - a.strength);
+              return (
+                <section className="mt-5" aria-label={theme}>
+                  <h2 className="minor-h">{theme.charAt(0).toUpperCase() + theme.slice(1)}</h2>
+                  <ul className="hair mt-1">
+                    {rows.map((p) => (
+                      <Row key={p.id} p={p} note={p.role} insider={p.insiderAt.length > 0} />
+                    ))}
+                  </ul>
+                </section>
+              );
+            })()}
         </div>
       )}
 

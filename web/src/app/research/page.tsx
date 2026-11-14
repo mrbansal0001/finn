@@ -43,6 +43,7 @@ async function Research() {
       nifty: nifty.has(s),
       ledger: !!e,
       lastCall: e?.last_call ?? null,
+      newerCall: e?.newer_call ?? null,
       lastKey: callKey(e?.last_call ?? null),
       counts: e?.counts ?? {},
       rows: e?.rows ?? 0,
@@ -59,7 +60,8 @@ async function Research() {
       <p className="kicker text-ink-3">Research</p>
       <h1 className="mt-1 font-serif text-display">What FINN has read</h1>
       <p className="mt-1 text-body text-ink-2">
-        <span className="num">{read}</span> companies, <span className="num">{promises.toLocaleString("en-IN")}</span> promises, each quoted with its page.
+        <span className="num">{read}</span> companies, <span className="num">{promises.toLocaleString("en-IN")}</span> promises, each quoted with its page. &ldquo;My
+        companies&rdquo; are your <span className="num">{snap.portfolio.length}</span> holdings and <span className="num">{snap.research_set.length}</span> research names.
       </p>
       <ResearchList rows={rows} hasNifty={nifty.size > 0} />
       <About label="About this page">

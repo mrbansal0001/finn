@@ -5,7 +5,7 @@ import { KIND_LABEL, when } from "@/lib/format";
  * The line above a headline: what kind of news (a label, not tappable), which company (a chip, tappable),
  * and when (at the right edge). Space and shape separate them, not dots.
  */
-const ATTACHMENT: Record<string, string> = { xbrl: "XBRL only", zip: "ZIP file", none: "No document" };
+const ATTACHMENT: Record<string, string> = { xbrl: "XBRL only", zip: "ZIP file", none: "No document", unchecked: "Quote not checked (scanned)" };
 
 export function CardMeta({ kind, symbol, at, refTime, lead, overCard, research, attachment }: {
   research?: boolean; // a research-list company, not a holding: tagged so it is never mistaken for one

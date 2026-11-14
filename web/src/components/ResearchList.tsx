@@ -19,6 +19,7 @@ export type ResearchRow = {
   lastCall: string | null;
   lastKey: number;
   counts: Partial<Record<PromiseStatus, number>>;
+  newerCall?: string | null;
   rows: number;
   question: string | null;
   questionHref: string | null;
@@ -93,9 +94,9 @@ export function ResearchList({ rows, hasNifty }: { rows: ResearchRow[]; hasNifty
           <div className="seg" role="group" aria-label="Which companies">
             {(
               [
-                ["portfolio", "Portfolio"],
+                ["portfolio", "My companies"],
                 ...(hasNifty ? [["nifty", "Nifty 50"] as const] : []),
-                ["all", "All read"],
+                ["all", "All covered"],
               ] as const
             ).map(([k, label]) => (
               <button key={k} aria-pressed={filter === k} onClick={() => setFilter(k)} aria-label={`${label}, ${counts[k]} companies`}>
@@ -165,6 +166,7 @@ function Row({ r }: { r: ResearchRow }) {
           </span>
           <span className="flex shrink-0 items-center gap-1">
             <span className="num text-caption text-ink-3">{r.ledger ? (r.lastCall ? `${r.lastCall} call` : "Read") : "No ledger yet"}</span>
+            {r.newerCall && <span className="tag shrink-0">Newer call filed</span>}
             <span aria-hidden className="go text-small">›</span>
           </span>
         </span>
@@ -172,12 +174,16 @@ function Row({ r }: { r: ResearchRow }) {
           {r.ledger ? (
             <span className="flex items-center gap-2" aria-label={SHOWN.filter((s) => r.counts[s]).map((s) => `${r.counts[s]} ${STATUS_META[s].short}`).join(", ") || "nothing changed"}>
               {SHOWN.filter((s) => r.counts[s]).map((s) => (
-                <span key={s} className="flex items-center gap-0.5 text-caption text-ink-2">
+                // the count says what it counts: no icon vocabulary to learn (UX review P1-6)
+                <span key={s} className="flex items-center gap-1 text-caption text-ink-2">
                   <StatusIcon status={s} size={13} />
-                  <span className="num">{r.counts[s]}</span>
+                  <span>
+                    <span className="num">{r.counts[s]}</span> {STATUS_META[s].short}
+                  </span>
                 </span>
               ))}
-              {!SHOWN.some((s) => r.counts[s]) && <span className="text-caption text-ink-3">Nothing changed</span>}
+              {/* scoped to the calls read, not a claim about the company now (UX review P0-3) */}
+              {!SHOWN.some((s) => r.counts[s]) && <span className="text-caption text-ink-3">No change in the calls read</span>}
             </span>
           ) : (
             <span className="text-caption text-accent">Build one</span>

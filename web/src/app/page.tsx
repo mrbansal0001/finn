@@ -102,8 +102,8 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
             {/* the three doors: the app's three parts, named and counted (three-pillars plan §2) */}
             <nav aria-label="FINN's three parts" className="mt-3 flex gap-2">
               <HoldingsSheet agenda={agenda} today={today} networkReady={snap.network_status !== "unavailable"} holdings={snap.portfolio.map((h) => row(h.symbol, h.weight))} research={snap.research_set.map((s) => row(s))} />
-              <Link href="/research" className={DOOR_CLASS} aria-label={`Research: ${Object.keys(snap.ledger_index ?? ledgers).length} companies read`}>
-                <DoorTile icon="research" label="Research" sub={`${Object.keys(snap.ledger_index ?? ledgers).length} read`} />
+              <Link href="/research" className={DOOR_CLASS} aria-label={`Research: ${Object.keys(snap.ledger_index ?? ledgers).length} companies with a promises ledger`}>
+                <DoorTile icon="research" label="Research" sub={`${Object.keys(snap.ledger_index ?? ledgers).length} companies`} />
               </Link>
               <Link href="/people" className={DOOR_CLASS} aria-label={snap.network_status === "unavailable" ? "People" : `People: ${snap.contacts.length} in your network`}>
                 <DoorTile
@@ -396,7 +396,10 @@ function Alerts({
       {filedShown.length > 0 && (
         <>
           {/* the kinds are in Your rules; the caption says when, not which (1.12b) */}
-          <p className="border-t border-rule px-4 pb-1 pt-2 text-caption text-ink-3">Filed today</p>
+          {/* "today" only when the latest session is today; on a weekend it is that session's day (full review §6) */}
+          <p className="border-t border-rule px-4 pb-1 pt-2 text-caption text-ink-3">
+            {latest && latest !== refTime.slice(0, 10) ? `Filed since the ${shortDay(latest + "T15:30:00")} session` : "Filed today"}
+          </p>
           <ul className="[&>li:first-child]:border-t-0">{filedShown.map(filedRow)}</ul>
         </>
       )}

@@ -212,7 +212,13 @@ export function PromiseReplay({ row, calls }: { row: PromiseRow; calls: Ledger["
         <div className="py-3">
           <dt className="text-caption text-ink-3">Promised for</dt>
           <dd className="mt-0.5 text-small text-ink">
-            {due ? due.label : "No deadline FINN could read from the statement"}
+            {/* a target period and an exact date are different facts: say which is known (UX review P1-9) */}
+            {due
+              ? due.label
+              : (() => {
+                  const period = row.title.match(/\b((?:Q[1-4]|H[12])\s?FY\s?'?\d{2}|FY\s?'?\d{2,4})\b/i)?.[1];
+                  return period ? `Target period ${period.toUpperCase().replace(/\s+/g, "")}; no exact date stated` : "No deadline stated";
+                })()}
             {dueFromEarlier && <span className="text-ink-3"> (as last stated, before this call)</span>}
           </dd>
         </div>

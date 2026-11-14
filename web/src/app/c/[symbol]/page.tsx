@@ -61,6 +61,13 @@ async function Company({ params, searchParams }: Pick<PageProps<"/c/[symbol]">, 
       <main>
         <BackLink fallback="/" />
         <h1 className="font-serif text-title">No NSE equity called {symbol}</h1>
+        {/* not a dead end: the search stays one tap away, with a way to browse what FINN covers (UX review P1-11) */}
+        <p className="mt-2 text-small text-ink-2">
+          Try the company&apos;s name in the search box below, or{" "}
+          <Link href="/research" className="tap text-accent">
+            browse the companies FINN covers ›
+          </Link>
+        </p>
         {close.length > 0 && <p className="mt-2 text-small text-ink-3">Did you mean</p>}
         {close.length > 0 && (
           <ul className="hair mt-3 text-body">
@@ -73,6 +80,7 @@ async function Company({ params, searchParams }: Pick<PageProps<"/c/[symbol]">, 
             ))}
           </ul>
         )}
+        <Dock />
       </main>
     );
   }
@@ -86,6 +94,9 @@ async function Company({ params, searchParams }: Pick<PageProps<"/c/[symbol]">, 
     return c.symbol === symbol && (Math.abs(f.change_pct ?? 0) >= 2 || (f.volume_multiple ?? 0) >= 1.5);
   });
   // filings as rows; price moves as one line that opens the newest (its card has the full chart) (layout plan §5)
+  // FINN reads the filing feed only for the holdings and the research list: for any other company an empty list
+  // means "not loaded", never "no filings" (full review F06)
+  const followed = !!holding || snap.research_set.includes(symbol);
   const filings = [...snap.editions["30d"].leads, ...snap.editions["30d"].more]
     .filter((c) => c.symbol === symbol && c.kind !== "move")
     .sort((a, b) => b.at.localeCompare(a.at));
@@ -144,9 +155,13 @@ async function Company({ params, searchParams }: Pick<PageProps<"/c/[symbol]">, 
       {!(ledger?.snapshot && ledger.snapshot.what_they_do.length > 0) && (
         <div className="mt-3 flex flex-wrap gap-1.5">
           {results && <span className="tag">Results {fyQuarter(results.period_end)} checked</span>}
-          <span className="tag num">
-            {filings.length} filing{filings.length === 1 ? "" : "s"} in 30 days
-          </span>
+          {followed ? (
+            <span className="tag num">
+              {filings.length} filing{filings.length === 1 ? "" : "s"} in 30 days
+            </span>
+          ) : (
+            <span className="tag">Filings not followed</span>
+          )}
           {snap.network_status !== "unavailable" && (
             <span className="tag num">
               {people.length ? `${people.length} ${people.length === 1 ? "person" : "people"} you know` : "No one you know"}
@@ -238,6 +253,13 @@ async function Company({ params, searchParams }: Pick<PageProps<"/c/[symbol]">, 
       )}
 
       <div id="promises" className="mt-12 scroll-mt-16">
+        {/* research through an older call while a newer transcript exists: say so above the ledger (full review F05) */}
+        {ledger && snap.ledger_index?.[symbol]?.newer_call && (
+          <p className="mb-3 rounded-lg bg-tint px-4 py-3 text-small text-ink-2">
+            <span className="font-medium text-ink">A newer call transcript was filed on {day(snap.ledger_index[symbol].newer_call + "T12:00:00", snap.data_until)}.</span> These
+            promises read the calls through {ledger.calls[ledger.calls.length - 1]?.label}; FINN rebuilds the ledger with the new call at its next update.
+          </p>
+        )}
         {ledger ? (
           <PromisesLedger ledger={ledger} verifiers={snap.verifiers} />
         ) : (
@@ -275,9 +297,18 @@ async function Company({ params, searchParams }: Pick<PageProps<"/c/[symbol]">, 
         <section id="filings" className="mt-12 scroll-mt-16">
           <h2 className="section-h">
             <span>Filings</span>
-            <span className="text-caption font-normal normal-case tracking-normal text-ink-3">last 30 days</span>
+            <span className="text-caption font-normal normal-case tracking-normal text-ink-3">{followed ? "last 30 days" : "not followed"}</span>
           </h2>
-          {filings.length === 0 && moves.length === 0 && <p className="py-3 text-small text-ink-2">No filings in the last 30 days.</p>}
+          {!followed ? (
+            <p className="py-3 text-small text-ink-2">
+              FINN follows filings for your holdings and research list only, so this company&apos;s announcements aren&apos;t loaded here.{" "}
+              <a href={`https://www.nseindia.com/get-quotes/equity?symbol=${encodeURIComponent(symbol)}`} target="_blank" rel="noopener noreferrer" className="tap text-accent">
+                Its NSE page ↗︎
+              </a>
+            </p>
+          ) : (
+            filings.length === 0 && moves.length === 0 && <p className="py-3 text-small text-ink-2">No filings in the last 30 days.</p>
+          )}
           <div className="hair">
             {/* the people above already cover this company: no repeated line under every filing */}
             {filings.map((c) => (

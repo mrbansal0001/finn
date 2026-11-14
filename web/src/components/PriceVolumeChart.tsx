@@ -5,7 +5,15 @@ import { useRef, useState } from "react";
 import { Mark } from "./StatusIcon";
 
 export type Session = { d: string; c: number; pc: number; v: number; avg: number | null; n: number; gap?: boolean };
-export type Marker = { d: string; time: string; afterClose: boolean; title: string; href: string; external?: boolean };
+/** afterClose: drawn hollow (published outside market hours); timing: when it was published, from its own timestamp */
+export type Marker = { d: string; time: string; afterClose: boolean; timing?: "during" | "before" | "after" | "closed"; title: string; href: string; external?: boolean };
+
+const TIMING: Record<string, string> = {
+  during: ", during market hours",
+  before: ", before the open",
+  after: ", after the close",
+  closed: ", on a day the market was closed",
+};
 
 const inr2 = new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const inr0 = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
@@ -147,7 +155,7 @@ export function PriceVolumeChart({ rows, alertDay, markers, symbol }: { rows: Se
       {/* one caption line at most (layout plan §9.5); the definitions sit with the table below */}
       <figcaption className="mt-1 text-caption text-ink-3">
         Tap or drag across the chart to pick a session. Dashed: the alert&apos;s 20-session average. <Mark kind="filing" /> a filing,{" "}
-        <Mark kind="filing-after" /> after the close; timing, not cause.
+        <Mark kind="filing-after" /> outside market hours; timing, not cause.
       </figcaption>
 
       {here.length > 0 && (
@@ -156,7 +164,7 @@ export function PriceVolumeChart({ rows, alertDay, markers, symbol }: { rows: Se
             <li key={m.href + m.time} className="text-small">
               <span className="num text-caption text-ink-3">
                 Filed {m.time}
-                {m.afterClose ? ", after the close" : ", during market hours"}
+                {TIMING[m.timing ?? (m.afterClose ? "after" : "during")]}
               </span>
               <br />
               {m.external ? (

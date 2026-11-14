@@ -169,6 +169,8 @@ export type LedgerIndexEntry = {
   top: PromiseRow | null;
   tracked: PromiseRow | null;
   reference: boolean;
+  /** the exchange carried a newer call transcript than this ledger reads (date filed); the worker rebuilds it */
+  newer_call?: string;
 };
 
 export type Trajectory = {

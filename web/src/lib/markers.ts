@@ -21,6 +21,9 @@ export function filingMarkers(snap: Snapshot, symbol: string, days: string[]): M
     const onDay = days.includes(d) ? d : days.find((x) => x > d);
     if (!onDay) return [];
     const label = `${new Date(`${d}T12:00:00+05:30`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Kolkata" })}, ${hm}`;
-    return [{ d: onDay, time: label, afterClose: onDay === d && hm > "15:30", title: f.title, href: f.href, external: f.external }];
+    // when it was published, from its own timestamp, not from the session it is attached to (UX review P0-4: filings
+    // on the 10 Nov holiday sat on the 11 Nov session and were called "during market hours")
+    const timing: Marker["timing"] = !days.includes(d) ? "closed" : hm < "09:15" ? "before" : hm > "15:30" ? "after" : "during";
+    return [{ d: onDay, time: label, afterClose: timing !== "during", timing, title: f.title, href: f.href, external: f.external }];
   });
 }
