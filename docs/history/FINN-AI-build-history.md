@@ -4,17 +4,17 @@ Every Claude Code session used to build FINN, oldest first: what I typed, what t
 
 How the models were used: Fable 5.1 for research and the interface design plans (the plan documents in `docs/`), Opus 5.5 for all the backend code, verification and testing. Astra 6 was also used for research and interface planning outside Claude Code; those conversations are not part of this export.
 
-Replies by model across all sessions: Opus 5.5 4930, Fable 5.1 127.
+Replies by model across all sessions: Opus 5.5 4941, Fable 5.1 127.
 
 | Session | Period (UTC) | Prompts | Tool calls | Models |
 |---|---|---|---|---|
-| `a17da920` | 2026-11-09 to 2026-11-14 | 151 | 3170 | Opus 5.5 4930, Fable 5.1 127 |
+| `a17da920` | 2026-11-09 to 2026-11-14 | 151 | 3174 | Opus 5.5 4941, Fable 5.1 127 |
 
 ---
 
 # Session a17da920-b425-4b66-89f9-2986ddba4fda
 
-2026-11-09 07:52 to 2026-11-14 08:18 UTC. 151 prompts typed, 3170 tool calls. Models: Opus 5.5: 4930 replies, Fable 5.1: 127 replies.
+2026-11-09 07:52 to 2026-11-14 08:19 UTC. 151 prompts typed, 3174 tool calls. Models: Opus 5.5: 4941 replies, Fable 5.1: 127 replies.
 
 ## You
 
@@ -23674,3 +23674,27 @@ Only the FINN session remains, so the per-session file duplicates the combined o
 **Claude:**
 
 > _tool: Bash_ — Map aliases, dedupe switches, add the models note; re-export
+
+**Claude:**
+
+The model switches now alternate cleanly: Fable 5.1 for the plans, Opus 5.5 for the building. Committing the export, then checking how GitHub displays a file this size (1.2 MB):
+
+**Claude:**
+
+> _tool: Bash_ — Commit the history and check GitHub's display
+
+**Claude:**
+
+> _tool: Bash_ — Check whether GitHub renders the history file
+
+**Claude:**
+
+> _tool: Bash_ — Split the history into renderable parts with an index
+
+**Claude:**
+
+The index is missing the overview table. Including it, then committing:
+
+**Claude:**
+
+> _tool: Bash_ — Add the overview to the index; commit

@@ -171,6 +171,24 @@ def main():
         combined = "\n".join(head) + "\n\n---\n\n" + "\n\n---\n\n".join(md for _, md in parts)
         (dst / "FINN-AI-build-history.md").write_text(combined)
         print("wrote", dst / "FINN-AI-build-history.md", f"{len(combined) // 1024} KB")
+        # the same history in parts under ~380 KB, cut at a prompt, so GitHub renders each page; README indexes them
+        body = "\n\n---\n\n".join(md for _, md in parts)
+        chunks, cur = [], ""
+        for block in re.split(r"(?=^## You$)", body, flags=re.M):
+            if cur and len(cur) + len(block) > 380_000:
+                chunks.append(cur)
+                cur = ""
+            cur += block
+        chunks.append(cur)
+        index = head + ["", "Read it in order:", ""]
+        for n, ch in enumerate(chunks, 1):
+            first = re.search(r"^## You\n\n(.{0,90})", ch, re.M | re.S)
+            name = f"part-{n:02d}.md"
+            (dst / name).write_text(f"# FINN build history, part {n} of {len(chunks)}\n\n" + ch)
+            index.append(f"{n}. [Part {n}]({name}): starts with \u201c{(first.group(1) if first else '').splitlines()[0][:80]}\u2026\u201d")
+        index += ["", "The same history as one file: [FINN-AI-build-history.md](FINN-AI-build-history.md)."]
+        (dst / "README.md").write_text("\n".join(index) + "\n")
+        print(f"wrote {len(chunks)} parts and README.md")
 
 
 if __name__ == "__main__":
