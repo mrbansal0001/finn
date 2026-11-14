@@ -8,41 +8,40 @@ Dear ENAM team,
 
 Here is my submission for the FINN build challenge.
 
-- **Prototype (open on a phone):** https://finn-red.vercel.app
+- **Prototype (best on a phone):** https://finn-red.vercel.app
 - **Repository:** https://github.com/mrbansal0001/finn
-- **AI build history:** attached as one file, and in the repo at https://github.com/mrbansal0001/finn/tree/main/docs/history
-- **Full write-up, with every measurement:** https://github.com/mrbansal0001/finn/blob/main/docs/WRITEUP.md
+- **AI build history:** attached, and at https://github.com/mrbansal0001/finn/tree/main/docs/history
+- **Full write-up and measurements:** https://github.com/mrbansal0001/finn/blob/main/docs/WRITEUP.md
 
-## What I built
+**What I built.** FINN briefs an investor rather than feeding them: a ranked edition of the portfolio that ends.
+- **Push:** the holdings' NSE filings and price moves for a chosen window, routine folded, alerts on the investor's own rules, and opt-in web notifications. Results cards give Revenue, EBITDA, PBT and PAT with QoQ and YoY from the filed table.
+- **Pull:** for any NSE ticker, a promises ledger from the last four call transcripts, each promise quoted with its page and replayed call by call. Alongside it: five years of revenue and profit, and *Ask the documents*, which returns quoted passages or says nothing matched.
+- **Network:** woven into both. Each card names the best person to ask and why, introducer paths show how both links know each other, and contacts gone quiet resurface when their company files.
 
-FINN's point of view: an investor should be **briefed, not fed**. It writes a ranked edition of the portfolio that starts, ranks and ends, and every question leads to the company's own words and the person who can explain them.
+**Key decisions.**
+- **Rules first.** Filing types, every number, every promise status and all network matching are code.
+- **Quote, don't summarise.** A promise is settled only by a comparable later statement, so most rows stay open, revised or silent, and say so.
+- **Ask is search, not a model.** An answer can only be the company's words, and a question about a period the passages don't mention (say FY30) is told so.
 
-- **Push.** An edition of the 18 holdings' NSE filings and price moves over 24 hours (or 3, 7, 30 days, or since the last visit): up to three leads, the rest worth a look, routine filings folded but openable. Alerts follow the investor's own rules (price ±X%, volume Y×, results, deals or management changes filed), and web notifications send them to the phone. Results cards give Revenue, EBITDA, PBT and PAT with QoQ and YoY from the filed table, checked against the exchange's XBRL. Management-change cards carry the incoming person's background from the filing itself and say whether anyone in the network overlapped with them, with dates.
-- **Pull.** For any NSE ticker, a **promises ledger** built from the last four earnings-call transcripts: each promise quoted with its page, replayed call by call, and marked revised, silent, delivered or missed by fixed rules. It covers 54 companies and 1,894 promises, and any other ticker can be requested. Alongside: the business from the annual report, five years of revenue and profit read from the report's own table, and **Ask the documents**, which answers a question only with quoted passages and says "the documents don't say" when they don't.
-- **Network.** Woven into both: each card names the best person to ask and why, introducer paths say how both links know each other, and "a reason to reconnect" surfaces contacts gone quiet whose company just filed. The network is searchable ("who knows Titan").
+**Architecture.**
+- **Pipelines:** a Python worker reads exchange feeds, PDFs and the bhavcopy every 15 minutes, on a Mac, because NSE refuses datacenter requests. Supabase holds public data and each visitor's private rows; the app is Next.js on Vercel. All free tier.
+- **Privacy:** the network sits under forced row-level security, with a private demo copy per visitor that is deleted after 14 days. Contact data never goes to a model.
+- **Profiles:** the 29 contacts are **synthetic**, and the app says so. Executives' backgrounds come from the exchange filings, not LinkedIn.
+- **Models:** no autonomous agents. Gemini Flash-Lite (free tier) reads documents into fixed schemas, results are cached, and a paid fallback sits behind a budget guard.
 
-## Key decisions and tradeoffs
+**Measured on 14 Nov:**
+- 54 companies; 1,902 promises (2 settled, 64 revised, 47 gone silent);
+- 32,175 searchable passages; 24 five-year tables;
+- 41 results tables: all pass the statement's arithmetic identities, and 3 are also matched to exchange XBRL;
+- held-out filing classification: 36/36 material filings surfaced;
+- 23/23 live privacy checks; every page and promise link opens;
+- $2.87 paid spend in total, across 1,985 model calls.
 
-- **Rules first, model second.** Filing types, every number, every promise status and all network matching are code. On 80 held-out filings, rules alone surfaced all 36 material ones.
-- **Delivered/missed is rare by design.** A promise is settled only by a comparable statement (same period, said by management, number in the quote, same units). That leaves 2 settled of 1,894; an earlier version settled 53, mostly wrongly.
-- **Cite or drop.** Every quote is the page's own text; a number is kept only if it is printed where cited. Independent audits re-checked about 660 results figures against their PDFs and 1,575 quotes against their pages (all verbatim); the errors they found were traced to their causes and fixed, and the items deliberately deferred are listed in the decision log.
-- **Left out on purpose:** a chat box as the front door, sentiment and credibility scores, model-written bull/bear cases, balance-sheet and cash-quality views (the data isn't extracted yet), and a network graph.
+**Left out:** balance sheet, cash quality and bull/bear cases. I chose reliable scope over a model's opinion.
 
-## Architecture
+**Next:** a licensed feed and a cloud worker, so research and notifications don't depend on a laptop.
 
-- **Data pipelines.** A Python worker reads NSE announcements and XBRL every 15 minutes, results PDFs on filing, the daily bhavcopy after the close, and transcripts and annual reports from the exchanges (Screener only to find links). Names in filings are matched to contacts deterministically: same person needs name and organisation; "worked together" needs overlapping dates.
-- **Security and privacy.** Market data is public and read-only. The network sits in Postgres under forced row-level security: each visitor gets an anonymous session and a private copy of the demo network, deleted after 14 days. A live check (23 cases) proves visitors can't read each other's data. Contact data never goes to a model. For real: consented imports only (LinkedIn export, contacts, CRM), per-source switches, deletion and export on request.
-- **Profiles.** The 29 contacts are **synthetic**, with careers that overlap the real filings; the app says so on the first screen. Incoming executives' backgrounds come from the exchange filings themselves. I did not scrape LinkedIn.
-- **LLMs and agents.** No autonomous agent: Push and Pull are fixed pipelines. A model only reads text into fixed schemas (filings, results tables, transcripts, the five-year table), using Gemini Flash-Lite on the free tier; a stronger model was tested and wasn't better on my labelled set. Ask uses no model. Identical requests come from a disk cache, and transcripts are read in overlapping windows (recall 55% → 80%). Total paid spend for the whole build: **$2.87** (OpenAI fallback, hard-capped), nothing since 12 Nov.
-- **Cloud.** Next.js PWA on Vercel (Mumbai), Supabase Postgres and Auth, the worker on a Mac. All free tier.
-
-## How I worked with AI
-
-I used **Fable 5.1** and **Astra 6** for research and the interface design plans, and **Claude Opus 5.5** in Claude Code for all the backend code, verification and testing. I treated every passing check as a claim to verify: the audits, the hand-labelled evaluation sets and the live link and security checks are in the repo, and the build history shows where I corrected the model and why.
-
-## Next
-
-A licensed announcements feed and a cloud worker, so Pull builds any company in about a minute and notifications don't depend on a laptop; balance sheet and cash quality with the same on-page checks; and a held-out evaluation refreshed every quarter.
+**How I built it:** Fable 5.1 and Astra 6 for research and the interface plans; Claude Opus 5.5 (Claude Code) for the code, verification and testing. I treated every passing check as a claim to verify; the history shows where I corrected the model.
 
 Thank you for the challenge.
 

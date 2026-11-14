@@ -98,7 +98,7 @@ def main() -> int:
         check("visitors cannot write passages (005)", pw.status_code in (401, 403), f"HTTP {pw.status_code}")
         ask = http.post(f"{URL}/rest/v1/rpc/ask_passages", headers=anon, json={"sym": "TITAN", "q": "gold demand", "k": 3})
         check("ask_passages answers without a session (005)", ask.status_code == 200 and len(ask.json()) > 0, f"HTTP {ask.status_code}")
-        sub = lambda n: {"endpoint": f"https://push.example.invalid/{ida}/{n}", "p256dh": "k" * 87, "auth": "a" * 22, "prefs": {"price_pct": 5}}
+        sub = lambda n: {"endpoint": f"https://fcm.googleapis.com/fcm/send/rlscheck-{ida}-{n}", "p256dh": "k" * 87, "auth": "a" * 22, "prefs": {"price_pct": 5}}
         mine = [http.post(f"{URL}/rest/v1/push_subscriptions", headers={**as_user(ta), "Prefer": "return=minimal"}, json=sub(n)).status_code for n in range(4)]
         check("a visitor can save up to three push subscriptions, not a fourth (005)", mine[:3] == [201] * 3 and mine[3] in (401, 403), str(mine))
         seen_b = http.get(f"{URL}/rest/v1/push_subscriptions?select=endpoint", headers=as_user(tb)).json()
@@ -107,13 +107,23 @@ def main() -> int:
         check("no session reads no push subscriptions (005)", seen_anon.status_code in (401, 403) or seen_anon.json() == [], f"HTTP {seen_anon.status_code}")
         forged = http.post(f"{URL}/rest/v1/push_subscriptions", headers=as_user(tb), json={**sub(9), "user_id": ida})
         check("B cannot subscribe in A's name (005)", forged.status_code in (401, 403), f"HTTP {forged.status_code}")
+        # migration 006: endpoints limited to browser push services; visitors can change their rules only
+        cur = http.get(f"{URL}/rest/v1/rpc/replace_company_passages", headers=anon)
+        if cur.status_code == 404 and "replace_company_passages" in cur.text:
+            print("NOTE  migration 006 not applied yet: its two checks are skipped")
+        else:
+            evil = http.post(f"{URL}/rest/v1/push_subscriptions", headers=as_user(tb), json={**sub(8), "endpoint": f"https://evil.example/{idb}"})
+            check("only browser push services can be saved (006)", evil.status_code in (400, 401, 403), f"HTTP {evil.status_code}")
+            cursor = http.patch(f"{URL}/rest/v1/push_subscriptions?endpoint=eq.{sub(0)['endpoint']}",
+                                headers={**as_user(ta), "Prefer": "return=representation"}, json={"last_session": "2099-01-01"})
+            check("visitors cannot edit delivery cursors (006)", cursor.status_code in (401, 403), f"HTTP {cursor.status_code}")
     finally:
         svc = {"apikey": SVC, "Authorization": f"Bearer {SVC}"}
         http.delete(f"{URL}/rest/v1/coverage_requests?symbol=eq.DIXON&requested_by=eq.{ida}", headers=svc)
         for uid in (ida, idb):
             http.delete(f"{URL}/auth/v1/admin/users/{uid}", headers=svc)
         # the cascade should have removed A's test subscriptions with the user; say so if it didn't
-        left = http.get(f"{URL}/rest/v1/push_subscriptions?select=endpoint&endpoint=like.*push.example.invalid*", headers=svc).json()
+        left = http.get(f"{URL}/rest/v1/push_subscriptions?select=endpoint&endpoint=like.*rlscheck*", headers=svc).json()
         check("deleting a visitor deletes their push subscriptions (005 cascade)", left == [], f"{len(left)} left")
         print("test users deleted")
     return 0 if ok else 1

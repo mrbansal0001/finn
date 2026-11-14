@@ -4,11 +4,11 @@ Every Claude Code session used to build FINN, oldest first: what I typed, what t
 
 How the models were used: Fable 5.1 for research and the interface design plans (the plan documents in `docs/`), Opus 5.5 for all the backend code, verification and testing. Astra 6 was also used for research and interface planning outside Claude Code; those conversations are not part of this export.
 
-Replies by model across all sessions: Opus 5.5 4941, Fable 5.1 127.
+Replies by model across all sessions: Opus 5.5 5262, Fable 5.1 127.
 
 | Session | Period (UTC) | Prompts | Tool calls | Models |
 |---|---|---|---|---|
-| `a17da920` | 2026-11-09 to 2026-11-14 | 151 | 3174 | Opus 5.5 4941, Fable 5.1 127 |
+| `a17da920` | 2026-11-09 to 2026-11-14 | 152 | 3306 | Opus 5.5 5262, Fable 5.1 127 |
 
 Read it in order:
 
