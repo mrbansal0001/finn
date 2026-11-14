@@ -118,6 +118,19 @@ def passages() -> str:
         if marks.get(d["symbol"]) == d["built"]:
             continue
         sym = d["symbol"]
+        # one transaction per company when migration 006 is applied (full review F13): readers see the old set or
+        # the new one, never a company half deleted
+        rpc = http.post(f"{base}/rpc/replace_company_passages", content=json.dumps({
+            "sym": sym, "srcs": [{"i": i, **src} for i, src in enumerate(d["sources"])],
+            "rows": [{"i": i, "s": p["s"], "page": p["p"], "who": p["who"] or "", "role": p["r"], "body": p["t"]}
+                     for i, p in enumerate(d["passages"])]}))
+        if rpc.status_code < 300:
+            marks[sym] = d["built"]
+            mark_p.write_text(json.dumps(marks, indent=1))
+            done.append(sym)
+            continue
+        if rpc.status_code != 404:
+            rpc.raise_for_status()
         r = http.delete(f"{base}/passages", params={"symbol": f"eq.{sym}"})
         if r.status_code == 404:          # PGRST205: the table doesn't exist until migration 005 is applied
             return "skipped (apply migration 005 to create the passages table)"
