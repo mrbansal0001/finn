@@ -47,7 +47,7 @@ FINN has one point of view: **an investor should be briefed, not fed.** The Indi
   - The results badge names only the checks that ran on that table, and a table needs two independent identities (or two lines equal to the exchange XBRL) to be shown.
   - A third independent audit (E31) found that the ledger turned genuine quotes into wrong verdicts and that a visible alert opened a missing card. Quotes were 1,575/1,575 verbatim, which was the point: **quote fidelity is not verdict correctness**, so they are now measured separately.
   - That loop is the clearest example of how I worked with the AI tools: treat a passing check as a claim to verify, measure, then fix the cause, not the instance.
-- **Cite or drop, for words and numbers.** Every quote shown is the page's own text, and unverifiable statements are dropped (84/84 hand-labelled quotes found, off-by-one pages corrected). A figure in a ledger row must be printed in its quote: the model once turned "grow almost to 2x" into "200%".
+- **Cite or drop, for words and numbers.** Every quote from a transcript or annual report is the page's own text, and unverifiable statements are dropped; a filing's summary is checked against the filing's text too (since 14 Nov: 141 of 156 stored events verified, 7 from scanned pages labelled "quote not checked", 8 withheld and shown under their plain subject) (84/84 hand-labelled quotes found, off-by-one pages corrected). A figure in a ledger row must be printed in its quote: the model once turned "grow almost to 2x" into "200%".
 - **Wording follows evidence.** "Worked together" only when dates overlap. Many real bios give employers without years, so FINN says "also worked at X (dates not disclosed)".
 - **What I left out on purpose:**
   - a chat box as the front door;
@@ -80,7 +80,7 @@ FINN has one point of view: **an investor should be briefed, not fed.** The Indi
 | Need | Source | Cadence |
 |---|---|---|
 | Announcements | NSE RSS (whole market, ~1 day window) + linked Reg 30 XBRL; per-company backfill | every 15 min; daily backfill |
-| Results | the filing's PDF table (current, previous and year-ago columns), checked against the Integrated Filing XBRL when it exists | on filing |
+| Results | the filing's PDF table (current, previous and year-ago columns), checked against the statement's own arithmetic identities, and against the Integrated Filing XBRL when that has been filed (3 of the 41 tables shown on 14 Nov; the other 38 pass the identities only) | on filing |
 | People | the appointment filing's own bio (XBRL `BriefProfile` or the annexure) | on filing |
 | Prices | NSE UDiFF bhavcopy (one public file, all stocks) | after close |
 | Transcripts and annual reports | exchange PDFs (screener.in only to discover the links) | pre-built for the Nifty 50; on request otherwise |
@@ -128,7 +128,7 @@ Ask the documents uses no model: it is full-text search in Postgres over the com
 
 Copy rules are enforced in code: a headline needs a verb and a fact, a "why" line without a number is dropped, and qualifiers like "up to" are kept.
 
-- **Models.** Gemini's light model (free tier) handles public documents. A stronger model was tested and was not better on my labelled set. OpenAI (paid, with a hard cap in code) is used only when Gemini fails. Model names are discovered at runtime; identical requests are answered from a disk cache, so rebuilds are free and reproducible.
+- **Models.** Gemini's light model (free tier) handles public documents. A stronger model was tested and was not better on my labelled set. OpenAI (paid, behind a spending guard in code: the logged cost estimate is checked before each call, so it is a budget guard, not a billing cap) is used only when Gemini fails. Model names are discovered at runtime; identical requests are answered from a disk cache, so rebuilds are free and reproducible.
 - **Extraction, measured** against 84 statements I hand-labelled from 8 transcripts:
   - a single pass found 55%;
   - overlapping 6-page windows find 80%, at 61% strict precision;
