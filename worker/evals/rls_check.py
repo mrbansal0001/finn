@@ -89,11 +89,32 @@ def main() -> int:
         check("no contact name appears in the public snapshot", not any(n in public_blob for n in names), f"{len(names)} names checked")
         demo = http.get(f"{URL}/rest/v1/demo_contacts?select=id", headers=as_user(ta)).json()
         check("visitors cannot read the demo template table directly", demo == [], f"{len(demo)} rows")
+
+        # migration 005: passages are public company documents (read, never write); push subscriptions are private
+        anon = {"apikey": PUB, "Content-Type": "application/json"}
+        ps = http.get(f"{URL}/rest/v1/passages?select=symbol&symbol=eq.TITAN&limit=1", headers=anon)
+        check("passages are publicly readable (005)", ps.status_code == 200 and len(ps.json()) == 1, f"HTTP {ps.status_code}")
+        pw = http.post(f"{URL}/rest/v1/passages", headers=as_user(ta), json={"symbol": "ZZZ", "i": 0, "s": 0, "page": 1, "role": "m", "body": "planted"})
+        check("visitors cannot write passages (005)", pw.status_code in (401, 403), f"HTTP {pw.status_code}")
+        ask = http.post(f"{URL}/rest/v1/rpc/ask_passages", headers=anon, json={"sym": "TITAN", "q": "gold demand", "k": 3})
+        check("ask_passages answers without a session (005)", ask.status_code == 200 and len(ask.json()) > 0, f"HTTP {ask.status_code}")
+        sub = lambda n: {"endpoint": f"https://push.example.invalid/{ida}/{n}", "p256dh": "k" * 87, "auth": "a" * 22, "prefs": {"price_pct": 5}}
+        mine = [http.post(f"{URL}/rest/v1/push_subscriptions", headers={**as_user(ta), "Prefer": "return=minimal"}, json=sub(n)).status_code for n in range(4)]
+        check("a visitor can save up to three push subscriptions, not a fourth (005)", mine[:3] == [201] * 3 and mine[3] in (401, 403), str(mine))
+        seen_b = http.get(f"{URL}/rest/v1/push_subscriptions?select=endpoint", headers=as_user(tb)).json()
+        check("B cannot read A's push subscriptions (005)", seen_b == [], f"{len(seen_b)} rows")
+        seen_anon = http.get(f"{URL}/rest/v1/push_subscriptions?select=endpoint", headers=anon)
+        check("no session reads no push subscriptions (005)", seen_anon.status_code in (401, 403) or seen_anon.json() == [], f"HTTP {seen_anon.status_code}")
+        forged = http.post(f"{URL}/rest/v1/push_subscriptions", headers=as_user(tb), json={**sub(9), "user_id": ida})
+        check("B cannot subscribe in A's name (005)", forged.status_code in (401, 403), f"HTTP {forged.status_code}")
     finally:
         svc = {"apikey": SVC, "Authorization": f"Bearer {SVC}"}
         http.delete(f"{URL}/rest/v1/coverage_requests?symbol=eq.DIXON&requested_by=eq.{ida}", headers=svc)
         for uid in (ida, idb):
             http.delete(f"{URL}/auth/v1/admin/users/{uid}", headers=svc)
+        # the cascade should have removed A's test subscriptions with the user; say so if it didn't
+        left = http.get(f"{URL}/rest/v1/push_subscriptions?select=endpoint&endpoint=like.*push.example.invalid*", headers=svc).json()
+        check("deleting a visitor deletes their push subscriptions (005 cascade)", left == [], f"{len(left)} left")
         print("test users deleted")
     return 0 if ok else 1
 

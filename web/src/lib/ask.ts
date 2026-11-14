@@ -42,7 +42,7 @@ export function contentWords(q: string): string[] {
     .replace(/[^a-z0-9&%.\- ]+/g, " ")
     .split(/\s+/)
     .map((w) => w.replace(/^[.\-]+|[.\-]+$/g, ""))
-    .filter((w) => w.length > 1 && !FILLER.has(w));
+    .filter((w, i, all) => w.length > 1 && !FILLER.has(w) && all.indexOf(w) === i);   // each word once: a repeated word isn't more of the question
 }
 
 /** How much of the question a passage has to cover to count as an answer: every word of a one- or two-word

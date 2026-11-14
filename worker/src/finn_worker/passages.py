@@ -177,7 +177,7 @@ def build(symbol: str) -> dict | None:
             got = transcript(c["url"], len(sources), _speakers(led))
         except Exception:      # an unreadable transcript is skipped, and its absence is visible in `sources`
             continue
-        # n = passages read from it: 0 says the transcript is a scan with no text layer, so the app can say so
+        # n = passages read from it: 0 says no text could be read (a scan, or a link that serves a page, not the document), so the app can say so
         sources.append({"label": f"{c['label']} call", "url": c["url"], "n": len(got)})
         passages += got
     snap = led.get("snapshot")

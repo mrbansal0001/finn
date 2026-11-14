@@ -15,6 +15,7 @@ from __future__ import annotations
 import html
 import os
 import re
+from urllib.parse import unquote
 from dataclasses import dataclass, field
 from datetime import date
 
@@ -47,8 +48,15 @@ def discover(symbol: str, n: int = 4) -> list[Transcript]:
             if label in seen:
                 continue      # one call per month: a second "Jul 2026" was TCS's Jul 2025 call, mislabelled
             seen.add(label)
-            out.append(Transcript(label, html.unescape(t.group(1))))
+            out.append(Transcript(label, document_url(html.unescape(t.group(1)))))
     return out[:n]
+
+
+def document_url(url: str) -> str:
+    """The document itself, not a page that wraps it: a company "pdf-viewer?pdf=/path.pdf" page ignores #page=N, so
+    a quote's link couldn't open at its page (13 Nov link check: Maruti's transcripts were linked this way)."""
+    m = re.match(r"^(https?://[^/]+)/pdf-viewer\?pdf=([^&#]+)", url)
+    return m.group(1) + unquote(m.group(2)) if m else url
 
 
 def paged_text(url: str) -> tuple[str, dict[int, str]]:

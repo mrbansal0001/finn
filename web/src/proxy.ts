@@ -10,6 +10,13 @@ import { SUPABASE_KEY, SUPABASE_URL, supabaseEnabled } from "@/lib/supabase/conf
 const BOT = /bot|crawl|spider|slurp|preview|facebookexternalhit|whatsapp|telegram|curl|wget|python|headless/i;
 
 export async function proxy(request: NextRequest) {
+  // a malformed address (/c/%E0%A4) can't be decoded: in production the page shell streamed and then hung on
+  // "Opening the company…" (14 Nov link check). Send it to the not-found page, with a 404, before any render.
+  try {
+    decodeURIComponent(request.nextUrl.pathname);
+  } catch {
+    return NextResponse.rewrite(new URL("/not-found-malformed-address", request.url), { status: 404 });
+  }
   let response = NextResponse.next({ request });
   if (!supabaseEnabled) return response;
   // don't mint anonymous users for link prefetches or crawlers (sign-ups are rate-limited per IP)

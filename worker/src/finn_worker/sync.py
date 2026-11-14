@@ -152,8 +152,9 @@ def exchange_requests() -> str:
         if r["symbol"] not in by:
             by[r["symbol"]] = {"symbol": r["symbol"], "status": r["status"], "requested_at": r["requested_at"], "detail": r.get("detail")}
     qp.write_text(json.dumps(list(by.values()), indent=1))
-    changed = [{"symbol": r["symbol"], "status": r["status"], "detail": r.get("detail"), "requested_at": r["requested_at"]}
-               for r in by.values()]
+    # a finished build carries no leftover "waiting for model…" note from an earlier attempt
+    changed = [{"symbol": r["symbol"], "status": r["status"], "detail": None if r["status"] == "ready" else r.get("detail"),
+                "requested_at": r["requested_at"]} for r in by.values()]
     if changed:
         _upsert(http, base, "coverage_requests", changed)
     return f"{len(remote)} remote / {len(by)} total requests"

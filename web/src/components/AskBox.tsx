@@ -141,7 +141,7 @@ function Answer({ res, asked }: { res: AskResult; asked: string }) {
       )}
       {unread.length > 0 && (
         <p className="mt-3 text-caption text-ink-3">
-          Not searched: {unread.map((s) => s.label).join(", ")} ({unread.length === 1 ? "a scan" : "scans"} with no text FINN can read).
+          Not searched: {unread.map((s) => s.label).join(", ")} (no text FINN could read from {unread.length === 1 ? "it" : "them"}).
         </p>
       )}
     </div>
