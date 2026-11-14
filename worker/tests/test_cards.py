@@ -183,3 +183,11 @@ def test_a_deadline_only_and_an_amount_only_statement_are_different_promises():
                    "value_low": 6000, "value_high": 6800, "unit": "INR crore"}
     threads = link([("May 2025", [date_only]), ("Apr 2026", [amount_only])])
     assert len(threads) == 2
+
+
+def test_known_moved_transcripts_never_come_back():
+    """14 Nov: a rebuild re-discovered a hijacked Maruti link and a dead BSE link from the transcript list."""
+    from finn_worker.pull import MOVED, document_url
+    for old, new in MOVED.items():
+        assert document_url(old) == new
+    assert document_url("https://www.marutisuzuki.com/pdf-viewer?pdf=%2Fcontent%2Fdam%2Fa.pdf") == "https://www.marutisuzuki.com/content/dam/a.pdf"

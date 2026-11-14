@@ -53,9 +53,23 @@ def discover(symbol: str, n: int = 4, fresh: bool = False) -> list[Transcript]:
     return out[:n]
 
 
+# Links the transcript list still carries but that no longer serve the document, with the same filing elsewhere
+# (14 Nov link check). Applied at discovery, so a rebuild never brings the bad link back.
+MOVED = {
+    # the storage link now redirects to a spam site; Maruti's own copy of the same transcript
+    "https://marutistoragenew.blob.core.windows.net/msilintiwebpdf/Transcript_earnings_call_Maruti_Suzuki_Q3_FY_26.pdf":
+        "https://www.marutisuzuki.com/content/dam/arena-eds/corporate/pdf/company-reports/2025-2026/Transcript_earnings_call_Maruti_Suzuki_Q3_FY_26.pdf",
+    # BSE's copy is gone; the same filing on NSE (25 pages, every quote on the same page number)
+    "https://www.bseindia.com/stockinfo/AnnPdfOpen.aspx?Pname=48f5d6fd-b499-45da-bc6d-2e0439495ec2.pdf":
+        "https://nsearchives.nseindia.com/corporate/HCLTECH_24042026174011_TranscriptEarningsCall.pdf",
+}
+
+
 def document_url(url: str) -> str:
     """The document itself, not a page that wraps it: a company "pdf-viewer?pdf=/path.pdf" page ignores #page=N, so
-    a quote's link couldn't open at its page (13 Nov link check: Maruti's transcripts were linked this way)."""
+    a quote's link couldn't open at its page (13 Nov link check: Maruti's transcripts were linked this way). Known
+    moved or hijacked links are replaced (MOVED)."""
+    url = MOVED.get(url, url)
     m = re.match(r"^(https?://[^/]+)/pdf-viewer\?pdf=([^&#]+)", url)
     return m.group(1) + unquote(m.group(2)) if m else url
 
