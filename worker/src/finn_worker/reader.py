@@ -95,7 +95,51 @@ def read_filing(f: dict) -> list[dict]:
     personal = strict and f["category"] not in ("capex", "credit_rating", "fund_raise", "dividend", "bonus_split")
     out = llm.structured("read_filing", SYSTEM, parts, EVENT_SCHEMA, tier="fast", personal_data=personal)
     from .cards import scrub_event
-    return [lint(scrub_event(e)) for e in out.get("events", []) if e.get("kind") != "routine"]
+    texts = {p.number: p.text for p in pages if p.clean}
+    imaged = any(not p.clean for p in pages)
+    return [ground(lint(scrub_event(e)), texts, imaged) for e in out.get("events", []) if e.get("kind") != "routine"]
+
+
+def ground(ev: dict, texts: dict[int, str], imaged: bool = False) -> dict:
+    """Cite or drop, for filing events too (full review F03).
+
+    - The quote must be on a page FINN read; a quote the model shortened with "..." is checked piece by piece, and a
+      rupee sign the PDF garbled into "?" doesn't have to match. The page is corrected to where the quote sits.
+    - No quote: a people event passes only if every person it names appears in the filing's text.
+    - Scanned pages have no text to check: the event keeps its headline, marked "quote not checked", so the card
+      can say so rather than hide real news (BEL's order filings are scans).
+    - An amount must appear in the document's text, or it is dropped.
+    Anything that fails can't headline a card; the filing stays visible as "not read"."""
+    from . import pull
+    if not texts:
+        ev["unverified"] = "scanned"               # nothing to check against: shown, and labelled as unchecked
+        return ev
+    # a garbled rupee sign ("?") and trademark signs needn't match character for character
+    quote = re.sub(r"[?®™©]", " ", ev.get("quote") or "")
+    texts = {n: re.sub(r"[®™©]", " ", t) for n, t in texts.items()}
+    if quote.strip():
+        pieces = [q.strip() for q in re.split(r"\.{3}|…", quote) if len(q.strip()) >= 12]
+        pages = [pull.verify({"quote": q, "page": ev.get("page")}, texts) for q in pieces] if pieces else [None]
+        if any(p is None for p in pages) and imaged:
+            ev["unverified"] = "scanned"           # some pages read were images: the quote may sit there, unchecked
+        elif any(p is None for p in pages):
+            ev["headline_ok"] = False
+            ev["unverified"] = "quote not found on the pages read"
+        else:
+            ev["page"] = pages[0]
+    else:
+        whole_low = " ".join(texts.values()).lower()
+        names = [p.get("name") for p in ev.get("people") or [] if p.get("name")]
+        if not names or not all(re.sub(r"^(mr|ms|mrs|dr|shri|smt)\.?\s+", "", n.lower()) in re.sub(r"\s+", " ", whole_low) for n in names):
+            ev["headline_ok"] = False              # nothing quoted and no named person to check it against
+            ev["unverified"] = "no quote"
+    amt = ev.get("amount_inr_cr")
+    if amt is not None:
+        whole = re.sub(r"(\d),(?=\d)", r"\1", " ".join(texts.values()))
+        num = f"{float(amt):g}"
+        if not re.search(rf"(?<![\d.]){re.escape(num)}(?![\d])", whole):
+            ev["amount_inr_cr"] = None             # an amount not printed in the filing is not shown
+    return ev
 
 
 def _xbrl_for(con, symbol: str):
@@ -163,9 +207,11 @@ def read_pending(limit: int = MAX_PER_CYCLE) -> str:
           and not exists (select 1 from events e where e.filing_id = f.id
                           and not (e.kind = 'unreadable' and json_extract(e.card, '$.retryable') = 1
                                    and coalesce(json_extract(e.card, '$.attempts'), 1) < 3))
-          -- its twin (same company and type within 10 minutes) already read: don't pay twice
+          -- its twin already read successfully: a different filing, same company, type and subject within 10 minutes
+          -- (not this filing's own failed attempt, which the clause used to match, so retries never ran; full review F11)
           and not exists (select 1 from events e join filings g on g.id = e.filing_id
-                          where g.symbol = f.symbol and g.category = f.category
+                          where g.id != f.id and g.symbol = f.symbol and g.category = f.category and g.subject = f.subject
+                            and e.kind != 'unreadable'
                             and abs(julianday(g.published_at) - julianday(f.published_at)) * 1440 <= 10)
         order by case tier when 'lead' then 0 else 1 end, published_at desc
         limit ?""", (*syms, limit)).fetchall()

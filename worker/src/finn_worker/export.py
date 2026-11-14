@@ -140,6 +140,13 @@ def snapshot(until: datetime | None = None) -> dict:
         if json.dumps(led, ensure_ascii=False, sort_keys=True) != before:
             lp.write_text(json.dumps(led, ensure_ascii=False, indent=1))
         ledger_index[led["symbol"]] = _index_entry(led)
+        # a newer call transcript on the exchange than this ledger reads: the app says so (full review F05)
+        try:
+            from .pull import stale_ledger
+            if newer := stale_ledger(led):
+                ledger_index[led["symbol"]]["newer_call"] = newer
+        except Exception:
+            pass
         for row in led["rows"]:
             text = f"{row['title']} {row.get('metric', '')}"
             cands = [l for l in network.for_company(led["symbol"], contacts, today, kind="", text=text) if not l["insider"]]

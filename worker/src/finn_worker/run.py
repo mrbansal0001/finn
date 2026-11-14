@@ -79,6 +79,8 @@ def once() -> None:
     step("requests_in", _sync.exchange_requests)
     step("coverage_queue", pull.drain_requests)
     step("requests_out", _sync.exchange_requests)      # a finished build's status goes out now, not next cycle
+    # a followed company filed a newer call transcript than its ledger reads: rebuild one a cycle (full review F05)
+    step("refresh_ledgers", pull.refresh_stale, 1)
     # five-year trajectory for any newly covered company (one model call per report, cached)
     from . import trajectory
     step("trajectory", trajectory.run)

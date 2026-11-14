@@ -246,6 +246,8 @@ def build(filings: list[dict], moves: list[dict], weights: dict[str, float], nam
                 (e for e in ok if e.get("kind") != "results" or cat == "results"), None)
             if best:
                 headline, why, source = best["headline"], best.get("why"), "model"
+                if best.get("unverified") == "scanned":
+                    facts = {**facts, "unchecked": True}   # read from page images: the quote couldn't be checked
                 facts = {k: best[k] for k in ("people", "amount_inr_cr", "counterparty", "quote", "page") if best.get(k)}
                 if cat == "management_change":
                     everyone = [p for e in same for p in e.get("people") or []]
@@ -254,12 +256,25 @@ def build(filings: list[dict], moves: list[dict], weights: dict[str, float], nam
                     others = [e["headline"] for e in same[1:]]
                     if others and not why:
                         why = "Also in this filing: " + "; ".join(others) + "."
+        unverified = [e for e in read if e.get("unverified") == "quote not found on the pages read" and e.get("kind") in MATERIAL_KINDS]
+        if read and headline is None and unverified and cat != "results":
+            # read, but its summary couldn't be matched to the filing's text (full review F03): stays visible at its
+            # tier under its own subject, and says why, instead of folding a possibly material filing away
+            headline, source, needs_read = _filed(lead["subject"]), "rule", False
+            why = "FINN read this filing but couldn't match its summary to the document's text, so none is shown. Open the filing."
         if read and headline is None and cat != "results":
             # read, and nothing beyond what another card carries: results decks and shareholder letters
             # repeat the results card (ENAM's reference counts them as results); the rest is housekeeping
             only_results = all(e.get("kind") in ("results", "routine") for e in read) and any(e.get("kind") == "results" for e in read)
             fold("Results decks & letters" if only_results else "Other housekeeping", lead)
             continue
+        if cat == "management_change" and not facts.get("people"):
+            # an XBRL-only change filing: read who changed, how and when, from the filed fields (full review F07)
+            cim = _cim_people(fs)
+            if cim:
+                headline, source, needs_read = _cim_headline(cim), "xbrl", False
+                facts = {**facts, "people": cim}
+                tier = people_tier(cim, headline)
         if tier == "routine":
             fold("People: re-appointments & auditors" if cat == "management_change" else "Other housekeeping", lead)
             continue
@@ -481,6 +496,38 @@ def _filed(subject: str) -> str:
     p = plain_subject(subject)
     # a phrase that already says what happened ("A director resigned", "Order or contract won") stands alone
     return p if re.search(r"\b(resigned|won|signed|started|allotted|revised|changed|given|delayed|amended|scheduled)$", p) else f"{p} filed"
+
+
+_CIM_VERB = [(r"re-?appoint", "re-appointed as"), (r"appoint", "appointed as"), (r"resign", "resigns as"),
+             (r"retire|superannuat", "retires as"), (r"cessation|ceas", "ceases to be"), (r"re-?designat", "re-designated as")]
+
+
+def _cim_people(fs: list[dict]) -> list[dict]:
+    """People from a Change in Directors/KMP/SMP XBRL filing (CIM): name, type of change, role, effective date and
+    the bio the company filed. Filings published only as XBRL were never read, so the exchange's catch-all
+    category became the story (full review F07: HDFC Bank's 'change' was a re-appointment)."""
+    from . import fetch, xbrl
+    out = []
+    for f in fs:
+        link = f.get("link") or ""
+        if not (link.lower().endswith(".xml") and "cim" in link.lower()):
+            continue
+        try:
+            _, people = xbrl.parse_cim(fetch.get(link, max_age=365 * 86400).decode("utf-8", "replace"))
+        except Exception:
+            continue
+        for p in people:
+            out.append({"name": p.name, "change": p.change or "", "role": p.designation or p.category or "",
+                        "effective": p.effective, "orgs": [], "schools": [], "bio": (p.bio or "")[:600] or None})
+    return out
+
+
+def _cim_headline(people: list[dict]) -> str:
+    """'V S Rangan re-appointed as Executive Director', from the filed fields only."""
+    p = people[0]
+    verb = next((v for pat, v in _CIM_VERB if re.search(pat, p["change"], re.I)), "change filed for")
+    head = f"{p['name']} {verb} {p['role']}".strip() if p["role"] else f"{p['name']}: {p['change'] or 'change'} filed"
+    return head + (f", and {len(people) - 1} more change{'s' if len(people) > 2 else ''}" if len(people) > 1 else "")
 
 
 def _attachment(fs: list[dict]) -> str | None:

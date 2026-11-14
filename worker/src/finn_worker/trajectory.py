@@ -80,14 +80,18 @@ def _on_page(raw: str, text: str) -> bool:
     raw = re.sub(r"[*#^†‡@]+$", "", (raw or "").strip()).strip("()")
     if not raw or not re.search(r"\d", raw):
         return False
-    flat = text.replace(",", "")
-    return raw in text or raw.replace(",", "") in re.findall(r"\d[\d.]*", flat)
+    # a whole number token, never part of a longer one ("123" is not in "91234"; full review F12)
+    tokens = set(re.findall(r"\d[\d.]*", re.sub(r"(\d),(?=\d)", r"\1", text)))
+    return raw.replace(",", "") in tokens
 
 
 def to_crore(unit: str) -> float | None:
     """The factor from the printed unit to ₹ crore; None if the unit can't be read (then no trajectory).
     PDFs often mangle the rupee sign ("v crore", "H in Crores", "` Mn"), so only the word decides."""
     u = unit.lower()
+    # only rupee amounts convert: a dollar or euro table is not rupees at another scale (full review F12)
+    if re.search(r"usd|us\$|\$|dollar|eur|€|gbp|£|jpy|¥", u):
+        return None
     if re.search(r"crore|\bcr\b", u):
         return 1.0
     if re.search(r"lakh|lac", u):

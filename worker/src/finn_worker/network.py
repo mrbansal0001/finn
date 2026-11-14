@@ -193,7 +193,16 @@ def for_company(symbol: str, contacts: list[Contact], today: date, *, kind: str 
                 out.append(ln)
         if any(h.get("symbol") == symbol for h in c.history):
             continue
-        role = c.history[-1]["role"] + ", " + c.history[-1]["org"] if c.history else c.current.get("role", "")
+        # the role they hold now, never a past one read as current (UX review P1-8: Imran is at Grant Thornton now,
+        # not Deloitte); a last role that has ended is said as "formerly"
+        cur = c.current or {}
+        if cur.get("role") and cur.get("org"):
+            role = f"now {cur['role']}, {cur['org']}"
+        elif c.history:
+            h = c.history[-1]
+            role = f"{'formerly ' if h.get('end') else ''}{h['role']}, {h['org']}"
+        else:
+            role = cur.get("role", "")
         top = sorted(d for d in doms if any(_same_topic(d, w) for w in topical))
         gen = sorted(d for d in doms if any(_same_topic(d, w) for w in generic))
         if top:
@@ -323,6 +332,14 @@ def annotate(cards: list[dict], today: date, contacts: list[Contact] | None = No
     if contacts is None:
         contacts, edges = load()
     for card in cards:
-        text = " ".join(filter(None, [card.get("headline"), card.get("nse_subject"), card.get("company")]))
+        if card["kind"] == "management_change":
+            # the exchange's category ("Change in Directors/KMP/SMP/Auditor/RTA") lists every possible kind of change,
+            # so it can't say which happened: match on what was read (the people's roles, a read headline) only
+            # (full review F07: an unread filing recommended an audit expert because the category says "Auditor")
+            people = (card.get("facts") or {}).get("people") or []
+            read_head = card.get("headline") if card.get("headline_source") in ("model", "xbrl") else None
+            text = " ".join(filter(None, [read_head, *[p.get("role") or "" for p in people], card.get("company")]))
+        else:
+            text = " ".join(filter(None, [card.get("headline"), card.get("nse_subject"), card.get("company")]))
         lines = for_company(card["symbol"], contacts, today, kind=card["kind"], text=text)
         card["network"] = second_degree(lines, contacts, edges or [], today)
