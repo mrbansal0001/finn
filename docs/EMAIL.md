@@ -11,6 +11,7 @@ Here is my submission for the FINN build challenge.
 - **Prototype (best on a phone):** https://finn-red.vercel.app
 - **Repository:** https://github.com/mrbansal0001/finn
 - **AI build history:** attached, and at https://github.com/mrbansal0001/finn/tree/main/docs/history
+- **Every feature and where to find it:** https://github.com/mrbansal0001/finn/blob/main/docs/FEATURES-2026-11-13.md
 - **Full write-up and measurements:** https://github.com/mrbansal0001/finn/blob/main/docs/WRITEUP.md
 
 **What I built.** FINN briefs an investor rather than feeding them: a ranked edition of the portfolio that ends.

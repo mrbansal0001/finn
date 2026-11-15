@@ -2,7 +2,7 @@
 
 A mobile-first investor agent for Indian equities, built for the ENAM Holdings Founding AI Engineer build challenge.
 
-**Live:** https://finn-red.vercel.app (open it on a phone; each visitor gets a private copy of the demo network) · **Writeup:** [`docs/WRITEUP.md`](docs/WRITEUP.md) · **Decision log:** [`docs/DECISIONS.md`](docs/DECISIONS.md)
+**Live:** https://finn-red.vercel.app (open it on a phone; each visitor gets a private copy of the demo network) · **Writeup:** [`docs/WRITEUP.md`](docs/WRITEUP.md) · **Every feature and where it is:** [`docs/FEATURES-2026-11-13.md`](docs/FEATURES-2026-11-13.md) · **Decision log:** [`docs/DECISIONS.md`](docs/DECISIONS.md)
 
 FINN has one opinion: **an investor should be briefed, not fed.** Instead of an alert per filing, FINN writes a ranked *edition* of your portfolio that folds the routine and ends.
 
