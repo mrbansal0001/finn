@@ -31,7 +31,7 @@ Here is my submission for the FINN build challenge.
 - **Models:** no autonomous agents. Gemini Flash-Lite (free tier) reads documents into fixed schemas, results are cached, and a paid fallback sits behind a budget guard.
 
 **Measured on 14 Nov:**
-- 54 companies; 1,902 promises (2 settled, 64 revised, 47 gone silent);
+- 54 companies; 1,911 promises (2 settled, 62 revised, 47 gone silent);
 - 32,263 searchable passages; 24 five-year tables;
 - 41 results tables: all pass the statement's arithmetic identities, and 3 are also matched to exchange XBRL;
 - held-out filing classification: 36/36 material filings surfaced;

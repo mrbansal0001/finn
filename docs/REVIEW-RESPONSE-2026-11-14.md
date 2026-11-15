@@ -50,3 +50,8 @@ Covers `FINN-FULL-SUBMISSION-REVIEW-2026-11-14.md` (F01–F18), `FINN-UX-REVIEW-
 Worker tests (150), typecheck and lint, production build; the live feature walk (22 steps, every failure checked by hand: all were test timing or data assumptions); the live link check (936 pages, 1,902 promise links, 0 problems); 25/25 live privacy checks; migration 006 tested in PGlite before publication.
 
 Migration 006 was applied on 14 Nov: the live privacy check's two new cases pass (a non-push endpoint is rejected with a constraint error; visitors cannot edit delivery cursors), and passages now upload one company per transaction.
+
+## 15 Nov frontend review (scored 72/100)
+
+Fixed: the empty weekend edition (opens the smallest window with a lead), three disagreeing alert counts (one number), the four-line intro (one line), the truncated Research tile, colour-blind gains in the link colour, generic "What they do" sentences (bars first, concrete sentences only), qualifier-only "revisions" (now restatements, D-073), an award ranked material and a contact on every item (D-074), 83 theme chips (11 shared first), the duplicate Gap row, and small copy and state issues (duplicate insider notes, two "Filing" buttons, "at Independent", a greyed "Following", person page titles, "approx." sentence cuts). Deferred: a desktop two-column layout, motion and chip redesigns, and new features.
+
