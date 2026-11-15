@@ -179,44 +179,46 @@ async function Company({ params, searchParams }: Pick<PageProps<"/c/[symbol]">, 
             <span>What they do</span>
             <span className="text-caption font-normal normal-case tracking-normal text-ink-3">FY{String(ledger.snapshot.year).slice(2)} annual report</span>
           </h2>
-          <ul className="mt-2.5 space-y-2 text-body">
-            {ledger.snapshot.what_they_do.slice(0, 2).map((x, i) => (
+          {/* shapes first (where the money comes from, five years of it), then only sentences that say something
+              concrete; generic lines ("operates in the retail sector…") stay one tap away (frontend review 3) */}
+          {(() => {
+            const snapshot = ledger.snapshot!;
+            const shares = snapshot.segments.filter((g) => g.share_of_revenue_pct != null).length >= 2;
+            const generic = (t: string) =>
+              !/\d/.test(t) && /\b(presence in|various|emerging sectors|strategic priorities|wide range of|multiple)\b/i.test(t);
+            const lead = snapshot.what_they_do.filter((x) => !generic(x.text)).slice(0, 2);
+            const rest = snapshot.what_they_do.filter((x) => !lead.includes(x));
+            const sentence = (x: (typeof snapshot.what_they_do)[number], i: number) => (
               <li key={i}>
                 {x.text}{" "}
-                <a href={`${ledger.snapshot!.url}#page=${x.page}`} target="_blank" rel="noopener noreferrer" className="tap num text-caption text-accent">
+                <a href={`${snapshot.url}#page=${x.page}`} target="_blank" rel="noopener noreferrer" className="tap num text-caption text-accent">
                   AR p.{x.page}
                 </a>
               </li>
-            ))}
-          </ul>
-          {snap.trajectory?.[symbol] && <Trajectory t={snap.trajectory[symbol]} />}
-          {(ledger.snapshot.what_they_do.length > 2 || ledger.snapshot.segments.length > 0) && (
-            <details className="group mt-1">
-              <summary className="inline-flex min-h-[44px] items-center gap-1 text-small text-accent">
-                More, with segments <span aria-hidden className="transition-transform duration-200 group-open:rotate-90">›</span>
-              </summary>
-              <ul className="space-y-2 text-body">
-                {ledger.snapshot.what_they_do.slice(2).map((x, i) => (
-                  <li key={i}>
-                    {x.text}{" "}
-                    <a href={`${ledger.snapshot!.url}#page=${x.page}`} target="_blank" rel="noopener noreferrer" className="tap num text-caption text-accent">
-                      AR p.{x.page}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-              {ledger.snapshot.segments.filter((g) => g.share_of_revenue_pct != null).length >= 2 ? (
-                <SegmentBars segments={ledger.snapshot.segments} url={ledger.snapshot.url} year={ledger.snapshot.year} />
-              ) : ledger.snapshot.segments.length > 0 && (
-                <p className="mt-2 text-small text-ink-2">
-                  Segments:{" "}
-                  {ledger.snapshot.segments
-                    .map((g) => `${g.name}${g.share_of_revenue_pct != null ? ` (${g.share_of_revenue_pct}% of revenue)` : ""}`)
-                    .join(", ")}
-                </p>
-              )}
-            </details>
-          )}
+            );
+            return (
+              <>
+                {shares && <SegmentBars segments={snapshot.segments} url={snapshot.url} year={snapshot.year} />}
+                {!shares && snapshot.segments.length > 0 && (
+                  <p className="mt-2.5 text-small text-ink-2">
+                    Segments:{" "}
+                    {snapshot.segments.map((g) => `${g.name}${g.share_of_revenue_pct != null ? ` (${g.share_of_revenue_pct}% of revenue)` : ""}`).join(", ")}
+                  </p>
+                )}
+                {snap.trajectory?.[symbol] && <Trajectory t={snap.trajectory[symbol]} />}
+                {lead.length > 0 && <ul className="mt-4 space-y-2 text-body">{lead.map(sentence)}</ul>}
+                {rest.length > 0 && (
+                  <details className="group mt-1">
+                    <summary className="inline-flex min-h-[44px] items-center gap-1 text-small text-accent">
+                      {lead.length ? "More from the annual report" : "What the annual report says"}{" "}
+                      <span aria-hidden className="transition-transform duration-200 group-open:rotate-90">›</span>
+                    </summary>
+                    <ul className="space-y-2 text-body">{rest.map(sentence)}</ul>
+                  </details>
+                )}
+              </>
+            );
+          })()}
         </section>
       )}
 
