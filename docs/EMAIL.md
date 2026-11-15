@@ -30,13 +30,13 @@ Here is my submission for the FINN build challenge.
 - **Profiles:** the 29 contacts are **synthetic**, and the app says so. Executives' backgrounds come from the exchange filings, not LinkedIn.
 - **Models:** no autonomous agents. Gemini Flash-Lite (free tier) reads documents into fixed schemas, results are cached, and a paid fallback sits behind a budget guard.
 
-**Measured on 14 Nov:**
+**Measured on 15 Nov:**
 - 54 companies; 1,911 promises (2 settled, 62 revised, 47 gone silent);
 - 32,263 searchable passages; 24 five-year tables;
 - 41 results tables: all pass the statement's arithmetic identities, and 3 are also matched to exchange XBRL;
 - held-out filing classification: 36/36 material filings surfaced;
 - 25/25 live privacy checks; every page and promise link opens;
-- $2.87 paid spend in total, across 1,985 model calls.
+- $2.87 paid spend in total, across 1,988 model calls.
 
 **Left out:** balance sheet, cash quality and bull/bear cases. I chose reliable scope over a model's opinion.
 
