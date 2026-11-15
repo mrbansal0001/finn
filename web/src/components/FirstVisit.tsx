@@ -22,8 +22,8 @@ export function FirstVisit() {
   if (seen || gone) return null;
   return (
     <p className="mt-2 rounded-lg bg-tint px-3 py-2 text-caption text-ink-2">
-      FINN reads your holdings&apos; filings and ranks what matters; keeps each company&apos;s promises against its own later words; and shows
-      who in your network can help. Set what counts in Rules. Real filings and prices; the people are synthetic.{" "}
+      Your holdings&apos; filings ranked, management&apos;s promises tracked, and who you know who can explain them. Real filings; synthetic
+      people.{" "}
       <button
         type="button"
         onClick={() => {

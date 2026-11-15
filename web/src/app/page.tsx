@@ -51,7 +51,7 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
   const prefs = parsePrefs(jar.get(PREFS_COOKIE)?.value);
   const sinceVisit = sp.w === "since" && typeof sp.t === "string" && !Number.isNaN(Date.parse(sp.t)) ? sp.t : null;
   // the brief: "by default the last 24 hours, but let me pick the period"
-  const w = sinceVisit ? "since" : (WINDOWS.find((x) => x.key === sp.w)?.key ?? "24h");
+  let w = sinceVisit ? "since" : (WINDOWS.find((x) => x.key === sp.w)?.key ?? "24h");
   const moveCards = snap.move_cards ?? [];
   const until = snap.data_until;
 
@@ -63,6 +63,16 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
     const base = key === "since" ? sinceEdition(snap.editions["30d"], sinceVisit!) : snap.editions[key as WindowKey];
     const ed = applyPrefs(structuredClone(base), prefs, moveCards, holdingSet);
     prepared[key] = { ed, alerts: moveCards.length ? alertsFor(moveCards, ed.since, ed.until, prefs) : legacyAlerts(ed, prefs) };
+  }
+  // a quiet day (a weekend) shouldn't open on an empty page: with no window asked for and nothing leading the last 24
+  // hours, open the smallest window that has a lead, and say so in one line (frontend review problem 1)
+  let fellBack: string | null = null;
+  if (!sp.w && !sinceVisit && prepared["24h"].ed.leads.length === 0) {
+    const k = (["3d", "7d", "30d"] as const).find((x) => prepared[x].ed.leads.length > 0);
+    if (k) {
+      w = k;
+      fellBack = k;
+    }
   }
   const week = [...snap.editions["7d"].leads, ...snap.editions["7d"].more];
   // announced events ahead: dates the companies themselves filed (investor meets, calls), never guessed (§11)
@@ -103,7 +113,7 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
             <nav aria-label="FINN's three parts" className="mt-3 flex gap-2">
               <HoldingsSheet agenda={agenda} today={today} networkReady={snap.network_status !== "unavailable"} holdings={snap.portfolio.map((h) => row(h.symbol, h.weight))} research={snap.research_set.map((s) => row(s))} />
               <Link href="/research" className={DOOR_CLASS} aria-label={`Research: ${Object.keys(snap.ledger_index ?? ledgers).length} companies with a promises ledger`}>
-                <DoorTile icon="research" label="Research" sub={`${Object.keys(snap.ledger_index ?? ledgers).length} companies`} />
+                <DoorTile icon="research" label="Research" sub={`${Object.keys(snap.ledger_index ?? ledgers).length} read`} />
               </Link>
               <Link href="/people" className={DOOR_CLASS} aria-label={snap.network_status === "unavailable" ? "People" : `People: ${snap.contacts.length} in your network`}>
                 <DoorTile
@@ -122,6 +132,7 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
           keys.map((k) => [
             k,
             <Panel key={k} k={k} ed={prepared[k].ed} alerts={prepared[k].alerts} prefs={prefs} until={until} networkDown={snap.network_status === "unavailable"} history={snap.price_history} latest={snap.freshness?.price_session ?? null} holdings={holdingSet} index={snap.ledger_index} lastOk={snap.freshness?.worker_last_ok?.announcements ?? null} contacts={snap.contacts}
+              quietNote={k === fellBack ? `Nothing led the last 24 hours, so this shows ${WINDOWS.find((x) => x.key === k)?.label}.` : undefined}
               reconnect={snap.network_status === "unavailable" ? undefined : reconnects(snap.contacts, [...prepared[k].ed.leads, ...prepared[k].ed.more], until)[0]}
             />,
           ]),
@@ -155,8 +166,9 @@ async function Edition({ searchParams }: { searchParams: PageProps<"/">["searchP
 
 /** One window's edition: its start time, alerts, leads, the rest worth a look, and the routine fold. */
 function Panel({
-  k, ed, alerts, prefs, until, networkDown, history, latest, holdings, index, lastOk, reconnect, contacts,
+  k, ed, alerts, prefs, until, networkDown, history, latest, holdings, index, lastOk, reconnect, contacts, quietNote,
 }: {
+  quietNote?: string;
   contacts: Snapshot["contacts"];
   reconnect?: Reconnect;
   lastOk: string | null;
@@ -164,28 +176,28 @@ function Panel({
   holdings?: Set<string>; index?: Snapshot["ledger_index"];
 }) {
   const wider = WIDER[k];
+  const filedList = holdings ? filedAlertsFor([...ed.leads, ...ed.more], prefs, holdings) : [];
+  const alertTotal = alerts.length + filedList.length;
   const lead = LEAD_COUNT_WORDS[ed.leads.length];
   // the edition in one sentence: how big today is, each part a jump to its section (layout plan §3)
   const parts: [string, string][] = [
     ...(ed.leads.length ? [[`leads-${k}`, lead.replace(/^One/, "1").replace(/^Two/, "2").replace(/^Three/, "3").replace(/^Four/, "4").replace(/^Five/, "5")] as [string, string]] : []),
-    ...(alerts.length ? [[`alerts-${k}`, `${alerts.length} alert${alerts.length === 1 ? "" : "s"}`] as [string, string]] : []),
+    ...(alertTotal ? [[`alerts-${k}`, `${alertTotal} alert${alertTotal === 1 ? "" : "s"}`] as [string, string]] : []),
     ...(ed.more.length ? [[`more-${k}`, `${ed.more.length} worth a look`] as [string, string]] : []),
     ...(ed.routine_total ? [[`routine-${k}`, `${ed.routine_total} routine`] as [string, string]] : []),
   ];
   return (
     <>
       <p className="mt-3 text-small text-ink-2">
-        {parts.length ? (
+        {quietNote && <span className="block text-ink">{quietNote}</span>}
+        {parts.length > 0 &&
           parts.map(([id, label], i) => (
             <span key={id}>
               {i > 0 ? ", " : ""}
               <JumpLink to={id}>{label}</JumpLink>
             </span>
-          ))
-        ) : (
-          <span>A quiet window</span>
-        )}
-        .
+          ))}
+        {parts.length > 0 && "."}
         <FollowedQuestions variant="inline" />
       </p>
       <StaleNote lastOk={lastOk} />
@@ -198,7 +210,7 @@ function Panel({
 
       <Alerts
         hits={alerts}
-        filed={holdings ? filedAlertsFor([...ed.leads, ...ed.more], prefs, holdings) : []}
+        filed={filedList}
         prefs={prefs}
         id={`alerts-${k}`}
         history={history}
@@ -208,16 +220,23 @@ function Panel({
       />
 
       <section aria-labelledby={`leads-${k}`} className="mt-10 scroll-mt-4">
-        <h2 id={`leads-${k}`} className="section-h text-ink">
-          {lead}
-        </h2>
+        {/* a quiet window says so once, in the line below, not also as a heading */}
+        {ed.leads.length > 0 ? (
+          <h2 id={`leads-${k}`} className="section-h text-ink">
+            {lead}
+          </h2>
+        ) : (
+          <span id={`leads-${k}`} />
+        )}
         {ed.leads.length === 0 ? (
           <p className="py-4 text-body text-ink-2">
             {ed.more.length
               ? `Quiet window. ${ed.more.length} update${ed.more.length === 1 ? "" : "s"} worth a look below.`
               : alerts.length
                 ? "Quiet window. Only the price and volume alerts above."
-                : `Quiet window. ${ed.routine_total} routine filing${ed.routine_total === 1 ? "" : "s"}, nothing material.`}
+                : ed.routine_total
+                  ? `Nothing material here; ${ed.routine_total} routine filing${ed.routine_total === 1 ? "" : "s"}.`
+                  : "Nothing filed in this window."}
             {wider && (
               <>
                 {" "}
@@ -324,7 +343,8 @@ function Alerts({
   const filedShown = todayFiled.slice(0, 3 - priceShown.length); // the filed rows take the room the price rows leave
   const priceRest = hits.filter((h) => !priceShown.includes(h));
   const filedRest = filed.filter((c) => !filedShown.includes(c));
-  const count = closeHits.length + todayFiled.length;
+  // the window's count, the same number as the summary line; "at the close" detail is in the caption
+  const count = hits.length + filed.length;
   const priceRow = ({ card, rules }: Alert) => {
     const f = card.facts as { change_pct?: number; volume_multiple?: number };
     const priceFired = rules.some((r) => r.endsWith("%"));
@@ -380,7 +400,7 @@ function Alerts({
       <div className="flex items-center justify-between gap-3 px-4 pb-2 pt-3">
         <h2 id={id} className="flex items-center gap-2">
           <span className="kicker text-ink">Alerts</span>
-          <span className="count" aria-label={`${count} at the latest close`}>{count}</span>
+          <span className="count" aria-label={`${count} in this window`}>{count}</span>
         </h2>
         <Link href="/settings" className="tap shrink-0 text-caption text-accent">
           Your rules ›

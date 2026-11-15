@@ -20,7 +20,7 @@
   --s-partly: #8f5400;       /* 5.6:1, so it can be a word too */
   --s-missed: #b42318;
   --s-silent: #6b675c;
-  --s-revised: #2448a5;
+  --s-revised: #57544b;   /* a status, not a link: never the accent */
   --s-early: #6b675c;
   --sheet-shadow: 0 -8px 32px rgb(22 21 15 / 0.12);
   /* chart furniture: gridlines, averages, axis text, comparison bars (design review K4) */
@@ -44,7 +44,7 @@
     --s-partly: #e3a03a;
     --s-missed: #f0716a;
     --s-silent: #8f8b82;
-    --s-revised: #8aa6f0;
+    --s-revised: #a8a49a;
     --s-early: #8f8b82;
     --sheet-shadow: 0 -8px 32px rgb(0 0 0 / 0.5);
   
@@ -66,7 +66,7 @@
     --s-partly: #e3a03a;
     --s-missed: #f0716a;
     --s-silent: #8f8b82;
-    --s-revised: #8aa6f0;
+    --s-revised: #a8a49a;
     --s-early: #8f8b82;
     --sheet-shadow: 0 -8px 32px rgb(0 0 0 / 0.5);
   
@@ -78,16 +78,16 @@
 
 /* Colour-blind-friendly directions (Settings → Display): blue up, orange down. The sign stays either way. */
 :root[data-cb="1"] {
-  --up: #2448a5;
+  --up: #0e7490;
   --down: #b45309;
-  --s-delivered: #2448a5;
+  --s-delivered: #0e7490;
   --s-missed: #b45309;
 }
 @media (prefers-color-scheme: dark) {
   :root[data-cb="1"]:not([data-theme="light"]) {
-    --up: #8aa6f0;
+    --up: #4cc3d9;
     --down: #f59e4b;
-    --s-delivered: #8aa6f0;
+    --s-delivered: #4cc3d9;
     --s-missed: #f59e4b;
   }
 }
@@ -556,9 +556,9 @@ details[open]::details-content {
 
 /* explicit dark + colour-blind */
 :root[data-theme="dark"][data-cb="1"] {
-  --up: #8aa6f0;
+  --up: #4cc3d9;
   --down: #f59e4b;
-  --s-delivered: #8aa6f0;
+  --s-delivered: #4cc3d9;
   --s-missed: #f59e4b;
 }
 
