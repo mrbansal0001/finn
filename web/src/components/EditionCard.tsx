@@ -225,7 +225,8 @@ function PromiseLine({ symbol, row }: { symbol: string; row: PromiseRow }) {
 
 /** The first sentence of a "why" (the rest restates what a chart already shows). */
 export function firstSentence(s: string): string {
-  const m = s.match(/^.*?[.!?](?=\s+[A-Z₹"“]|$)/);
+  // an abbreviation ("approx.", "Rs.", "Ltd.") is not the end of a sentence (frontend review 4)
+  const m = s.match(/^.*?(?<!\b(?:approx|Rs|Ltd|Pvt|Co|No|Nos|Inc|Mr|Ms|Mrs|Dr|viz|vs|i\.e|e\.g))[.!?](?=\s+[A-Z₹"“]|$)/);
   return m ? m[0] : s;
 }
 

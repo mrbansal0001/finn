@@ -327,11 +327,19 @@ def _best(lines: list[dict], k: int = 3) -> list[dict]:
     return sorted(best.values(), key=lambda x: (0 if x.get("fit") else 1, -x["_score"]))[:k]
 
 
+PERSON_KINDS = {"results", "move", "management_change", "m_and_a", "litigation", "capex", "fund_raise", "credit_rating"}
+
+
 def annotate(cards: list[dict], today: date, contacts: list[Contact] | None = None, edges: list[dict] | None = None) -> None:
     """Attach the best network line(s) to each Edition card, in place."""
     if contacts is None:
         contacts, edges = load()
     for card in cards:
+        # a person is suggested where context helps: material events, results and price moves, not every press
+        # release or call notice (frontend review 4: "a person on every item makes the network look like noise")
+        if card["kind"] not in PERSON_KINDS:
+            card["network"] = []
+            continue
         if card["kind"] == "management_change":
             # the exchange's category ("Change in Directors/KMP/SMP/Auditor/RTA") lists every possible kind of change,
             # so it can't say which happened: match on what was read (the people's roles, a read headline) only

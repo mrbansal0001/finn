@@ -30,14 +30,17 @@ def test_reset_due_dates_are_revisions_not_reiterations():
     assert "by 2026-06 → by 2026-09" in s["Q1FY27"]["note"]
 
 
-def test_floor_softening_to_approximate_is_caught():
+def test_floor_softening_to_approximate_is_shown_as_a_restatement():
+    """Same figure, softer bound: visible in the note, but not a revision (frontend review 15 Nov reverses the
+    earlier choice: '>₹1,200 cr -> ~₹1,200 cr' revisions buried the real changes)."""
     ths = thread([], [m("EBITDA margin", "floor", 28, period="FY27")],
                  [m("EBITDA margin", "floor", 28, period="FY27")],
                  [m("EBITDA margin", "approximate", 28, period="FY27")])
     s = pull.statuses(ths[0], ORDER, [])
     assert s["Q3FY26"]["status"] is None
     assert s["Q1FY27"]["status"] == "early"
-    assert s["Q2FY27"]["status"] == "revised" and ">28% → ~28%" in s["Q2FY27"]["note"]
+    assert s["Q2FY27"]["status"] == "early"
+    assert "~28%" in s["Q2FY27"]["note"] and ">28%" in s["Q2FY27"]["note"] and "softer wording" in s["Q2FY27"]["note"]
 
 
 def test_silence_is_a_signal_only_after_repetition():

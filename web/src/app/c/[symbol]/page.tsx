@@ -410,9 +410,8 @@ function Questions({ symbol, snap, ledger }: { symbol: string; snap: Snapshot; l
     if (quiet) out.push({ tag: quiet.latest === "silent" ? "Went quiet" : "Settled", q: fromPromise(quiet, ledger, snap).question, href: promiseHref(symbol, quiet) });
     const tracked = ledger.rows.find((r) => r.tracking);
     if (tracked) out.push({ tag: "On course?", q: fromPromise(tracked, ledger, snap).question, href: promiseHref(symbol, tracked) });
-  } else {
-    out.push({ tag: "Gap", q: "No promises ledger yet. Build one from the last four earnings calls", href: "#promises" });
   }
+  // no ledger: the "Not covered yet" block below says so once, with the build button (frontend review 8)
   if (!out.length) return null;
   return (
     <section className="mt-12" aria-labelledby="questions-h">

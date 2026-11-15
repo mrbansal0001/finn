@@ -29,6 +29,7 @@ export function PeopleView({ people, groups, gaps }: { people: Person[]; groups:
   const [view, setView] = useState<View>("holding");
   // themes as an index: pick one, see its people (UX review P1-4: every theme expanded made a 12,867px page)
   const [theme, setTheme] = useState<string | null>(null);
+  const [allThemes, setAllThemes] = useState(false);
   const [insiders, setInsiders] = useState(false);
   const [introducers, setIntroducers] = useState(false);
   const byId = new Map(people.map((p) => [p.id, p]));
@@ -119,13 +120,19 @@ export function PeopleView({ people, groups, gaps }: { people: Person[]; groups:
           <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label="Themes">
             {themeList.map(([t, ps]) => {
               const n = ps.filter((p) => keep(p)).length;
-              if (!n) return null;
+              // themes shared by two or more people first; one-person themes wait behind "More themes" (frontend review 7)
+              if (!n || (n < 2 && !allThemes && theme !== t)) return null;
               return (
                 <button key={t} type="button" aria-pressed={theme === t} onClick={() => setTheme(theme === t ? null : t)} className="pill !min-h-[2.25rem] text-caption">
                   {t.charAt(0).toUpperCase() + t.slice(1)} <span className="num text-ink-3">{n}</span>
                 </button>
               );
             })}
+            {!allThemes && themeList.some(([, ps]) => ps.filter((p) => keep(p)).length === 1) && (
+              <button type="button" onClick={() => setAllThemes(true)} className="tap min-h-[2.25rem] px-2 text-caption text-accent">
+                More themes ({themeList.filter(([, ps]) => ps.filter((p) => keep(p)).length === 1).length}) ›
+              </button>
+            )}
           </div>
           {theme &&
             (() => {

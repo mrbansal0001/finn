@@ -90,6 +90,8 @@ def scrub_event(ev: dict) -> dict:
     return ev
 
 
+AWARDS = re.compile(r"\b(awards?|prizes?|wins? the|recogni[sz]ed|recognition|certification|great place to work|felicitat\w*|"
+                    r"csr|scholarships?|honou?red|ranked among)\b", re.I)
 LOW_SIGNAL_PEOPLE = re.compile(r"re-?appoint|tenure completion|change in auditors|company secretary|compliance officer", re.I)
 
 ROUTINE_GROUPS = [
@@ -268,6 +270,8 @@ def build(filings: list[dict], moves: list[dict], weights: dict[str, float], nam
             only_results = all(e.get("kind") in ("results", "routine") for e in read) and any(e.get("kind") == "results" for e in read)
             fold("Results decks & letters" if only_results else "Other housekeeping", lead)
             continue
+        if cat in ("unclassified", "press_release") and headline and AWARDS.search(headline):
+            tier = "routine"                       # an award or CSR note is not material (frontend review 4, 15 Nov)
         if cat == "management_change" and not facts.get("people"):
             # an XBRL-only change filing: read who changed, how and when, from the filed fields (full review F07)
             cim = _cim_people(fs)

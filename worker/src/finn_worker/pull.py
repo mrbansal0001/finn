@@ -750,8 +750,10 @@ def statuses(thread: Thread, call_order: list[str], actuals: list[dict]) -> dict
             due_of = lambda x: str(x.get("due") or "")[:7] or None
             # '2.5x' then '<2.5x' is the same figure said differently; a repeated June date is not a revision (E30)
             # a bound that weakens is a revision (">28%" -> "~28%", BEL); "2.5x" -> "<2.5x" is not (Adani Ports)
+            # the same figure with a softer bound (">₹1,200 cr" then "~₹1,200 cr") is a restatement, shown as such, not a
+            # revision: it led BEL's attention list and hid real changes (frontend review 5, 15 Nov)
             weakened = prev.get("kind") in ("floor", "ceiling") and it.get("kind") in ("approximate", "point", "directional")
-            changed = had_value and (nums_of(it) != nums_of(prev) or due_of(it) != due_of(prev) or weakened) or period_moved
+            changed = had_value and (nums_of(it) != nums_of(prev) or due_of(it) != due_of(prev)) or period_moved
             if changed:
                 was = f"{_describe(prev)}{' (' + p_old + ')' if period_moved else ''}"
                 now = f"{_describe(it)}{' (' + p_new + ')' if period_moved else ''}"
@@ -763,6 +765,8 @@ def statuses(thread: Thread, call_order: list[str], actuals: list[dict]) -> dict
                 out[call] = cell
             elif not had_value and (_bounds(it) != (None, None) or it.get("due")):
                 out[call] = {"status": "early", "note": f"quantified: {_describe(it)}"}   # a figure later, not a revision
+            elif weakened:
+                out[call] = {"status": "early", "note": f"restated as {_describe(it)} (was {_describe(prev)}: same figure, softer wording)"}
             else:
                 out[call] = {"status": "early", "note": f"reiterated: {_describe(it)}"}
         else:
