@@ -5,6 +5,7 @@ import { PersonSkeleton } from "@/components/Skeletons";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { findCard, getView } from "@/lib/data";
+import { DocTitle } from "@/components/DocTitle";
 import type { Contact } from "@/lib/types";
 import { NoteDraft } from "@/components/NoteDraft";
 import { monthYear } from "@/lib/format";
@@ -62,9 +63,11 @@ async function Person({ params, searchParams }: { params: PageProps<"/people/[id
         <span className="kicker text-ink-3">Your network</span>
         <span className="tag">Private to you</span>
       </div>
+      <DocTitle title={`${c.name} – FINN`} />
       <h1 className="mt-1 font-serif text-display">{c.name}</h1>
       <p className="mt-1 text-body text-ink-2">
-        {c.current.role} at {c.current.org}, {c.city}
+        {/* "Independent" is not an employer: "Retail consultant, independent", not "at Independent" (frontend review) */}
+        {/^(independent|self[- ]employed|freelance)$/i.test(c.current.org) ? `${c.current.role}, ${c.current.org.toLowerCase()}` : `${c.current.role} at ${c.current.org}`}, {c.city}
       </p>
       <p className="mt-2 text-small text-ink-3">
         How you know them: {c.how_met}

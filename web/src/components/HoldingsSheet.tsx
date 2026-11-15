@@ -194,7 +194,7 @@ function Coverage({ holdings, research, qs, close, networkReady }: { holdings: R
   return (
     <div className="mt-3">
       {/* the period lives here once, so the column headers fit on one line (design review 2.4) */}
-      <p className="text-caption text-ink-3">Sort by; updates are the last 7 days, research the latest call</p>
+      <p className="text-caption text-ink-3">Sort by. Updates cover the last 7 days; research, the latest call.</p>
       <div className="seg seg-sm mt-1" role="group" aria-label="Sort by">
         {(
           [

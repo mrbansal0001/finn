@@ -9,6 +9,11 @@ export function SourceChips({ sources }: { sources: Source[] }) {
     seen.add(k);
     return true;
   });
+  // two different documents with the same label ("Filing ↗ Filing ↗") are told apart by number (frontend review 9)
+  const total: Record<string, number> = {};
+  for (const s of unique) total[s.label] = (total[s.label] ?? 0) + 1;
+  const nth: Record<string, number> = {};
+  const named = unique.map((s) => (total[s.label] > 1 ? { ...s, label: `${s.label} ${(nth[s.label] = (nth[s.label] ?? 0) + 1)}` } : s));
   const chip = (s: Source, i: number) => (
     <li key={i}>
       {s.url ? (
@@ -33,13 +38,13 @@ export function SourceChips({ sources }: { sources: Source[] }) {
   return (
     <div className="mt-3">
       <ul className="flex flex-wrap gap-1.5" aria-label="Sources">
-        {unique.slice(0, 4).map(chip)}
+        {named.slice(0, 4).map(chip)}
       </ul>
       {unique.length > 4 && (
         // every source stays reachable, not just counted (audit F03)
         <details className="mt-1.5">
           <summary className="inline-flex min-h-[44px] items-center text-caption text-accent">All {unique.length} sources</summary>
-          <ul className="mt-1 flex flex-wrap gap-1.5">{unique.slice(4).map((s, i) => chip(s, i + 4))}</ul>
+          <ul className="mt-1 flex flex-wrap gap-1.5">{named.slice(4).map((s, i) => chip(s, i + 4))}</ul>
         </details>
       )}
     </div>

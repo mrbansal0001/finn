@@ -58,15 +58,11 @@ export function NetworkLine({
           {lens && <span className="tag ml-1.5 align-[1px]">{lens}</span>}
         </span>
       </p>
-      {(meta.length > 0 || (line.insider && !compact) || best) && (
+      {/* the insider note is the tag plus the page's one key line, not a sentence under every person (frontend review 9) */}
+      {(meta.length > 0 || best) && (
         <div className="ml-7 mt-1 space-y-0.5 text-caption text-ink-3">
           {best && <p>Best placed: {best}</p>}
-          {(meta.length > 0 || (line.insider && !compact)) && (
-            <p>
-              {line.insider && !compact ? "Works there now, so public information only. " : ""}
-              {meta.join(" ")}
-            </p>
-          )}
+          {meta.length > 0 && <p>{meta.join(" ")}</p>}
         </div>
       )}
     </div>

@@ -65,7 +65,7 @@ export function AskBox({ symbol, name, examples, initial }: { symbol: string; na
             onChange={(e) => setQ(e.target.value)}
             maxLength={200}
             enterKeyHint="search"
-            placeholder="e.g. what did they say about margins?"
+            placeholder="Ask about margins, orders…"
             className="h-11 w-full rounded-lg border border-rule bg-paper-raised pl-3.5 pr-11 text-body placeholder:text-ink-3 focus:border-accent focus:outline-none"
           />
           <VoiceButton

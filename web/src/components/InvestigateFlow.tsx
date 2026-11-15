@@ -290,7 +290,7 @@ function Note({ person, lens, question, company }: { person: FlowPerson; lens: L
   const via = person.line.via ? person.line.via.split(" ")[0] : null;
   const draft = via
     ? `Hi ${via}, I'm looking into ${co} and would value an introduction to ${first}, given ${person.basis.split(",")[0].toLowerCase()} experience. The question I'm working on: ${question}\n\nWould you be comfortable connecting us?`
-    : `Hi ${first}, I'm looking into ${co}. The question I'm working on: ${question}\n\nFrom your time as ${person.basis}, I'd value your read on:\n${qs.map((q, i) => `${i + 1}. ${q}`).join("\n")}\n\nCould we speak for 15 minutes this week?`;
+    : `Hi ${first}, I'm looking into ${co}. The question I'm working on: ${question}\n\n${person.line.insider ? "From your role as" : "From your time as"} ${person.basis}, I'd value your read on:\n${qs.map((q, i) => `${i + 1}. ${q}`).join("\n")}\n\nCould we speak for 15 minutes this week?`;
   const [open, setOpen] = useState(false);
   const [text, setText] = useState(draft);
   const [copied, setCopied] = useState<"" | "ok" | "failed">("");
@@ -433,9 +433,13 @@ function Follow({
               setResolveIn(null);
             }
           }}
-          className="min-h-12 rounded-lg bg-ink px-5 text-small font-medium text-paper disabled:opacity-60"
+          className={
+            saved && !dirty
+              ? "inline-flex min-h-12 items-center gap-1.5 rounded-lg border border-accent px-5 text-small font-medium text-accent"
+              : "min-h-12 rounded-lg bg-ink px-5 text-small font-medium text-paper disabled:opacity-60"
+          }
         >
-          {!saved ? "Follow this question" : dirty ? "Save changes" : "Following"}
+          {!saved ? "Follow this question" : dirty ? "Save changes" : <><span aria-hidden>✓</span> Following</>}
         </button>
         {saved && (
           <>
